@@ -14,16 +14,16 @@ Play the same sound on several Bluetooth headphones, speakers and other computer
 ## Quick start
 
 1. Pair every headphone in **Settings → Bluetooth & devices** (the **Bluetooth settings…** button opens it). Turn them all on, then click **Refresh devices**.
-2. Double-click **`soundmesh.exe`**:
+2. Double-click **`soundmesh.exe`**. With **Auto-pick headphones** on (the default), it ticks every headphone it finds and starts playing right away. Headphones you switch on later join automatically.
 
 ![SoundMesh window](docs/screenshot.png)
 *(Screenshot from the Wine test run with virtual devices. On your PC the list shows your real headphones.)*
 
 3. Set **Source** to *What this PC plays* (usual choice), a specific device, a microphone, or *Another PC on the network*.
-4. **Tick** every headphone or speaker that should get the sound, then press **Start**.
+4. Tick or untick any device, even while playing; changes apply immediately. Auto mode won't re-tick a headphone you unticked until it reconnects.
 5. **Click a device** to adjust its **delay** (line up lip sync between headphones) and **volume**. Both change live while playing.
 
-Everything Windows plays (YouTube, Spotify, games) now also plays on every ticked device. The Status column shows each one's state and buffer.
+Everything Windows plays (YouTube, Spotify, games) now also plays on every ticked device. Headphones are recognised by what Windows reports about the device (Bluetooth music mode, or a Headphones/Headset type), with the device name as a fallback. If Windows switches the default output to newly connected headphones, SoundMesh captures the new default instead. That headphone then plays the sound directly (shown as *plays directly*). The Status column shows each one's state and buffer.
 
 - **Send to LAN:** type IP addresses (or `multicast`) to also stream to other PCs/phones on your home network. **Network help…** explains the router settings.
 - **Smooth mode:** if a device crackles, stop, tick this and start again. It adds ~70 ms of buffering per device.
@@ -36,6 +36,7 @@ Everything Windows plays (YouTube, Spotify, games) now also plays on every ticke
 
 ```
 soundmesh-cli list                                 show devices and their numbers
+soundmesh --to auto                                every headphone, now and when switched on later (default)
 soundmesh --to "WH-1000,AirPods"                   default device -> 2 headphones (match by name)
 soundmesh --to 2,3 --delay 3=80 --vol 2=90         by number, with lip-sync delay and volume
 soundmesh --from loop:1 --to 2,3                   capture a specific playback device

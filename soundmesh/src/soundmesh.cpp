@@ -30,7 +30,7 @@
 #include <string>
 #include <vector>
 
-#define SM_VERSION "1.1.0"
+#define SM_VERSION "1.2.0"
 
 // ---------------------------------------------------------------- GUIDs ----
 // Defined locally so the build does not depend on which uuid libs the
@@ -43,6 +43,8 @@ static const IID kIID_IAudioCaptureClient = {0xC8ADBD64, 0xE71E, 0x48A0, {0xA4, 
 static const GUID kSubtypeFloat = {0x00000003, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71}};
 static const GUID kSubtypePcm = {0x00000001, 0x0000, 0x0010, {0x80, 0x00, 0x00, 0xAA, 0x00, 0x38, 0x9B, 0x71}};
 static const PROPERTYKEY kPKEY_FriendlyName = {{0xA45C254E, 0xDF1C, 0x4EFD, {0x80, 0x20, 0x67, 0xD1, 0x46, 0xA8, 0x50, 0xE0}}, 14};
+static const PROPERTYKEY kPKEY_EnumeratorName = {{0xA45C254E, 0xDF1C, 0x4EFD, {0x80, 0x20, 0x67, 0xD1, 0x46, 0xA8, 0x50, 0xE0}}, 24};
+static const PROPERTYKEY kPKEY_FormFactor = {{0x1DA5D803, 0xD492, 0x4EDD, {0x8C, 0x23, 0xE0, 0xC0, 0xFF, 0xEE, 0x7F, 0x0E}}, 0};
 
 template <class T> static void SafeRelease(T*& p) { if (p) { p->Release(); p = nullptr; } }
 
@@ -101,6 +103,8 @@ struct DevInfo {
     std::wstring id;
     std::string name;
     bool isDefault = false;
+    std::string bus;      // "BTHENUM" (Bluetooth), "BTHHFENUM" (Bluetooth call mode), "USB", "HDAUDIO", ...
+    int formFactor = -1;  // EndpointFormFactor: 1 speakers, 3 headphones, 5 headset, ...
 };
 
 static IMMDeviceEnumerator* NewEnumerator() {
@@ -136,6 +140,10 @@ static std::vector<DevInfo> ListDevices(EDataFlow flow) {
                 PropVariantInit(&v);
                 if (SUCCEEDED(ps->GetValue(kPKEY_FriendlyName, &v)) && v.vt == VT_LPWSTR) info.name = Utf8(v.pwszVal);
                 PropVariantClear(&v);
+                if (SUCCEEDED(ps->GetValue(kPKEY_EnumeratorName, &v)) && v.vt == VT_LPWSTR) info.bus = Utf8(v.pwszVal);
+                PropVariantClear(&v);
+                if (SUCCEEDED(ps->GetValue(kPKEY_FormFactor, &v)) && v.vt == VT_UI4) info.formFactor = (int)v.ulVal;
+                PropVariantClear(&v);
                 SafeRelease(ps);
             }
             info.isDefault = (info.id == defId);
@@ -148,9 +156,38 @@ static std::vector<DevInfo> ListDevices(EDataFlow flow) {
     return out;
 }
 
-static bool IsHandsFree(const std::string& name) {
-    std::string l = Lower(name);
-    return l.find("hands-free") != std::string::npos || l.find("handsfree") != std::string::npos;
+static bool IsHandsFree(const DevInfo& d) {
+    std::string l = Lower(d.name), bus = Lower(d.bus);
+    return l.find("hands-free") != std::string::npos || l.find("handsfree") != std::string::npos ||
+           bus.find("bthhf") != std::string::npos;
+}
+
+static bool IsBluetooth(const DevInfo& d) { return Lower(d.bus).find("bth") != std::string::npos; }
+
+// What "auto" picks: Bluetooth headphones/speakers in music (A2DP) mode, and
+// anything Windows itself reports as headphones or a headset (USB, jack).
+static bool IsAutoHeadphone(const DevInfo& d) {
+    if (IsHandsFree(d)) return false;
+    if (IsBluetooth(d) || d.formFactor == 3 || d.formFactor == 5) return true;
+    // Fallback when a driver leaves the properties empty: Windows names these
+    // endpoints "Headphones (...)" / "Headset (...)".
+    std::string l = Lower(d.name);
+    for (const char* k : {"headphone", "headset", "earphone", "earbud", "airpods", "buds"})
+        if (l.find(k) != std::string::npos) return true;
+    return false;
+}
+
+static std::wstring DefaultRenderId() {
+    std::wstring id;
+    IMMDeviceEnumerator* en = NewEnumerator();
+    IMMDevice* d = nullptr;
+    if (en && SUCCEEDED(en->GetDefaultAudioEndpoint(eRender, eConsole, &d))) {
+        LPWSTR s = nullptr;
+        if (SUCCEEDED(d->GetId(&s))) { id = s; CoTaskMemFree(s); }
+    }
+    SafeRelease(d);
+    SafeRelease(en);
+    return id;
 }
 
 static IAudioClient* ActivateClient(const std::wstring& id) {
@@ -233,8 +270,8 @@ struct Ring {
 };
 
 // ------------------------------------------------------------ outputs ------
-enum OutState { OS_CONNECTING, OS_BUFFERING, OS_PLAYING, OS_LOST };
-static const char* kStateName[] = {"connecting", "buffering", "playing", "reconnecting"};
+enum OutState { OS_CONNECTING, OS_BUFFERING, OS_PLAYING, OS_LOST, OS_OFF, OS_DIRECT };
+static const char* kStateName[] = {"connecting", "buffering", "playing", "reconnecting", "off", "plays directly"};
 
 struct Output {
     int listIdx = 0;  // number shown by `list`
@@ -245,10 +282,26 @@ struct Output {
     std::atomic<int> state{OS_CONNECTING};
     std::atomic<int> fillMs{0};
     std::atomic<uint32_t> underruns{0};
+    std::atomic<bool> enabled{true};   // unticked while running -> device released
+    std::atomic<bool> isSource{false}; // it is the device being captured: playing to it would echo
     HANDLE thread = nullptr;
 };
 
-static std::vector<Output*> g_outputs;
+// Fixed slots so outputs can be added while the capture thread iterates
+// them: a slot is filled before the count is published, and never moves.
+static const int kMaxOutputs = 32;
+static Output* g_outs[kMaxOutputs];
+static std::atomic<int> g_nOuts{0};
+static CRITICAL_SECTION g_outLock;  // serialises adding vs. starting output threads
+static bool g_outputsLive = false;  // output threads are running (sample rate known)
+
+struct OutRange {
+    Output** b;
+    Output** e;
+    Output** begin() const { return b; }
+    Output** end() const { return e; }
+};
+static OutRange Outputs() { return OutRange{g_outs, g_outs + g_nOuts.load(std::memory_order_acquire)}; }
 
 static DWORD WINAPI OutputThread(LPVOID arg) {
     Output* o = (Output*)arg;
@@ -259,6 +312,11 @@ static DWORD WINAPI OutputThread(LPVOID arg) {
     bool announced = false;
 
     while (g_running) {
+        if (!o->enabled || o->isSource) {
+            o->state = o->enabled ? OS_DIRECT : OS_OFF;
+            Sleep(100);
+            continue;
+        }
         const uint32_t rate = g_rate;
         IAudioClient* ac = ActivateClient(o->dev.id);
         IAudioRenderClient* rc = nullptr;
@@ -314,10 +372,15 @@ static DWORD WINAPI OutputThread(LPVOID arg) {
         double frac = 0.0, ema = 0.0;
         const int kRamp = 256;  // ~5 ms fade-in after every start/jump: no pops
         int ramp = 0;
+        // Devices start with a burst of their own latency; for the first 3 s
+        // snap to the target instead of drifting there slowly, so outputs
+        // that joined at different moments still line up.
+        int64_t settle = 3 * (int64_t)rate;
+        int64_t highFor = 0;  // frames the buffer has stayed well above target
         uint64_t R = o->ring.r.load(std::memory_order_relaxed);
         const float* rb = o->ring.buf;
 
-        while (g_running) {
+        while (g_running && o->enabled && !o->isSource) {
             if (useEvent) WaitForSingleObject(ev, 50);
             else Sleep(5);
             UINT32 pad = 0;
@@ -331,11 +394,12 @@ static DWORD WINAPI OutputThread(LPVOID arg) {
             const uint64_t W = o->ring.w.load(std::memory_order_acquire);
             const int64_t fill = (int64_t)(W - R);
             const int64_t target = std::max<int64_t>(64, (int64_t)(g_baseLatencyMs + o->delayMs) * rate / 1000);
-            const int64_t slack = rate / 4;  // 250 ms
+            const int64_t slack = rate / 4;                          // 250 ms
+            const int64_t over = settle > 0 ? rate / 50 : slack;     // 20 ms while settling
             o->fillMs = (int)(fill * 1000 / rate);
             uint32_t i = 0;
 
-            if (o->state == OS_PLAYING && (fill > target + slack || fill < target - slack)) {
+            if (o->state == OS_PLAYING && (fill > target + over || fill < target - slack)) {
                 // Delay was changed or something hiccuped: jump straight to target.
                 if (fill > target) R = W - target;
                 else o->state = OS_BUFFERING;
@@ -354,6 +418,17 @@ static DWORD WINAPI OutputThread(LPVOID arg) {
                 // Gentle clock-drift correction: speed up / slow down by at most
                 // 0.4% (inaudible) to keep the buffer at its target level.
                 ema = ema * 0.97 + (double)(W - R) * 0.03;
+                // A device stall (e.g. a Bluetooth hiccup) leaves this output
+                // behind the others; if it stays >40 ms behind for a second,
+                // catch up at once rather than over ~25 s of drift correction.
+                highFor = ema - target > rate / 25 ? highFor + avail : 0;
+                if (highFor > rate) {
+                    R = W - target;
+                    ema = (double)target;
+                    frac = 0.0;
+                    ramp = kRamp;
+                    highFor = 0;
+                }
                 double err = (ema - (double)target) / rate;
                 double step = 1.0 + std::max(-0.004, std::min(0.004, err * 0.3));
                 const float vol = o->volPct * 0.01f;
@@ -373,6 +448,7 @@ static DWORD WINAPI OutputThread(LPVOID arg) {
                 }
                 o->ring.r.store(R, std::memory_order_release);
             }
+            if (o->state == OS_PLAYING && settle > 0) settle -= avail;
             for (; i < avail; i++) out[2 * i] = out[2 * i + 1] = 0.0f;
             if (FAILED(rc->ReleaseBuffer(avail, 0))) break;
         }
@@ -380,7 +456,7 @@ static DWORD WINAPI OutputThread(LPVOID arg) {
         ac->Stop();
         SafeRelease(rc);
         SafeRelease(ac);
-        if (g_running) {
+        if (g_running && o->enabled && !o->isSource) {
             Log("  [%d] %s: disconnected, waiting for it to come back...\n", o->listIdx, o->dev.name.c_str());
             o->state = OS_LOST;
             announced = true;
@@ -447,13 +523,20 @@ struct SourceCfg {
     DevInfo dev;
     int listIdx = 0;
     int port = 4010;
-    std::string iface;  // local IPv4 for multicast, empty = system default
+    std::string iface;          // local IPv4 for multicast, empty = system default
+    bool followDefault = false; // loopback of "whatever Windows' default device is"
 };
 static SourceCfg g_src;
 static std::atomic<uint64_t> g_srcFrames{0};
+static std::atomic<bool> g_needRestart{false};  // source rate changed; GUI restarts the engine
+
+// Pause the output that is the captured device (it already plays the sound).
+static void MarkSourceOutputs() {
+    for (auto* o : Outputs()) o->isSource = (g_src.kind == SRC_LOOPBACK && o->dev.id == g_src.dev.id);
+}
 
 static void Distribute(const float* st, uint32_t frames) {
-    for (auto* o : g_outputs) o->ring.Push(st, frames);
+    for (auto* o : Outputs()) o->ring.Push(st, frames);
     if (g_net) NetSend(g_net, st, frames);
     g_srcFrames += frames;
 }
@@ -467,6 +550,21 @@ static DWORD WINAPI CaptureThread(LPVOID) {
     bool announced = false;
 
     while (g_running) {
+        if (g_src.followDefault) {
+            // Windows often makes freshly connected headphones the default:
+            // keep capturing whatever the default is.
+            std::wstring def = DefaultRenderId();
+            if (!def.empty() && def != g_src.dev.id) {
+                for (auto& d : ListDevices(eRender))
+                    if (d.id == def) {
+                        EnterCriticalSection(&g_outLock);
+                        g_src.dev = d;
+                        LeaveCriticalSection(&g_outLock);
+                        Log("  Windows default output is now '%s' - capturing it (it plays directly).\n", d.name.c_str());
+                    }
+                MarkSourceOutputs();
+            }
+        }
         IAudioClient* ac = ActivateClient(g_src.dev.id);
         IAudioCaptureClient* cc = nullptr;
         WAVEFORMATEX* mix = nullptr;
@@ -478,8 +576,18 @@ static DWORD WINAPI CaptureThread(LPVOID) {
             if (SUCCEEDED(hr)) hr = ac->GetService(kIID_IAudioCaptureClient, (void**)&cc);
             if (SUCCEEDED(hr)) hr = ac->SetEventHandle(ev);
             if (SUCCEEDED(hr)) hr = ac->Start();
-            if (SUCCEEDED(hr) && f.rate != g_rate)
-                Log("! source sample rate changed to %u Hz; restart SoundMesh to match it.\n", f.rate);
+            if (SUCCEEDED(hr) && f.rate != g_rate) {
+                // Outputs were opened at the old rate; feeding them this would
+                // play at the wrong pitch. The GUI restarts; the CLI asks to.
+                Log("  source now runs at %u Hz (was %u) - restarting...\n", f.rate, g_rate.load());
+                g_needRestart = true;
+                ac->Stop();
+                SafeRelease(cc);
+                SafeRelease(ac);
+                if (mix) CoTaskMemFree(mix);
+                while (g_running) Sleep(50);
+                break;
+            }
         }
         if (mix) CoTaskMemFree(mix);
         if (FAILED(hr)) {
@@ -493,10 +601,12 @@ static DWORD WINAPI CaptureThread(LPVOID) {
         if (announced) Log("  source back: %s\n", g_src.dev.name.c_str());
         announced = false;
 
+        int tick = 0;
         while (g_running) {
             // Loopback only signals while something is playing; the timeout
             // keeps us polling either way.
             WaitForSingleObject(ev, 10);
+            if (g_src.followDefault && ++tick % 100 == 0 && DefaultRenderId() != g_src.dev.id) break;  // ~1 s
             UINT32 n = 0;
             bool lost = false;
             while (SUCCEEDED(hr = cc->GetNextPacketSize(&n)) && n) {
@@ -516,7 +626,7 @@ static DWORD WINAPI CaptureThread(LPVOID) {
         ac->Stop();
         SafeRelease(cc);
         SafeRelease(ac);
-        if (g_running) {
+        if (g_running && FAILED(hr)) {
             Log("! source lost (0x%08lx), reconnecting...\n", (unsigned long)hr);
             announced = true;
             Sleep(500);
@@ -594,8 +704,9 @@ static DWORD WINAPI NetReceiveThread(LPVOID) {
 [[maybe_unused]] static void PrintDevices(const std::vector<DevInfo>& play, const std::vector<DevInfo>& rec) {
     Log("\nPlayback devices (outputs, and loopback sources):\n");
     for (size_t i = 0; i < play.size(); i++)
-        Log("  [%zu] %s%s%s\n", i + 1, play[i].name.c_str(), play[i].isDefault ? "   <- Windows default" : "",
-            IsHandsFree(play[i].name) ? "   (Bluetooth call mode: low quality, avoid)" : "");
+        Log("  [%zu] %s%s%s%s\n", i + 1, play[i].name.c_str(), play[i].isDefault ? "   <- Windows default" : "",
+            IsHandsFree(play[i]) ? "   (Bluetooth call mode: low quality, avoid)" : "",
+            IsAutoHeadphone(play[i]) ? (IsBluetooth(play[i]) ? "   [headphones, Bluetooth]" : "   [headphones]") : "");
     Log("\nRecording devices (mic sources):\n");
     for (size_t i = 0; i < rec.size(); i++)
         Log("  [m%zu] %s%s\n", i + 1, rec[i].name.c_str(), rec[i].isDefault ? "   <- Windows default" : "");
@@ -613,7 +724,7 @@ static int Resolve(const std::string& tok, const std::vector<DevInfo>& devs) {
     int hit = 0;
     for (size_t i = 0; i < devs.size(); i++) {
         if (Lower(devs[i].name).find(t) == std::string::npos) continue;
-        if (!IsHandsFree(devs[i].name)) return (int)i + 1;  // prefer the stereo (A2DP) endpoint
+        if (!IsHandsFree(devs[i])) return (int)i + 1;  // prefer the stereo (A2DP) endpoint
         if (!hit) hit = (int)i + 1;
     }
     return hit;
@@ -655,6 +766,7 @@ static std::vector<std::string> Split(const std::string& s, char sep) {
         "  --from loop:N      capture what playback device N plays\n"
         "  --from mic:N       capture recording device N (number from `list`, without the m)\n"
         "  --from net         receive a SoundMesh/Scream stream from the LAN\n"
+        "  --to auto          every headphone found, now and when switched on later (default)\n"
         "  --to A,B,...       outputs: device numbers or name parts, e.g. --to 2,3 or --to \"WH-1000,AirPods\"\n"
         "  --net multicast    also send to the LAN as multicast 239.255.77.77\n"
         "  --net IP,IP,...    also send to these LAN computers/phones (unicast, best on Wi-Fi)\n"
@@ -675,11 +787,12 @@ static std::vector<std::string> Split(const std::string& s, char sep) {
 
 struct Options {
     std::string from = "loop";
-    std::string to;
+    std::string to = "auto";
     std::string net;
     std::string delays, vols;
     int latency = -1;
     int deviceBuffer = 30;
+    bool waitForDevices = false;  // start even with no outputs yet (auto mode)
 };
 
 static void ApplyKV(const std::string& spec, bool isDelay) {
@@ -687,7 +800,7 @@ static void ApplyKV(const std::string& spec, bool isDelay) {
         auto p = Split(kv, '=');
         if (p.size() != 2) continue;
         int idx = atoi(p[0].c_str()), val = atoi(p[1].c_str());
-        for (auto* o : g_outputs)
+        for (auto* o : Outputs())
             if (o->listIdx == idx) (isDelay ? o->delayMs : o->volPct) = std::max(0, std::min(isDelay ? 2000 : 400, val));
     }
 }
@@ -696,7 +809,7 @@ static void ApplyKV(const std::string& spec, bool isDelay) {
     uint32_t rate = g_rate;
     const char* kind = g_src.kind == SRC_NET ? "LAN stream" : (g_src.kind == SRC_MIC ? "mic" : "loopback");
     Log("source: %s %s | %u Hz | %.1f s received\n", kind, g_src.dev.name.c_str(), rate, (double)g_srcFrames / rate);
-    for (auto* o : g_outputs)
+    for (auto* o : Outputs())
         Log("  [%d] %-40s %-12s buffer %4d ms  delay %4d ms  vol %3d%%  dropouts %u\n", o->listIdx, o->dev.name.c_str(),
             kStateName[o->state], o->fillMs.load(), o->delayMs.load(), o->volPct.load(), o->underruns.load());
     if (g_net) Log("  [net] %zu destination(s), %llu packets sent\n", g_net->dests.size(), (unsigned long long)g_net->packets);
@@ -706,11 +819,12 @@ static void ApplyKV(const std::string& spec, bool isDelay) {
 static HANDLE g_srcThread = nullptr;
 
 static void Cleanup() {
-    for (auto* o : g_outputs) {
+    for (auto* o : Outputs()) {
         if (o->thread) { WaitForSingleObject(o->thread, 3000); CloseHandle(o->thread); }
         delete o;
     }
-    g_outputs.clear();
+    g_nOuts = 0;
+    g_outputsLive = false;
     if (g_net) {
         closesocket(g_net->s);
         delete g_net;
@@ -725,7 +839,33 @@ static void StartOutputs() {
         Log("! %u Hz can't be sent to the LAN (needs a multiple of 44100 or 48000); LAN output disabled.\n", g_rate.load());
         g_net->dests.clear();
     }
-    for (auto* o : g_outputs) o->thread = CreateThread(nullptr, 0, OutputThread, o, 0, nullptr);
+    EnterCriticalSection(&g_outLock);
+    for (auto* o : Outputs())
+        if (!o->thread) o->thread = CreateThread(nullptr, 0, OutputThread, o, 0, nullptr);
+    g_outputsLive = true;
+    LeaveCriticalSection(&g_outLock);
+}
+
+// Add an output, also while running (it starts playing right away). An
+// output that already exists is just re-enabled.
+static Output* AddOutput(const DevInfo& d, int listIdx) {
+    for (auto* o : Outputs())
+        if (o->dev.id == d.id) {
+            o->enabled = true;
+            return o;
+        }
+    int n = g_nOuts.load();
+    if (n >= kMaxOutputs) return nullptr;
+    Output* o = new Output();
+    o->listIdx = listIdx;
+    o->dev = d;
+    o->isSource = (g_src.kind == SRC_LOOPBACK && d.id == g_src.dev.id);
+    EnterCriticalSection(&g_outLock);
+    g_outs[n] = o;
+    g_nOuts.store(n + 1, std::memory_order_release);
+    if (g_outputsLive && g_running) o->thread = CreateThread(nullptr, 0, OutputThread, o, 0, nullptr);
+    LeaveCriticalSection(&g_outLock);
+    return o;
 }
 
 static void Stop() {
@@ -743,6 +883,8 @@ static void Stop() {
 static bool Start(Options opt, const std::vector<DevInfo>& play, const std::vector<DevInfo>& rec) {
     g_lastError.clear();
     g_srcFrames = 0;
+    g_needRestart = false;
+    g_src.followDefault = false;
     g_baseLatencyMs = 60;
     g_src.dev = DevInfo();
 
@@ -761,30 +903,30 @@ static bool Start(Options opt, const std::vector<DevInfo>& play, const std::vect
     } else {
         g_src.kind = SRC_LOOPBACK;
         int i = from.size() > 5 ? Resolve(opt.from.substr(5), play) : 0;
-        if (!i) for (size_t k = 0; k < play.size(); k++) if (play[k].isDefault) i = (int)k + 1;
+        if (!i) {
+            std::wstring def = DefaultRenderId();
+            for (size_t k = 0; k < play.size(); k++) if (play[k].id == def) i = (int)k + 1;
+            if (!i) for (size_t k = 0; k < play.size(); k++) if (play[k].isDefault) i = (int)k + 1;
+            g_src.followDefault = true;
+        }
         if (!i) { Log("! no such playback device: %s\n", opt.from.c_str()); return false; }
         g_src.dev = play[i - 1];
         g_src.listIdx = i;
     }
 
-    // ---- outputs
+    // ---- outputs ("auto" = every detected headphone)
     for (auto& tok : Split(opt.to, ',')) {
         if (tok.empty()) continue;
+        if (Lower(tok) == "auto") {
+            int found = 0;
+            for (size_t k = 0; k < play.size(); k++)
+                if (IsAutoHeadphone(play[k])) { AddOutput(play[k], (int)k + 1); found++; }
+            if (!found) Log("  no headphones detected yet - switch them on, they join automatically.\n");
+            continue;
+        }
         int i = Resolve(tok, play);
         if (!i) { Log("! no playback device matches '%s'\n", tok.c_str()); Cleanup(); return false; }
-        if (g_src.kind == SRC_LOOPBACK && i == g_src.listIdx) {
-            Log("! %s is the source; playing its own sound back into it would echo forever.\n"
-                "  Pick a different source device, or don't use it as an output.\n", play[i - 1].name.c_str());
-            Cleanup();
-            return false;
-        }
-        bool dup = false;
-        for (auto* o : g_outputs) dup |= (o->listIdx == i);
-        if (dup) continue;
-        Output* o = new Output();
-        o->listIdx = i;
-        o->dev = play[i - 1];
-        g_outputs.push_back(o);
+        AddOutput(play[i - 1], i);  // if it is the captured device it just pauses ("plays directly")
     }
 
     // ---- network out
@@ -811,7 +953,10 @@ static bool Start(Options opt, const std::vector<DevInfo>& play, const std::vect
         }
     }
 
-    if (g_outputs.empty() && !g_net) { Log("! nothing to play to: pick at least one output or a LAN address\n"); return false; }
+    if (!g_nOuts && !g_net && !opt.waitForDevices) {
+        Log("! nothing to play to: pick at least one output or a LAN address\n");
+        return false;
+    }
 
     // ---- sample rate
     if (g_src.kind == SRC_NET) {
@@ -834,7 +979,8 @@ static bool Start(Options opt, const std::vector<DevInfo>& play, const std::vect
     // ---- go
     const char* kind = g_src.kind == SRC_NET ? "LAN stream" : (g_src.kind == SRC_MIC ? "microphone" : "loopback of");
     Log("Source : %s %s\n", kind, g_src.kind == SRC_NET ? "" : g_src.dev.name.c_str());
-    for (auto* o : g_outputs) Log("Output : [%d] %s\n", o->listIdx, o->dev.name.c_str());
+    for (auto* o : Outputs())
+        Log("Output : [%d] %s%s\n", o->listIdx, o->dev.name.c_str(), o->isSource ? "  (Windows default - plays directly)" : "");
     if (g_net) for (auto& d : g_net->dests) {
         char ip[32];
         inet_ntop(AF_INET, &d.sin_addr, ip, sizeof(ip));
@@ -897,7 +1043,8 @@ static void Wizard(Options& opt, const std::vector<DevInfo>& play, const std::ve
     else if ((s[0] == 'm' || s[0] == 'M') && s.size() > 1 && isdigit((unsigned char)s[1])) opt.from = "mic:" + s.substr(1);
     else opt.from = s;
 
-    opt.to = ReadLine("Play on which devices? (numbers, comma separated, e.g. 2,3; Enter = none): ");
+    opt.to = ReadLine("Play on which devices? [Enter = all headphones, automatically | numbers, e.g. 2,3]: ");
+    if (opt.to.empty()) opt.to = "auto";
     std::string n = ReadLine("Also send over the LAN? [Enter = no | m = multicast | IPs, comma separated]: ");
     opt.net = (Lower(n) == "m") ? "multicast" : n;
 
@@ -907,8 +1054,24 @@ static void Wizard(Options& opt, const std::vector<DevInfo>& play, const std::ve
     Log("\nTip: make a shortcut with this command to skip these questions:\n  %s\n\n", cmd.c_str());
 }
 
+// --to auto: headphones switched on later join while running.
+static DWORD WINAPI AutoWatchThread(LPVOID) {
+    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    while (g_running) {
+        for (int i = 0; i < 20 && g_running; i++) Sleep(100);
+        for (auto& d : ListDevices(eRender)) {
+            bool known = false;
+            for (auto* o : Outputs()) known |= (o->dev.id == d.id);
+            if (!known && IsAutoHeadphone(d) && AddOutput(d, 0)) Log("  + %s joined\n", d.name.c_str());
+        }
+    }
+    CoUninitialize();
+    return 0;
+}
+
 int main(int argc, char** argv) {
     InitializeCriticalSection(&g_logLock);
+    InitializeCriticalSection(&g_outLock);
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCtrlHandler(OnCtrl, TRUE);
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -928,7 +1091,11 @@ int main(int argc, char** argv) {
     bool interactive = argc == 1;
     if (interactive) Wizard(opt, play, rec);
     int rc = 0;
+    bool autoTo = false;
+    for (auto& t : Split(opt.to, ',')) autoTo |= Lower(t) == "auto";
+    opt.waitForDevices = autoTo;
     if (g_running && Start(opt, play, rec)) {
+        HANDLE watch = autoTo ? CreateThread(nullptr, 0, AutoWatchThread, nullptr, 0, nullptr) : nullptr;
         Log("Type 's' for status, 'q' to quit.\n\n");
         while (g_running) {
             std::string line = ReadLine("");
@@ -946,6 +1113,8 @@ int main(int argc, char** argv) {
                 Log("base latency %d ms\n", g_baseLatencyMs.load());
             } else Log("commands: s | d N MS | v N PCT | l MS | q\n");
         }
+        g_running = false;
+        if (watch) { WaitForSingleObject(watch, 3000); CloseHandle(watch); }
         Stop();
         Log("bye\n");
     } else rc = 1;

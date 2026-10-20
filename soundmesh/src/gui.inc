@@ -7,7 +7,7 @@
 
 enum {
     CTL_SOURCE = 100, CTL_LIST, CTL_SEL, CTL_DELAY, CTL_DELAYTXT, CTL_VOL, CTL_VOLTXT,
-    CTL_NET, CTL_LATENCY, CTL_SMOOTH, CTL_START, CTL_REFRESH, CTL_BT, CTL_HELP, CTL_LOG, CTL_LABEL
+    CTL_NET, CTL_LATENCY, CTL_SMOOTH, CTL_AUTO, CTL_START, CTL_REFRESH, CTL_BT, CTL_HELP, CTL_LOG, CTL_LABEL
 };
 enum { COL_DEVICE, COL_STATUS, COL_DELAY, COL_VOLUME };
 static const UINT_PTR kStatusTimer = 1;
@@ -22,7 +22,7 @@ struct SrcItem {
 };
 
 static HWND g_wnd, g_hSource, g_hList, g_hSel, g_hDelay, g_hDelayTxt, g_hVol, g_hVolTxt;
-static HWND g_hNet, g_hLat, g_hSmooth, g_hStart, g_hRefresh, g_hBt, g_hHelp, g_hLog;
+static HWND g_hAuto, g_hNet, g_hLat, g_hSmooth, g_hStart, g_hRefresh, g_hBt, g_hHelp, g_hLog;
 static HWND g_lSource, g_lOut, g_lNet, g_lLat, g_lLog;
 static HFONT g_font;
 static int g_dpi = 96;
@@ -32,6 +32,11 @@ static std::map<std::wstring, DevPref> g_prefs;
 static SrcItem g_prefSrc{SRC_LOOPBACK, L""};
 static bool g_engineOn = false, g_populating = false;
 static int g_selRow = -1;
+static int g_tick = 0;
+static std::vector<bool> g_present;  // per row: device currently connected
+static std::map<std::wstring, bool> g_autoDone;  // auto already ticked it this connection (so an untick sticks)
+
+static bool AutoOn() { return SendMessageW(g_hAuto, BM_GETCHECK, 0, 0) == BST_CHECKED; }
 
 static int S(int v) { return MulDiv(v, g_dpi, 96); }
 
@@ -69,6 +74,7 @@ static void SavePrefs() {
     fprintf(f, "source=%d|%s\n", (int)g_prefSrc.kind, Utf8(g_prefSrc.id).c_str());
     fprintf(f, "net=%s\n", GetText(g_hNet).c_str());
     fprintf(f, "latency=%s\n", GetText(g_hLat).c_str());
+    fprintf(f, "auto=%d\n", AutoOn() ? 1 : 0);
     fprintf(f, "smooth=%d\n", SendMessageW(g_hSmooth, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0);
     for (auto& kv : g_prefs)
         fprintf(f, "dev=%d|%d|%d|%s\n", kv.second.on ? 1 : 0, kv.second.delay, kv.second.vol, Utf8(kv.first).c_str());
@@ -93,6 +99,7 @@ static void LoadPrefs() {
             g_prefSrc = SrcItem{(SrcKind)kind, Wide(v.substr(bar + 1))};
         } else if (k == "net") SetWindowTextW(g_hNet, Wide(v).c_str());
         else if (k == "latency") SetWindowTextW(g_hLat, Wide(v).c_str());
+        else if (k == "auto") SendMessageW(g_hAuto, BM_SETCHECK, v == "1" ? BST_CHECKED : BST_UNCHECKED, 0);
         else if (k == "smooth") SendMessageW(g_hSmooth, BM_SETCHECK, v == "1" ? BST_CHECKED : BST_UNCHECKED, 0);
         else if (k == "dev") {
             auto p = Split(v, '|');
@@ -132,9 +139,45 @@ static std::wstring Fmt(const wchar_t* fmt, int v) {
 }
 
 static Output* OutputForRow(int row) {
-    for (auto* o : g_outputs)
-        if (o->listIdx == row + 1) return o;
+    if (row < 0 || row >= (int)g_play.size()) return nullptr;
+    for (auto* o : Outputs())
+        if (o->dev.id == g_play[row].id) return o;
     return nullptr;
+}
+
+static std::wstring RowLabel(const DevInfo& d) {
+    std::wstring name = Wide(d.name);
+    if (IsHandsFree(d)) name += L"   (call mode, low quality - avoid)";
+    else if (IsAutoHeadphone(d)) name += IsBluetooth(d) ? L"   [Bluetooth headphones]" : L"   [headphones]";
+    if (d.isDefault) name += L"   (Windows default)";
+    return name;
+}
+
+static void InsertRow(int i) {
+    std::wstring name = RowLabel(g_play[i]);
+    LVITEMW it = {};
+    it.mask = LVIF_TEXT;
+    it.iItem = i;
+    it.pszText = (LPWSTR)name.c_str();
+    SendMessageW(g_hList, LVM_INSERTITEMW, 0, (LPARAM)&it);
+}
+
+// The device chosen explicitly as source ("What plays on: X"), if any.
+static std::wstring ExplicitSourceId() {
+    int sel = (int)SendMessageW(g_hSource, CB_GETCURSEL, 0, 0);
+    if (sel < 0 || sel >= (int)g_srcItems.size() || g_srcItems[sel].kind != SRC_LOOPBACK) return L"";
+    return g_srcItems[sel].id;
+}
+
+// Tick every detected headphone. Ticking fires LVN_ITEMCHANGED, which also
+// adds the output live when the engine is running.
+static void AutoTick() {
+    std::wstring src = ExplicitSourceId();
+    for (int i = 0; i < (int)g_play.size(); i++) {
+        if (!IsAutoHeadphone(g_play[i]) || g_play[i].id == src || !g_present[i] || g_autoDone[g_play[i].id]) continue;
+        g_autoDone[g_play[i].id] = true;
+        if (!ListView_GetCheckState(g_hList, i)) ListView_SetCheckState(g_hList, i, TRUE);
+    }
 }
 
 static void RefreshRowSettings(int row) {
@@ -173,7 +216,7 @@ static void Populate() {
     for (auto& d : g_play) if (d.isDefault) def = d.name;
     add(L"What this PC plays  (Windows default: " + Wide(def) + L")", SrcItem{SRC_LOOPBACK, L""});
     for (auto& d : g_play)
-        if (!IsHandsFree(d.name)) add(L"What plays on: " + Wide(d.name), SrcItem{SRC_LOOPBACK, d.id});
+        if (!IsHandsFree(d)) add(L"What plays on: " + Wide(d.name), SrcItem{SRC_LOOPBACK, d.id});
     for (auto& d : g_rec) add(L"Microphone: " + Wide(d.name), SrcItem{SRC_MIC, d.id});
     add(L"Another PC on the network  (LAN stream)", SrcItem{SRC_NET, L""});
     int sel = 0;
@@ -182,21 +225,75 @@ static void Populate() {
     SendMessageW(g_hSource, CB_SETCURSEL, sel, 0);
 
     SendMessageW(g_hList, LVM_DELETEALLITEMS, 0, 0);
+    g_present.assign(g_play.size(), true);
     for (size_t i = 0; i < g_play.size(); i++) {
-        std::wstring name = Wide(g_play[i].name);
-        if (g_play[i].isDefault) name += L"   (Windows default)";
-        if (IsHandsFree(g_play[i].name)) name += L"   (call mode, low quality - avoid)";
-        LVITEMW it = {};
-        it.mask = LVIF_TEXT;
-        it.iItem = (int)i;
-        it.pszText = (LPWSTR)name.c_str();
-        SendMessageW(g_hList, LVM_INSERTITEMW, 0, (LPARAM)&it);
+        InsertRow((int)i);
         ListView_SetCheckState(g_hList, (int)i, g_prefs[g_play[i].id].on);
         RefreshRowSettings((int)i);
     }
     g_selRow = -1;
     UpdateSelControls();
     g_populating = false;
+    if (AutoOn()) AutoTick();
+}
+
+// Runs every 2 s: notices headphones that were switched on / off. New
+// devices are appended so rows (and running outputs) never shift.
+static void DetectDevices() {
+    auto now = ListDevices(eRender);
+    std::vector<bool> present(g_play.size(), false);
+    for (auto& d : now) {
+        int row = -1;
+        for (size_t i = 0; i < g_play.size(); i++)
+            if (g_play[i].id == d.id) row = (int)i;
+        if (row < 0) {
+            g_play.push_back(d);
+            present.push_back(true);
+            g_present.push_back(true);
+            row = (int)g_play.size() - 1;
+            g_populating = true;
+            InsertRow(row);
+            RefreshRowSettings(row);
+            g_populating = false;
+            Log("Found: %s%s\n", d.name.c_str(), IsAutoHeadphone(d) ? "  (headphones)" : "");
+            if (g_prefs[d.id].on) ListView_SetCheckState(g_hList, row, TRUE);  // ticked in an earlier session
+        } else {
+            present[row] = true;
+            if (g_play[row].isDefault != d.isDefault || !g_present[row]) {
+                g_play[row] = d;
+                SetCell(row, COL_DEVICE, RowLabel(d));
+            }
+        }
+    }
+    for (size_t i = 0; i < g_play.size(); i++) {
+        if (g_present[i] && !present[i]) {
+            g_play[i].isDefault = false;
+            SetCell((int)i, COL_DEVICE, RowLabel(g_play[i]));
+        }
+        bool cameBack = present[i] && !g_present[i];
+        if (!present[i]) g_autoDone[g_play[i].id] = false;  // re-pick it when it reconnects
+        g_present[i] = present[i];
+        if (cameBack) Log("Connected: %s\n", g_play[i].name.c_str());
+    }
+    if (AutoOn()) AutoTick();
+}
+
+// Status column for every row (also when stopped: shows unplugged devices).
+static void UpdateStatus() {
+    for (int i = 0; i < (int)g_play.size(); i++) {
+        wchar_t b[96] = L"";
+        Output* o = g_engineOn ? OutputForRow(i) : nullptr;
+        if (i < (int)g_present.size() && !g_present[i]) swprintf(b, 96, L"not connected");
+        else if (o && o->enabled) {
+            int st = o->state;
+            if (st == OS_PLAYING) swprintf(b, 96, L"playing  %d ms", (o->fillMs + 5) / 10 * 10);
+            else if (st == OS_CONNECTING && g_src.kind == SRC_NET && !g_srcFrames) swprintf(b, 96, L"waiting for LAN");
+            else swprintf(b, 96, L"%hs", kStateName[st]);
+            uint32_t u = o->underruns;
+            if (u && st != OS_DIRECT) swprintf(b + wcslen(b), 96 - wcslen(b), L"  (%u gaps)", u);
+        }
+        SetCell(i, COL_STATUS, b);
+    }
 }
 
 static void UpdateUi() {
@@ -207,29 +304,28 @@ static void UpdateUi() {
     EnableWindow(g_hSmooth, !g_engineOn);
     EnableWindow(g_hRefresh, !g_engineOn);
     if (!g_engineOn) {
-        for (int i = 0; i < (int)g_play.size(); i++) SetCell(i, COL_STATUS, L"");
+        UpdateStatus();
         SetWindowTextW(g_wnd, L"SoundMesh");
     }
 }
 
+static void OnStartStop();
+
 static void OnTimer() {
+    if (++g_tick % 4 == 0) DetectDevices();
     if (!g_engineOn) return;
+    if (g_needRestart) {  // the captured device switched sample rate
+        OnStartStop();
+        OnStartStop();
+        return;
+    }
     if (!g_running) {  // engine stopped itself (e.g. UDP port busy)
         Stop();
         g_engineOn = false;
         UpdateUi();
         return;
     }
-    for (auto* o : g_outputs) {
-        int row = o->listIdx - 1, st = o->state;
-        wchar_t b[96];
-        if (st == OS_PLAYING) swprintf(b, 96, L"playing  %d ms", (o->fillMs + 5) / 10 * 10);
-        else if (st == OS_CONNECTING && g_src.kind == SRC_NET && !g_srcFrames) swprintf(b, 96, L"waiting for LAN");
-        else swprintf(b, 96, L"%hs", kStateName[st]);
-        uint32_t u = o->underruns;
-        if (u) swprintf(b + wcslen(b), 96 - wcslen(b), L"  (%u gaps)", u);
-        SetCell(row, COL_STATUS, b);
-    }
+    UpdateStatus();
     wchar_t title[160], cur[160] = L"";
     if (g_src.kind == SRC_NET && !g_srcFrames) swprintf(title, 160, L"SoundMesh - waiting for a LAN stream...");
     else if (g_net && !g_net->dests.empty())
@@ -253,6 +349,8 @@ static void OnStartStop() {
     g_prefSrc = si;
 
     Options opt;
+    opt.to.clear();
+    opt.waitForDevices = AutoOn();
     if (si.kind == SRC_NET) opt.from = "net";
     else {
         const auto& devs = si.kind == SRC_MIC ? g_rec : g_play;
@@ -348,7 +446,8 @@ static void Layout() {
     Place(g_lSource, m, y + S(4), labelW, S(18));
     Place(g_hSource, m + labelW, y, W - 2 * m - labelW, S(300));
     y += S(34);
-    Place(g_lOut, m, y, W - 2 * m, S(18));
+    Place(g_lOut, m, y, W - 2 * m - S(230), S(18));
+    Place(g_hAuto, W - m - S(220), y - S(2), S(220), S(20));
     y += S(20);
 
     const int fixed = S(34) + S(32) + S(38) + S(24) + m;
@@ -407,7 +506,9 @@ static HWND Mk(const wchar_t* cls, const wchar_t* text, DWORD style, int id, DWO
 static void CreateControls() {
     g_lSource = Mk(L"STATIC", L"Source:", 0, CTL_LABEL);
     g_hSource = Mk(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, CTL_SOURCE);
-    g_lOut = Mk(L"STATIC", L"Play on - tick every headphone / speaker that should get the sound:", 0, CTL_LABEL);
+    g_lOut = Mk(L"STATIC", L"Play on - ticked devices get the sound (changes apply live):", 0, CTL_LABEL);
+    g_hAuto = Mk(L"BUTTON", L"Auto-pick headphones", BS_AUTOCHECKBOX | WS_TABSTOP, CTL_AUTO);
+    SendMessageW(g_hAuto, BM_SETCHECK, BST_CHECKED, 0);  // default on; soundmesh.ini may turn it off
 
     g_hList = Mk(WC_LISTVIEWW, L"", LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS | WS_TABSTOP, CTL_LIST, WS_EX_CLIENTEDGE);
     ListView_SetExtendedListViewStyle(g_hList, LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
@@ -467,6 +568,10 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_COMMAND:
             switch (LOWORD(wp)) {
                 case CTL_START: OnStartStop(); break;
+                case CTL_AUTO:
+                    g_autoDone.clear();
+                    if (AutoOn()) AutoTick();
+                    break;
                 case CTL_BT: OpenBluetoothSettings(); break;
                 case CTL_HELP: MessageBoxW(h, kNetworkHelp, L"SoundMesh - network", MB_ICONINFORMATION); break;
                 case CTL_REFRESH:
@@ -484,12 +589,21 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
             if (nh->hwndFrom != g_hList) break;
             NMLISTVIEW* lv = (NMLISTVIEW*)lp;
             bool checkChange = (lv->uChanged & LVIF_STATE) && ((lv->uOldState ^ lv->uNewState) & LVIS_STATEIMAGEMASK);
-            if (nh->code == LVN_ITEMCHANGING && checkChange && g_engineOn && !g_populating) {
-                MessageBeep(MB_OK);  // outputs are fixed while running: Stop, tick, Start
-                return TRUE;
-            }
             if (nh->code == LVN_ITEMCHANGED && lv->iItem >= 0 && lv->iItem < (int)g_play.size()) {
-                if (checkChange && !g_populating) g_prefs[g_play[lv->iItem].id].on = ListView_GetCheckState(g_hList, lv->iItem) != 0;
+                if (checkChange && !g_populating) {
+                    const int row = lv->iItem;
+                    DevPref& p = g_prefs[g_play[row].id];
+                    p.on = ListView_GetCheckState(g_hList, row) != 0;
+                    if (g_engineOn) {  // ticking / unticking applies live
+                        if (p.on) {
+                            if (Output* o = AddOutput(g_play[row], row + 1)) {
+                                o->delayMs = p.delay;
+                                o->volPct = p.vol;
+                            }
+                        } else if (Output* o = OutputForRow(row)) o->enabled = false;
+                        UpdateStatus();
+                    }
+                }
                 if ((lv->uChanged & LVIF_STATE) && (lv->uNewState & LVIS_SELECTED) && !(lv->uOldState & LVIS_SELECTED)) {
                     g_selRow = lv->iItem;
                     UpdateSelControls();
@@ -521,13 +635,16 @@ static void ApplyArgs(const Options& opt) {
     g_engineOn = true;
     g_populating = true;
     for (int i = 0; i < (int)g_play.size(); i++) ListView_SetCheckState(g_hList, i, FALSE);
-    for (auto* o : g_outputs) {
+    for (auto* o : Outputs()) {
         DevPref& p = g_prefs[o->dev.id];
         p.on = true;
         p.delay = o->delayMs;
         p.vol = o->volPct;
-        ListView_SetCheckState(g_hList, o->listIdx - 1, TRUE);
-        RefreshRowSettings(o->listIdx - 1);
+        for (int i = 0; i < (int)g_play.size(); i++)
+            if (g_play[i].id == o->dev.id) {
+                ListView_SetCheckState(g_hList, i, TRUE);
+                RefreshRowSettings(i);
+            }
     }
     g_populating = false;
     g_prefSrc = SrcItem{g_src.kind, (g_src.kind == SRC_NET || Lower(opt.from) == "loop") ? L"" : g_src.dev.id};
@@ -542,6 +659,7 @@ static void ApplyArgs(const Options& opt) {
 
 int main(int argc, char** argv) {
     InitializeCriticalSection(&g_logLock);
+    InitializeCriticalSection(&g_outLock);
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     WSADATA wsa;
     WSAStartup(MAKEWORD(2, 2), &wsa);
@@ -584,9 +702,8 @@ int main(int argc, char** argv) {
     SetTimer(g_wnd, kStatusTimer, 500, nullptr);
 
     Log("SoundMesh " SM_VERSION "\n"
-        "1. Pair your headphones in Bluetooth settings and switch them on (then 'Refresh devices').\n"
-        "2. Source: usually 'What this PC plays'.\n"
-        "3. Tick the headphones/speakers to play on and press Start.\n"
+        "Pair your headphones once in Bluetooth settings. With 'Auto-pick headphones' on, every\n"
+        "headphone that is switched on gets the sound - also ones you switch on later.\n"
         "Click a device to change its delay (to line up lip sync) and volume - works live.\n"
         "Crackling? Stop, tick 'Smooth mode', Start.\n\n");
 
@@ -595,6 +712,10 @@ int main(int argc, char** argv) {
     if (!ParseArgs(argc, argv, opt, &verb)) MessageBoxW(g_wnd, Wide(g_lastError).c_str(), L"SoundMesh", MB_ICONWARNING);
     else if (verb == "bt") OpenBluetoothSettings();
     else if (argc > 1 && verb.empty()) ApplyArgs(opt);
+    else if (AutoOn()) {
+        Log("Auto mode: starting. Untick 'Auto-pick headphones' to choose devices yourself.\n");
+        OnStartStop();
+    }
 
     MSG m;
     while (GetMessageW(&m, nullptr, 0, 0) > 0) {
