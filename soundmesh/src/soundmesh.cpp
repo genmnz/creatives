@@ -32,7 +32,7 @@
 #include <string>
 #include <vector>
 
-#define SM_VERSION "1.6.0"
+#define SM_VERSION "1.7.0"
 
 // ---------------------------------------------------------------- GUIDs ----
 // Defined locally so the build does not depend on which uuid libs the

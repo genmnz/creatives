@@ -730,7 +730,10 @@ static const wchar_t* kScreenTips =
     L"pull down quick settings and tap Smart View / Screen Cast / Cast / Wireless projection / Mirror "
     L"screen, and pick this PC.\r\n\r\n"
     L"Samsung, Xiaomi, OnePlus, OPPO, Realme, vivo, Huawei support it. Google Pixel phones do not "
-    L"(Pixel can only cast to Chromecast).";
+    L"(Pixel can only cast to Chromecast).\r\n\r\n"
+    L"If 'Projecting to this PC' says your PC can't receive Miracast (many laptops can't, even when the Wi-Fi driver "
+    L"reports OK), use scrcpy instead: a free, open-source PC tool (github.com/Genymobile/scrcpy). On the phone turn on "
+    L"Developer options > Wireless debugging; scrcpy then mirrors the screen over Wi-Fi with nothing installed on the phone.";
 
 // Ask Windows whether the Wi-Fi adapter and graphics driver can receive Miracast.
 static std::wstring MiracastStatus() {
@@ -768,7 +771,7 @@ static std::wstring MiracastStatus() {
         std::string v = c == std::string::npos ? line : line.substr(c + 1);
         while (!v.empty() && isspace((unsigned char)v.front())) v.erase(v.begin());
         while (!v.empty() && isspace((unsigned char)v.back())) v.pop_back();
-        if (Lower(v).rfind("yes", 0) == 0) return L"This PC can show phone screens (Miracast supported).";
+        if (Lower(v).rfind("yes", 0) == 0) return L"Wi-Fi driver reports Miracast capable. Click 2 to be sure: if 'Projecting to this PC' is greyed out / says 'not supported', the graphics driver can't receive it - use scrcpy over Wi-Fi instead (see below).";
         if (Lower(v).rfind("no", 0) == 0)
             return L"This PC's Wi-Fi or graphics driver can't receive Miracast: " + Wide(v) + L". Updating the Wi-Fi driver sometimes helps.";
         return L"Miracast: " + Wide(v);
@@ -779,14 +782,14 @@ static std::wstring MiracastStatus() {
 static const wchar_t* kPhoneInTips =
     L"Makes this PC a Bluetooth speaker for your phone; its sound goes on to all ticked headphones. "
     L"Needs Windows 10 (2004) or 11.\r\n\r\n"
-    L"PC says 'Connected' but the phone says it can't connect?\r\n"
-    L"The phone learned what this PC can do when you paired - before the PC could act as a speaker. "
-    L"Fix, once:\r\n"
-    L"1. Tick the box above first.\r\n"
-    L"2. On the phone: Bluetooth > this PC > Forget / Unpair. On the PC: remove the phone.\r\n"
-    L"3. Pair again, then pick the phone here and press Connect (or tap the PC on the phone and turn on 'Media audio').\r\n"
-    L"Also: close Phone Link if it holds the phone, and switch off one headphone if 2+ are connected - "
-    L"one Bluetooth radio carries everything.";
+    L"Error 0x8007001f, or phone says it can't connect?\r\n"
+    L"The phone has to actually SEND its media audio to this PC. Do this:\r\n"
+    L"1. Tick the box above (receiver on).\r\n"
+    L"2. On the phone: Bluetooth > tap this PC > turn ON 'Media audio' (Samsung) / 'Media'.\r\n"
+    L"3. Start playing something on the phone, then press Connect here.\r\n"
+    L"4. Still failing? On the phone Forget/Unpair this PC, remove the phone on the PC, pair again, repeat 1-3.\r\n"
+    L"Also: disconnect the phone from any other Bluetooth earbuds/speaker first, close Phone Link, and switch off "
+    L"one headphone if 2+ are connected - one Bluetooth radio carries everything.";
 
 static void UpdateQr() {
     std::string url;

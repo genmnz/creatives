@@ -23,7 +23,7 @@ input{width:100%}#k{display:flex;justify-content:center;gap:14px;margin-top:22px
 <div id="k"><a data-k="prev">&#9198;</a><a data-k="playpause">&#9199;</a><a data-k="next">&#9197;</a></div>
 <small style="margin-top:6px">These control what plays on the PC</small>
 <label>Volume <span id="vv">100%</span></label><input id="v" type="range" min="0" max="150" value="100">
-<label>Delay (line up with headphones) <span id="dv">250 ms</span></label><input id="d" type="range" min="80" max="1500" step="10" value="250">
+<label>Delay <span id="dv">120 ms</span>  <small style="color:#6b7587">lower = less lag, raise if choppy</small></label><input id="d" type="range" min="40" max="1500" step="10" value="120">
 <small>Keep this page open. iPhone: turn the silent switch off.</small>
 </main><script>
 var ctx,gain,ws,next=0,rate=48000,on=false,t0=0;
@@ -37,6 +37,7 @@ function lat(){return $('d').value/1000}
 $('v').oninput=function(){$('vv').textContent=this.value+'%';if(gain)gain.gain.value=this.value/100};
 $('d').oninput=function(){$('dv').textContent=this.value+' ms';next=0;try{localStorage.d=this.value}catch(e){}};
 try{if(localStorage.d){$('d').value=localStorage.d;$('dv').textContent=localStorage.d+' ms'}}catch(e){}
+$('dv').textContent=$('d').value+' ms';
 $('b').onclick=function(){
  if(on){on=false;if(ws)ws.close();ctx.suspend();if(el)el.pause();this.textContent='Play';this.className='';st('');return}
  if(!ctx){var C=window.AudioContext||window.webkitAudioContext;ctx=new C();gain=ctx.createGain();gain.gain.value=$('v').value/100;

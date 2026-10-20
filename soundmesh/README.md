@@ -33,7 +33,7 @@ If Windows switches the default output to newly connected headphones, SoundMesh 
 
 ![Phone page](docs/phone.png)
 
-- The page has its own volume and a **Delay** slider for lining up with the headphones.
+- The page has its own volume and a **Delay** slider. It now defaults to a low 120 ms (adjustable down to 40 ms); raise it only if the sound is choppy. It does not need to match the headphones.
 - Several phones can listen at once.
 - **VLC, smart TVs and Wi-Fi speakers** that can open a URL can use `http://<pc>:4011/stream.wav`.
 - Keep the page open and the screen on.

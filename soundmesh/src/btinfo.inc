@@ -146,6 +146,51 @@ static std::vector<BtReport> BluetoothReport() {
     return out;
 }
 
+
+// Plain-English read of what a device is and which app controls its extra
+// features (ANC, game mode, EQ, rename). Informational only - SoundMesh does
+// not send anything to the device. Proprietary features are changed by the
+// maker's own app over the device's private channel; a generic PC tool that
+// guessed those commands could stop the earbuds working, so this points to
+// the right app instead of trying to drive the device blindly.
+static std::string BtGuidance(const BtReport& r) {
+    // Phones/PCs advertise "audio source"; they are not earbuds, so skip the earbud advice.
+    for (auto& sv : r.services) if (sv.find("audio source") != std::string::npos) return std::string();
+    std::string lname = Lower(r.name);
+    unsigned vid = r.vid.empty() ? 0 : (unsigned)strtoul(r.vid.c_str(), nullptr, 16);
+    bool byChip = r.vidSource.find('1') != std::string::npos;
+    const char* chip = (byChip && vid) ? BtCompany(vid) : nullptr;
+    bool jlChip = byChip && (vid == 0x05D6 || vid == 0x0642 || vid == 0x03E0 || vid == 0x02B0 || vid == 0x0094 || vid == 0x07E3);
+    bool hasSamsungSvc = false;
+    for (auto& sv : r.services) if (sv.find("594a34fc") != std::string::npos) hasSamsungSvc = true;  // Samsung Buds BLE service
+    bool claimsBrand = lname.find("galaxy") != std::string::npos || lname.find("buds") != std::string::npos ||
+                       lname.find("airpod") != std::string::npos || lname.find("sony") != std::string::npos ||
+                       lname.find("wf-") != std::string::npos;
+
+    std::string g = "    -> ";
+    // Genuine brands with a known controller app.
+    if (lname.find("soundcore") != std::string::npos || (chip && std::string(chip).find("JieLi") != std::string::npos && lname.find("r50i") != std::string::npos))
+        return g + "Anker Soundcore. Control ANC / EQ / game (low-latency) mode in the free 'soundcore' app on the phone. No official PC app.\r\n";
+    if (lname.find("galaxy") != std::string::npos && lname.find("buds") != std::string::npos && hasSamsungSvc)
+        return g + "Genuine Samsung Buds. Use 'Galaxy Wearable' + 'Galaxy Buds' plugin on the phone for ANC, game mode and rename.\r\n";
+
+    // Claims a famous brand but the radio does not match it -> clone.
+    if (claimsBrand && !hasSamsungSvc && (jlChip || r.vid.empty())) {
+        std::string why = r.vid.empty() ? "it reports no Samsung/Apple vendor ID or service"
+                                         : std::string("its chip is ") + (chip ? chip : "a generic maker") + ", not the brand on the label";
+        return g + "Named like a brand product but looks like a CLONE (" + why + ").\r\n"
+               "       The real Galaxy Wearable / Apple app will NOT manage it. These clones are usually controlled by a\r\n"
+               "       generic app the seller names - often 'HeyMelody', 'Fit', 'WeTune', 'ProBuds' or similar on the phone.\r\n"
+               "       Game mode: usually a touch gesture (triple-tap or tap-and-hold ~2 s). No safe official PC control.\r\n";
+    }
+    if (jlChip)
+        return g + std::string("Chip: ") + (chip ? chip : "generic") + ". Features (ANC / game mode) are set by the maker's own phone app\r\n"
+               "       (whatever came with it, or try 'HeyMelody'). Game mode is often a triple-tap or tap-and-hold gesture.\r\n";
+    if (chip)
+        return g + std::string("Chip maker: ") + chip + ". Use that maker's companion app on the phone for extra features.\r\n";
+    return std::string();
+}
+
 static std::string BluetoothReportText() {
     auto devs = BluetoothReport();
     std::string t = "SoundMesh " SM_VERSION " - Bluetooth devices known to this PC (read-only)\r\n\r\n";
@@ -162,9 +207,11 @@ static std::string BluetoothReportText() {
         } else t += "    chip/vendor ID: not reported by the device\r\n";
         if (r.battery >= 0) t += "    battery: " + std::to_string(r.battery) + "%\r\n";
         for (auto& s : r.services) t += "    - " + s + "\r\n";
+        t += BtGuidance(r);
         t += "\r\n";
     }
-    t += "Paste this report to whoever helps you: the chip maker and the 'vendor service' / 'serial port' lines "
-         "show whether the earbuds can be controlled (game mode, ANC, rename) from a PC.\r\n";
+    t += "The '->' line for each device says what it is and which phone app controls its ANC / game mode / rename.\r\n"
+         "Those features use each maker's own private protocol, so there is no safe one-size-fits-all PC tool; the\r\n"
+         "maker's app does it correctly. Paste this report back if you want help identifying a specific device.\r\n";
     return t;
 }
