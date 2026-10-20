@@ -1,0 +1,119 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<designspace format="5.0">
+  <axes>
+    <axis tag="wdth" name="Width" minimum="78" maximum="100" default="84"/>
+    <axis tag="wght" name="Weight" minimum="400" maximum="900" default="900"/>
+  </axes>
+  <sources>
+    <source filename="MeladDisplay-wdth78-wght400.ufoz" name="master_78_400">
+      <location>
+        <dimension name="Width" xvalue="78"/>
+        <dimension name="Weight" xvalue="400"/>
+      </location>
+    </source>
+    <source filename="MeladDisplay-wdth78-wght900.ufoz" name="master_78_900">
+      <location>
+        <dimension name="Width" xvalue="78"/>
+        <dimension name="Weight" xvalue="900"/>
+      </location>
+    </source>
+    <source filename="MeladDisplay-wdth84-wght400.ufoz" name="master_84_400">
+      <location>
+        <dimension name="Width" xvalue="84"/>
+        <dimension name="Weight" xvalue="400"/>
+      </location>
+    </source>
+    <source filename="MeladDisplay-wdth84-wght900.ufoz" name="master_84_900">
+      <location>
+        <dimension name="Width" xvalue="84"/>
+        <dimension name="Weight" xvalue="900"/>
+      </location>
+    </source>
+    <source filename="MeladDisplay-wdth100-wght400.ufoz" name="master_100_400">
+      <location>
+        <dimension name="Width" xvalue="100"/>
+        <dimension name="Weight" xvalue="400"/>
+      </location>
+    </source>
+    <source filename="MeladDisplay-wdth100-wght900.ufoz" name="master_100_900">
+      <location>
+        <dimension name="Width" xvalue="100"/>
+        <dimension name="Weight" xvalue="900"/>
+      </location>
+    </source>
+  </sources>
+  <instances>
+    <instance familyname="Melad Display" stylename="Narrow">
+      <location>
+        <dimension name="Width" xvalue="78"/>
+        <dimension name="Weight" xvalue="400"/>
+      </location>
+    </instance>
+    <instance familyname="Melad Display" stylename="Narrow Bold">
+      <location>
+        <dimension name="Width" xvalue="78"/>
+        <dimension name="Weight" xvalue="700"/>
+      </location>
+    </instance>
+    <instance familyname="Melad Display" stylename="Narrow Black">
+      <location>
+        <dimension name="Width" xvalue="78"/>
+        <dimension name="Weight" xvalue="900"/>
+      </location>
+    </instance>
+    <instance familyname="Melad Display" stylename="Condensed">
+      <location>
+        <dimension name="Width" xvalue="84"/>
+        <dimension name="Weight" xvalue="400"/>
+      </location>
+    </instance>
+    <instance familyname="Melad Display" stylename="Condensed Bold">
+      <location>
+        <dimension name="Width" xvalue="84"/>
+        <dimension name="Weight" xvalue="700"/>
+      </location>
+    </instance>
+    <instance familyname="Melad Display" stylename="Condensed Black">
+      <location>
+        <dimension name="Width" xvalue="84"/>
+        <dimension name="Weight" xvalue="900"/>
+      </location>
+    </instance>
+    <instance familyname="Melad Display" stylename="Semi">
+      <location>
+        <dimension name="Width" xvalue="90"/>
+        <dimension name="Weight" xvalue="400"/>
+      </location>
+    </instance>
+    <instance familyname="Melad Display" stylename="Semi Bold">
+      <location>
+        <dimension name="Width" xvalue="90"/>
+        <dimension name="Weight" xvalue="700"/>
+      </location>
+    </instance>
+    <instance familyname="Melad Display" stylename="Semi Black">
+      <location>
+        <dimension name="Width" xvalue="90"/>
+        <dimension name="Weight" xvalue="900"/>
+      </location>
+    </instance>
+    <instance familyname="Melad Display" stylename="Regular">
+      <location>
+        <dimension name="Width" xvalue="100"/>
+        <dimension name="Weight" xvalue="400"/>
+      </location>
+    </instance>
+    <instance familyname="Melad Display" stylename="Bold">
+      <location>
+        <dimension name="Width" xvalue="100"/>
+        <dimension name="Weight" xvalue="700"/>
+      </location>
+    </instance>
+    <instance familyname="Melad Display" stylename="Black">
+      <location>
+        <dimension name="Width" xvalue="100"/>
+        <dimension name="Weight" xvalue="900"/>
+      </location>
+    </instance>
+  </instances>
+</designspace>

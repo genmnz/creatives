@@ -1,0 +1,51 @@
+/* Melad Display — drop-in @font-face rules.
+ *
+ * "Melad Display"            static Regular (84% width, heavy). Safest drop-in.
+ * "Melad Display Narrow"     static 78%.
+ * "Melad Display Semi"       static 90%.
+ * "Melad Display Variable"   wdth 78–100, wght 400–900. Use font-stretch / font-weight
+ *                            (or font-variation-settings) to pick an instance.
+ *
+ * The statics declare font-weight 900 only, so any CSS weight on the element
+ * still renders the heavy design (no faux bold, no fallback to a thinner cut).
+ *
+ * Elongated letters: font-feature-settings: "ss02" 1;  (also exposed as "jalt")
+ */
+@font-face {
+  font-family: "Melad Display";
+  src: url("woff2/MeladDisplay-Black.woff2") format("woff2"),
+       url("ttf/MeladDisplay-Black.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Melad Display Narrow";
+  src: url("woff2/MeladDisplayNarrow-Black.woff2") format("woff2"),
+       url("ttf/MeladDisplayNarrow-Black.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Melad Display Semi";
+  src: url("woff2/MeladDisplaySemi-Black.woff2") format("woff2"),
+       url("ttf/MeladDisplaySemi-Black.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: block;
+}
+/* Variable: without these descriptors browsers would map font-stretch:normal to
+ * wdth 100 and font-weight:normal to wght 400 (Jomhuria's own width and weight). */
+@font-face {
+  font-family: "Melad Display Variable";
+  src: url("variable/MeladDisplay[wdth,wght].woff2") format("woff2-variations"),
+       url("variable/MeladDisplay[wdth,wght].woff2") format("woff2"),
+       url("variable/MeladDisplay[wdth,wght].ttf") format("truetype");
+  font-weight: 400 900;
+  font-stretch: 78% 100%;
+  font-style: normal;
+  font-display: block;
+}
+/* Default look of the variable font: same as the static Regular. */
+.melad-vf { font-family: "Melad Display Variable"; font-weight: 900; font-stretch: 84%; }

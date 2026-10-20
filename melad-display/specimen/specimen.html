@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>Melad Display specimen</title>
+<link rel="stylesheet" href="../fonts/melad-display.css">
+<style>
+  @font-face { font-family: "Jomhuria Ref"; src: url("../sources/Jomhuria-Regular.ttf") format("truetype"); }
+  :root { --green: #8DB73F; --cream: #F3E9D6; --red: #C0302B; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 2160px; background: #111; font-family: "Melad Display", serif; }
+  .panel { padding: 70px 80px 80px; }
+  .green { background: var(--green); color: #000; }
+  .cream { background: var(--cream); color: var(--red); }
+  .label { font: 600 22px/1.3 ui-monospace, "DejaVu Sans Mono", monospace; direction: ltr; text-align: left;
+           letter-spacing: .02em; opacity: .75; margin: 0 0 18px; color: inherit; }
+  .s300 { font-size: 300px; line-height: .98; white-space: nowrap; }
+  .shadow { text-shadow: 1px 1px 0 #000, 2px 2px 0 #000, 3px 3px 0 #000, 4px 4px 0 #000,
+                         5px 5px 0 #000, 6px 6px 0 #000, 7px 7px 0 #000, 8px 8px 0 #000; }
+  .cream .shadow { color: var(--red); }
+  .s160 { font-size: 160px; line-height: .98; }
+  .s64 { font-size: 64px; line-height: .98; text-align: justify; text-align-last: right; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 70px; align-items: start; }
+  .narrow { width: 620px; }
+  .tight { line-height: .85; }
+  hr { border: 0; border-top: 3px solid currentColor; opacity: .25; margin: 46px 0 40px; }
+  .cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; }
+  .jom { font-family: "Jomhuria Ref"; }
+  .alt { font-feature-settings: "ss02" 1; }
+  .stack { display: flex; justify-content: space-between; align-items: baseline; }
+  .w78 { font-family: "Melad Display Narrow"; }
+  .w90 { font-family: "Melad Display Semi"; }
+  .vf  { font-family: "Melad Display Variable"; }
+</style>
+</head>
+<body>
+
+<section class="panel green">
+  <p class="label">MELAD DISPLAY · Regular (84%) · black on #8DB73F · 300px, 8-step diagonal shadow</p>
+  <div class="s300 shadow">إنهـــــــا تتخفّـــى</div>
+  <hr>
+  <p class="label">160px · line-height 0.98</p>
+  <div class="s160">أكبر من الفستـــان<br>ثم جاء الوجه الشاحـــب<br>من أخذ الغـــلاف؟<br>هل تتذكّر الفستان أم الوجـــــــه؟</div>
+  <hr>
+  <div class="cols">
+    <div>
+      <p class="label">64px · justified · line-height 0.98 · narrow column</p>
+      <p class="s64 narrow">في يناير ١٩٩٠ جمع المصوّر بيتر ليندبرغ خمس عارضات على غلاف واحد لفوغ البريطانية. المرأة، الموضة، الصورة، العارضة، زرّ، رزق، لا، لأ، لإ، لآ، فـــي، بـــ، ١٠٠٪</p>
+    </div>
+    <div>
+      <p class="label">64px · line-height 0.85 stacking test</p>
+      <p class="s64 tight">هل تتذكّر الفستان أم الوجـــــــه؟ ألّا يكفي أنّ المصوّر جمع خمس عارضات؟ إنّها لأوّل مرّة تُرى الموضة هكذا، زرّ، رزق، لإ، لآ.</p>
+    </div>
+  </div>
+</section>
+
+<section class="panel cream">
+  <p class="label">MELAD DISPLAY · Regular (84%) · #C0302B on #F3E9D6 · 300px, 8-step diagonal shadow</p>
+  <div class="s300 shadow">أكبر من الفستـــان</div>
+  <hr>
+  <p class="label">160px · line-height 0.98</p>
+  <div class="s160">إنهـــــــا تتخفّـــى<br>ثم جاء الوجه الشاحـــب<br>من أخذ الغـــلاف؟<br>المرأة، الموضة، زرّ، رزق</div>
+  <hr>
+  <div class="cols">
+    <div>
+      <p class="label">64px · justified · line-height 0.98 · narrow column</p>
+      <p class="s64 narrow">في يناير ١٩٩٠ جمع المصوّر بيتر ليندبرغ خمس عارضات على غلاف واحد لفوغ البريطانية. المرأة، الموضة، الصورة، العارضة، زرّ، رزق، لا، لأ، لإ، لآ، فـــي، بـــ، ١٠٠٪</p>
+    </div>
+    <div>
+      <p class="label">64px · characters</p>
+      <p class="s64" style="text-align:right">ا ب ت ث ج ح خ د ذ ر ز س ش ص ض ط ظ ع غ ف ق ك ل م ن ه و ي ة ى ء آ أ إ ؤ ئ پ چ ژ گ ک ی ٠١٢٣٤٥٦٧٨٩ 0123456789 ، ؛ ؟ « » ـ ! . : ( ) – — ٪ ؉ ؊</p>
+    </div>
+  </div>
+</section>
+
+<section class="panel green">
+  <p class="label">Widths at 160px: Narrow 78% · Regular 84% · Semi 90%</p>
+  <div class="s160 w78">من أخذ الغـــلاف؟</div>
+  <div class="s160">من أخذ الغـــلاف؟</div>
+  <div class="s160 w90">من أخذ الغـــلاف؟</div>
+  <hr>
+  <p class="label">Variable font (wdth 78–100, wght 400–900) at 120px: wght 400 · 700 · 900 at wdth 84, then wdth 78 · 100 at wght 900</p>
+  <div class="vf" style="font-size:120px;line-height:1.05">
+    <span style="font-weight:400;font-stretch:84%">الفستـــان</span>
+    <span style="font-weight:700;font-stretch:84%">الفستـــان</span>
+    <span style="font-weight:900;font-stretch:84%">الفستـــان</span><br>
+    <span style="font-weight:900;font-stretch:78%">الفستـــان</span>
+    <span style="font-weight:900;font-stretch:100%">الفستـــان</span>
+  </div>
+  <hr>
+  <p class="label">Elongated alternates (ss02 / jalt) at 160px: off, then on</p>
+  <div class="s160">يهتم مسلم سلمى حسن في</div>
+  <div class="s160 alt">يهتم مسلم سلمى حسن في</div>
+  <hr>
+  <p class="label">Kashida 1–12 × U+0640 at 160px</p>
+  <div class="s160" style="line-height:1.1">بـب بـــب بـــــــب بـــــــــــــــب<br>الفستـــان الفستـــــــــــان</div>
+  <hr>
+  <p class="label">Same text, same 160px: Jomhuria (right) vs Melad Display (left). Jomhuria's rlig swallows the typed tatweels.</p>
+  <div class="cmp">
+    <div><p class="label">Jomhuria</p><div class="s160 jom">الفستـــان<br>تتخفّـــى</div></div>
+    <div><p class="label">Melad Display</p><div class="s160">الفستـــان<br>تتخفّـــى</div></div>
+  </div>
+</section>
+
+</body>
+</html>
