@@ -1,34 +1,58 @@
 # SoundMesh
 
-Play the same sound on several Bluetooth headphones, speakers and other computers at the same time, from a Windows 11 PC.
+Play the same sound on several Bluetooth headphones, wired headphones, speakers, phones and other computers at the same time, from a Windows 10/11 PC.
 
-- **One portable `.exe`** (~280 KB) with a simple window. Nothing to install, no driver, no admin rights, no dependencies.
+- **One portable `.exe`** (~370 KB). Nothing to install, no driver, no admin rights, no dependencies.
 - **Fast and light:** native C++ with WASAPI and real-time audio threads, about 5–10 MB of RAM.
-- **Fan-out:** one source goes to any number of outputs. Each output has its own buffer, clock-drift correction and adjustable delay, so different headphones stay in sync.
-- **Any route:**
-  - Sources: what the PC is playing (loopback), a microphone, or a LAN stream.
-  - Outputs: Bluetooth or USB headphones, speakers, HDMI, or other devices on the LAN.
-- **Never uses the internet:** LAN packets are sent with TTL 1, so routers cannot forward them to the internet. They stay on your home network and do not count against your data quota.
-- **Scream-compatible network audio:** existing [Scream](https://github.com/duncanthrax/scream) receivers (Windows, Linux, Android, Raspberry Pi) can play SoundMesh's stream. Scream needs a kernel driver to send; SoundMesh sends from user mode.
+- **Auto mode:** finds your headphones, ticks them and starts playing. Headphones you switch on later join by themselves, and all of them stay in sync. Each one has a live delay and volume slider.
+- **Phones, both directions, no internet:**
+  - **PC → phone over Wi-Fi:** scan a QR code and the phone's browser plays the PC's sound. No app needed.
+  - **Phone → PC over Bluetooth:** the PC becomes a Bluetooth speaker for your phone, and the phone's sound goes on to all your headphones.
+- **Other PCs on the network:** SoundMesh ↔ SoundMesh, or [Scream](https://github.com/duncanthrax/scream) receivers on Windows/Linux/Android/Raspberry Pi.
+- **Never uses the internet:** everything stays on your local network and does not count against your data quota.
 
 ## Quick start
 
-1. Pair every headphone in **Settings → Bluetooth & devices** (the **Bluetooth settings…** button opens it). Turn them all on, then click **Refresh devices**.
-2. Double-click **`soundmesh.exe`**. With **Auto-pick headphones** on (the default), it ticks every headphone it finds and starts playing right away. Headphones you switch on later join automatically.
+1. Pair every headphone once in **Settings → Bluetooth & devices** (the **Bluetooth settings…** button opens it).
+2. Switch them on and double-click **`soundmesh.exe`**. It ticks every headphone it finds and starts playing what your PC plays.
 
 ![SoundMesh window](docs/screenshot.png)
 *(Screenshot from the Wine test run with virtual devices. On your PC the list shows your real headphones.)*
 
-3. Set **Source** to *What this PC plays* (usual choice), a specific device, a microphone, or *Another PC on the network*.
-4. Tick or untick any device, even while playing; changes apply immediately. Auto mode won't re-tick a headphone you unticked until it reconnects.
-5. **Click a device** to adjust its **delay** (line up lip sync between headphones) and **volume**. Both change live while playing.
+3. **Click a device** to set its **delay** (line up lip sync) and **volume**. Tick or untick devices any time; changes apply immediately. Auto mode won't re-tick a headphone you unticked until it reconnects.
 
-Everything Windows plays (YouTube, Spotify, games) now also plays on every ticked device. Headphones are recognised by what Windows reports about the device (Bluetooth music mode, or a Headphones/Headset type), with the device name as a fallback. If Windows switches the default output to newly connected headphones, SoundMesh captures the new default instead. That headphone then plays the sound directly (shown as *plays directly*). The Status column shows each one's state and buffer.
+Headphones are recognised by what Windows reports about the device (Bluetooth music mode, or a Headphones/Headset type), with the device name as a fallback. Wired 3.5 mm headphones work too. On many laptops the jack is listed as *Speakers*; tick it once and SoundMesh remembers.
 
-- **Send to LAN:** type IP addresses (or `multicast`) to also stream to other PCs/phones on your home network. **Network help…** explains the router settings.
-- **Smooth mode:** if a device crackles, stop, tick this and start again. It adds ~70 ms of buffering per device.
-- **Latency ms:** leave it on *auto* (60 ms, 120 ms for a LAN source). Raise it if you hear gaps.
-- **Remembered settings:** the app saves them in `soundmesh.ini` next to the exe (source, ticked devices, delays, volumes), so it stays portable.
+If Windows switches the default output to newly connected headphones, SoundMesh follows it. That headphone plays the sound directly (shown as *plays directly*), and the others get a copy.
+
+**Wired + Bluetooth together (e.g. YouTube on jack headphones and earbuds):** make the *earbuds* the Windows default, tick the jack, and raise the jack's delay (try 150–200 ms) until both sound in step. Bluetooth always lags, so delay the wired one.
+
+### Phones
+
+**Listen on my phone (Wi-Fi)…** → tick *Let phones listen*. Then scan the QR code with the phone (same Wi-Fi), or type the address shown, and tap **Play**:
+
+![Phone page](docs/phone.png)
+
+- The page has its own volume and a **Delay** slider for lining up with the headphones.
+- Several phones can listen at once.
+- **VLC, smart TVs and Wi-Fi speakers** that can open a URL can use `http://<pc>:4011/stream.wav`.
+- Keep the page open and the screen on.
+- Windows asks once to allow SoundMesh through the firewall; allow it on Private networks.
+
+**Play my phone here (Bluetooth)…** → tick *Let my phone play through this PC*, then connect to the PC from the phone's Bluetooth menu (or pick the phone and press **Connect**). The PC acts as a Bluetooth speaker, so the phone's music, videos and calls-audio play on the PC and SoundMesh sends them on to every ticked headphone. This needs Windows 10 version 2004 or newer, or Windows 11, and the phone must be paired with the PC once. All Bluetooth audio shares one radio, so a phone plus several headphones may stutter.
+
+**Phone → PC over Wi-Fi is not possible without an app on the phone.** Browsers cannot capture a phone's system audio (only its microphone, and only over HTTPS), so this direction uses Bluetooth.
+
+### More options
+
+**More options…** shows the rest:
+- **Source:** what the PC plays, a specific device, a microphone, or another PC.
+- **Send to LAN:** other PCs running SoundMesh or Scream.
+- **Latency:** *auto* is 60 ms, or 120 ms for a LAN source.
+- **Smooth mode:** adds ~70 ms of buffering per device. Use it if a device crackles.
+- **The log.**
+
+Settings are saved in `soundmesh.ini` next to the exe, so it stays portable.
 
 ### Command line
 
@@ -44,6 +68,8 @@ soundmesh --from mic:1 --to 2,3                    microphone -> headphones
 soundmesh --to 2 --net 192.168.1.23,192.168.1.40   headphone + two other devices on the LAN
 soundmesh --from net --to 2,3                      receive from another PC and play on local headphones
 soundmesh --to 2,3 --buffer 100                    smooth mode
+soundmesh --phones                                 phones listen over Wi-Fi (http://<pc>:4011)
+soundmesh --phone-in                               PC acts as a Bluetooth speaker for paired phones
 ```
 
 Device numbers can change when devices connect or disconnect. Names (or any part of a name) are more reliable.
@@ -124,7 +150,10 @@ sudo apt install mingw-w64
 ./build.sh                 # -> dist/soundmesh.exe (window) + dist/soundmesh-cli.exe (console)
 ```
 
-On Windows with MSYS2, run the same `windres`/`g++` lines from `build.sh`. The GUI is plain Win32 (`src/gui.inc`), with no frameworks.
+On Windows with MSYS2, run the same `windres`/`gcc`/`g++` lines from `build.sh`. The GUI is plain Win32 (`src/gui.inc`), with no frameworks. Other source files:
+- `src/web.inc`: the phone page and its WebSocket/WAV streaming.
+- `src/btsink.inc`: the Bluetooth receiver. It uses Windows' `AudioPlaybackConnection` through the raw WinRT ABI, with combase loaded at runtime.
+- `src/third_party/qrcodegen.*`: [QR Code generator](https://github.com/nayuki/QR-Code-generator) by Project Nayuki (MIT).
 
 ## Tested
 
@@ -134,5 +163,7 @@ The build was tested in Linux under Wine with virtual PulseAudio devices:
 - **LAN:** PC→PC over UDP played clean 440 Hz audio on the receiver.
 - **Scream compatibility:** the official Scream receiver decoded SoundMesh's stream correctly.
 - **GUI:** under Xvfb, Start, Stop and close all worked. Settings were saved and restored, and the delay and volume sliders applied live.
+- **Phones:** headless Chromium opened the phone page and pressed Play. It received the stream in real time (about 172 KB/s at 44.1 kHz) and scheduled every packet. `/stream.wav` delivered a clean 1 kHz tone with no clicks.
+- **Not testable here:** the QR code display was checked visually, but not scanned. The Bluetooth receiver only reports "not supported" under Wine, which has no such API. It needs a real Windows 10 2004+/11 PC and a paired phone.
 
 Wine does not implement WASAPI loopback, so loopback capture still needs to be confirmed on real Windows. It uses the standard, documented API.

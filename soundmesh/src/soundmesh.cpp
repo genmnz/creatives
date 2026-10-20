@@ -19,6 +19,7 @@
 #include <avrt.h>
 #include <shellapi.h>
 #include <mmsystem.h>
+#include <iphlpapi.h>
 
 #include <atomic>
 #include <cmath>
@@ -26,11 +27,12 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <algorithm>
 #include <cstring>
 #include <string>
 #include <vector>
 
-#define SM_VERSION "1.2.0"
+#define SM_VERSION "1.3.0"
 
 // ---------------------------------------------------------------- GUIDs ----
 // Defined locally so the build does not depend on which uuid libs the
@@ -85,6 +87,14 @@ static std::string Utf8(const std::wstring& w) {
     std::string s(n, '\0');
     WideCharToMultiByte(CP_UTF8, 0, w.c_str(), (int)w.size(), &s[0], n, nullptr, nullptr);
     return s;
+}
+
+static std::wstring Wide8(const std::string& s) {
+    if (s.empty()) return std::wstring();
+    int n = MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), nullptr, 0);
+    std::wstring w(n, L'\0');
+    MultiByteToWideChar(CP_UTF8, 0, s.c_str(), (int)s.size(), &w[0], n);
+    return w;
 }
 
 static std::string Lower(std::string s) {
@@ -535,8 +545,12 @@ static void MarkSourceOutputs() {
     for (auto* o : Outputs()) o->isSource = (g_src.kind == SRC_LOOPBACK && o->dev.id == g_src.dev.id);
 }
 
+#include "web.inc"
+#include "btsink.inc"
+
 static void Distribute(const float* st, uint32_t frames) {
     for (auto* o : Outputs()) o->ring.Push(st, frames);
+    if (g_web && g_web->active) g_web->ring.Push(st, frames);
     if (g_net) NetSend(g_net, st, frames);
     g_srcFrames += frames;
 }
@@ -774,6 +788,9 @@ static std::vector<std::string> Split(const std::string& s, char sep) {
         "  --iface IP         local IPv4 to use for multicast (pick the right adapter)\n"
         "  --latency MS       base buffer for every output (default 60, net source 120)\n"
         "  --buffer MS        device buffer per output (default 30; 100 if you hear crackling)\n"
+        "  --phones           phones listen over Wi-Fi: open http://<this-pc>:4011 in the phone's browser\n"
+        "  --phone-port P     port for --phones (default 4011)\n"
+        "  --phone-in         make this PC a Bluetooth speaker for paired phones\n"
         "  --delay N=MS,...   extra delay for output N, to line up headphones (lip sync)\n"
         "  --vol N=PCT,...    volume for output N in percent (default 100)\n\n"
         "While running, type:  s = status   d N MS = set delay   v N PCT = set volume\n"
@@ -793,6 +810,9 @@ struct Options {
     int latency = -1;
     int deviceBuffer = 30;
     bool waitForDevices = false;  // start even with no outputs yet (auto mode)
+    bool phones = false;          // serve the phone page / WAV stream
+    int phonePort = 4011;
+    bool phoneIn = false;         // be a Bluetooth speaker for phones
 };
 
 static void ApplyKV(const std::string& spec, bool isDelay) {
@@ -1017,6 +1037,9 @@ static bool ParseArgs(int argc, char** argv, Options& opt, std::string* verb) {
         else if (a == "--port") { next(tmp); g_src.port = atoi(tmp.c_str()); }
         else if (a == "--latency") { next(tmp); opt.latency = atoi(tmp.c_str()); }
         else if (a == "--buffer") { next(tmp); opt.deviceBuffer = atoi(tmp.c_str()); }
+        else if (a == "--phones") opt.phones = true;
+        else if (a == "--phone-port") { next(tmp); opt.phonePort = atoi(tmp.c_str()); }
+        else if (a == "--phone-in") opt.phoneIn = true;
         else { Log("! unknown option: %s\n", a.c_str()); return false; }
     }
     return true;
@@ -1072,6 +1095,7 @@ static DWORD WINAPI AutoWatchThread(LPVOID) {
 int main(int argc, char** argv) {
     InitializeCriticalSection(&g_logLock);
     InitializeCriticalSection(&g_outLock);
+    InitializeCriticalSection(&g_bt.lock);
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCtrlHandler(OnCtrl, TRUE);
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
@@ -1096,6 +1120,11 @@ int main(int argc, char** argv) {
     opt.waitForDevices = autoTo;
     if (g_running && Start(opt, play, rec)) {
         HANDLE watch = autoTo ? CreateThread(nullptr, 0, AutoWatchThread, nullptr, 0, nullptr) : nullptr;
+        if (opt.phones && StartWeb(opt.phonePort)) {
+            Log("Phones: open one of these in the phone's browser (same Wi-Fi):\n");
+            for (auto& ip : LocalIPv4s()) Log("  http://%s:%d   (%s)\n", ip.ip.c_str(), opt.phonePort, ip.adapter.c_str());
+        }
+        if (opt.phoneIn) StartBtSink();
         Log("Type 's' for status, 'q' to quit.\n\n");
         while (g_running) {
             std::string line = ReadLine("");
@@ -1115,6 +1144,8 @@ int main(int argc, char** argv) {
         }
         g_running = false;
         if (watch) { WaitForSingleObject(watch, 3000); CloseHandle(watch); }
+        StopWeb();
+        StopBtSink();
         Stop();
         Log("bye\n");
     } else rc = 1;

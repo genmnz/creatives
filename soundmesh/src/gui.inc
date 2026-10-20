@@ -4,10 +4,14 @@
 // the exe, so the app stays portable.
 #include <commctrl.h>
 #include <map>
+extern "C" {
+#include "third_party/qrcodegen.h"
+}
 
 enum {
     CTL_SOURCE = 100, CTL_LIST, CTL_SEL, CTL_DELAY, CTL_DELAYTXT, CTL_VOL, CTL_VOLTXT,
-    CTL_NET, CTL_LATENCY, CTL_SMOOTH, CTL_AUTO, CTL_START, CTL_REFRESH, CTL_BT, CTL_HELP, CTL_LOG, CTL_LABEL
+    CTL_NET, CTL_LATENCY, CTL_SMOOTH, CTL_AUTO, CTL_PHONEOUT, CTL_PHONEIN, CTL_MORE, CTL_HEADLINE, CTL_HINT,
+    CTL_P_WEB, CTL_P_URL, CTL_P_COUNT, CTL_P_BT, CTL_P_LIST, CTL_P_CONNECT, CTL_START, CTL_REFRESH, CTL_BT, CTL_HELP, CTL_LOG, CTL_LABEL
 };
 enum { COL_DEVICE, COL_STATUS, COL_DELAY, COL_VOLUME };
 static const UINT_PTR kStatusTimer = 1;
@@ -24,7 +28,16 @@ struct SrcItem {
 static HWND g_wnd, g_hSource, g_hList, g_hSel, g_hDelay, g_hDelayTxt, g_hVol, g_hVolTxt;
 static HWND g_hAuto, g_hNet, g_hLat, g_hSmooth, g_hStart, g_hRefresh, g_hBt, g_hHelp, g_hLog;
 static HWND g_lSource, g_lOut, g_lNet, g_lLat, g_lLog;
-static HFONT g_font;
+static HWND g_hHeadline, g_hHint, g_hPhoneOut, g_hPhoneIn, g_hMore;
+static HWND g_panelOut, g_pWeb, g_pUrl, g_pCount, g_pTips;    // "Listen on my phone" window
+static HWND g_panelIn, g_pBt, g_pList, g_pConnect, g_pInTips; // "Play my phone here" window
+static std::vector<std::wstring> g_pIds;                      // phone ids shown in g_pList
+static std::string g_qrText;                                  // what the QR code encodes
+static std::vector<uint8_t> g_qr;                             // qrcodegen buffer
+static bool g_showMore = false;
+static int g_phonePort = 4011;
+static std::wstring g_lastLine;
+static HFONT g_font, g_bigFont;
 static int g_dpi = 96;
 static std::vector<DevInfo> g_play, g_rec;
 static std::vector<SrcItem> g_srcItems;
@@ -35,6 +48,10 @@ static int g_selRow = -1;
 static int g_tick = 0;
 static std::vector<bool> g_present;  // per row: device currently connected
 static std::map<std::wstring, bool> g_autoDone;  // auto already ticked it this connection (so an untick sticks)
+
+static void UpdateHeadline();
+static void UpdatePhonePanels();
+static void UpdateQr();
 
 static bool AutoOn() { return SendMessageW(g_hAuto, BM_GETCHECK, 0, 0) == BST_CHECKED; }
 
@@ -75,6 +92,10 @@ static void SavePrefs() {
     fprintf(f, "net=%s\n", GetText(g_hNet).c_str());
     fprintf(f, "latency=%s\n", GetText(g_hLat).c_str());
     fprintf(f, "auto=%d\n", AutoOn() ? 1 : 0);
+    fprintf(f, "more=%d\n", g_showMore ? 1 : 0);
+    fprintf(f, "phones=%d\n", g_web && g_web->active ? 1 : 0);
+    fprintf(f, "phoneport=%d\n", g_phonePort);
+    fprintf(f, "phonein=%d\n", g_bt.on ? 1 : 0);
     fprintf(f, "smooth=%d\n", SendMessageW(g_hSmooth, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0);
     for (auto& kv : g_prefs)
         fprintf(f, "dev=%d|%d|%d|%s\n", kv.second.on ? 1 : 0, kv.second.delay, kv.second.vol, Utf8(kv.first).c_str());
@@ -99,6 +120,10 @@ static void LoadPrefs() {
             g_prefSrc = SrcItem{(SrcKind)kind, Wide(v.substr(bar + 1))};
         } else if (k == "net") SetWindowTextW(g_hNet, Wide(v).c_str());
         else if (k == "latency") SetWindowTextW(g_hLat, Wide(v).c_str());
+        else if (k == "more") g_showMore = v == "1";
+        else if (k == "phones") SendMessageW(g_pWeb, BM_SETCHECK, v == "1" ? BST_CHECKED : BST_UNCHECKED, 0);
+        else if (k == "phoneport") g_phonePort = std::max(1, std::min(65535, atoi(v.c_str())));
+        else if (k == "phonein") SendMessageW(g_pBt, BM_SETCHECK, v == "1" ? BST_CHECKED : BST_UNCHECKED, 0);
         else if (k == "auto") SendMessageW(g_hAuto, BM_SETCHECK, v == "1" ? BST_CHECKED : BST_UNCHECKED, 0);
         else if (k == "smooth") SendMessageW(g_hSmooth, BM_SETCHECK, v == "1" ? BST_CHECKED : BST_UNCHECKED, 0);
         else if (k == "dev") {
@@ -307,11 +332,44 @@ static void UpdateUi() {
         UpdateStatus();
         SetWindowTextW(g_wnd, L"SoundMesh");
     }
+    UpdateHeadline();
 }
 
 static void OnStartStop();
 
+static void UpdateHeadline() {
+    wchar_t b[160];
+    if (!g_engineOn) swprintf(b, 160, L"Stopped");
+    else {
+        int playing = 0, waiting = 0;
+        std::wstring direct;
+        for (auto* o : Outputs()) {
+            if (!o->enabled) continue;
+            if (o->isSource) direct = Wide(o->dev.name);
+            else if (o->state == OS_PLAYING) playing++;
+            else waiting++;
+        }
+        int phones = g_web && g_web->active ? g_web->nClients.load() : 0;
+        std::wstring t = L"Playing on " + std::to_wstring(playing) + (playing == 1 ? L" device" : L" devices");
+        if (!direct.empty()) t += L" + " + direct;
+        if (phones) t += L" + " + std::to_wstring(phones) + (phones == 1 ? L" phone" : L" phones");
+        if (!playing && direct.empty() && !phones) t = waiting ? L"Connecting..." : L"Waiting for headphones - switch them on";
+        if (g_src.kind == SRC_NET && !g_srcFrames) t = L"Waiting for the other PC...";
+        wcsncpy(b, t.c_str(), 159);
+        b[159] = 0;
+    }
+    wchar_t cur[160] = L"";
+    GetWindowTextW(g_hHeadline, cur, 160);
+    if (wcscmp(cur, b)) SetWindowTextW(g_hHeadline, b);
+}
+
+static void SetPhoneIn(bool on);
+
 static void OnTimer() {
+    if (g_bt.thread && !g_bt.on) SetPhoneIn(false);  // the receiver stopped itself (e.g. not supported)
+    UpdateHeadline();
+    UpdatePhonePanels();
+    if (g_tick % 20 == 0 && g_panelOut && IsWindowVisible(g_panelOut)) UpdateQr();  // address may change
     if (++g_tick % 4 == 0) DetectDevices();
     if (!g_engineOn) return;
     if (g_needRestart) {  // the captured device switched sample rate
@@ -416,6 +474,13 @@ static void AppendLog() {
     }
     SendMessageW(g_hLog, EM_SETSEL, len, len);
     SendMessageW(g_hLog, EM_REPLACESEL, FALSE, (LPARAM)w.c_str());
+    // The newest non-empty line also shows under the headline.
+    std::wstring t = w;
+    while (!t.empty() && (t.back() == L'\n' || t.back() == L'\r' || t.back() == L' ')) t.pop_back();
+    size_t nl = t.find_last_of(L'\n');
+    t = nl == std::wstring::npos ? t : t.substr(nl + 1);
+    while (!t.empty() && (t[0] == L' ' || t[0] == L'!')) t.erase(t.begin());
+    if (!t.empty()) SetWindowTextW(g_hHint, t.c_str());
 }
 
 static const wchar_t* kNetworkHelp =
@@ -437,23 +502,26 @@ static const wchar_t* kNetworkHelp =
 // -------------------------------------------------------------- layout -----
 static void Place(HWND h, int x, int y, int w, int hgt) { MoveWindow(h, x, y, std::max(1, w), std::max(1, hgt), TRUE); }
 
+static HWND g_advanced[16];
+static int g_nAdvanced = 0;
+
 static void Layout() {
     RECT rc;
     GetClientRect(g_wnd, &rc);
     const int W = rc.right, H = rc.bottom, m = S(10), lineH = S(24), labelW = S(85);
     int y = m;
 
-    Place(g_lSource, m, y + S(4), labelW, S(18));
-    Place(g_hSource, m + labelW, y, W - 2 * m - labelW, S(300));
-    y += S(34);
-    Place(g_lOut, m, y, W - 2 * m - S(230), S(18));
-    Place(g_hAuto, W - m - S(220), y - S(2), S(220), S(20));
-    y += S(20);
+    // Headline + Start/Stop
+    Place(g_hStart, W - m - S(120), y, S(120), S(34));
+    Place(g_hHeadline, m, y, W - 3 * m - S(120), S(24));
+    Place(g_hHint, m, y + S(24), W - 3 * m - S(120), S(18));
+    y += S(48);
+    Place(g_lOut, m, y + S(2), W - 2 * m - S(230), S(18));
+    Place(g_hAuto, W - m - S(200), y, S(200), S(20));
+    y += S(22);
 
-    const int fixed = S(34) + S(32) + S(38) + S(24) + m;
-    const int avail = std::max(S(160), H - y - fixed);
-    const int listH = std::max(S(90), avail * 55 / 100), logH = std::max(S(60), avail - listH);
-
+    const int below = S(34) + S(42) + (g_showMore ? S(32) + S(32) + S(38) + S(20) + S(130) : 0) + m;
+    const int listH = std::max(S(100), H - y - below);
     Place(g_hList, m, y, W - 2 * m, listH);
     int colW = W - 2 * m - S(300) - GetSystemMetrics(SM_CXVSCROLL);
     ListView_SetColumnWidth(g_hList, COL_DEVICE, std::max(S(120), colW));
@@ -472,41 +540,50 @@ static void Layout() {
     Place(g_hVolTxt, m + selW + sliders + txtW, y + S(4), txtW, S(18));
     y += S(34);
 
+    // Main actions
+    int bw = (W - 2 * m - 3 * S(8)) / 4, bh = S(32);
+    Place(g_hPhoneOut, m, y, bw, bh);
+    Place(g_hPhoneIn, m + (bw + S(8)), y, bw, bh);
+    Place(g_hBt, m + 2 * (bw + S(8)), y, bw, bh);
+    Place(g_hMore, m + 3 * (bw + S(8)), y, bw, bh);
+    y += S(42);
+
+    for (int i = 0; i < g_nAdvanced; i++) ShowWindow(g_advanced[i], g_showMore ? SW_SHOW : SW_HIDE);
+    SetWindowTextW(g_hMore, g_showMore ? L"Fewer options" : L"More options...");
+    if (!g_showMore) return;
+
+    Place(g_lSource, m, y + S(4), labelW, S(18));
+    Place(g_hSource, m + labelW, y, W - 2 * m - labelW, S(300));
+    y += S(32);
     int latW = S(55), latLabelW = S(80);
     Place(g_lNet, m, y + S(4), labelW, S(18));
     Place(g_hNet, m + labelW, y, W - 2 * m - labelW - latLabelW - latW - S(10), lineH);
     Place(g_lLat, W - m - latW - latLabelW, y + S(4), latLabelW, S(18));
     Place(g_hLat, W - m - latW, y, latW, lineH);
     y += S(32);
-
-    int bx = m, bh = S(30);
-    Place(g_hStart, bx, y, S(110), bh);
-    bx += S(118);
-    Place(g_hRefresh, bx, y, S(130), bh);
-    bx += S(138);
-    Place(g_hBt, bx, y, S(150), bh);
-    bx += S(158);
-    Place(g_hHelp, bx, y, S(130), bh);
-    Place(g_hSmooth, W - m - S(170), y + S(5), S(170), S(20));
+    Place(g_hRefresh, m, y, S(140), S(30));
+    Place(g_hHelp, m + S(148), y, S(140), S(30));
+    Place(g_hSmooth, W - m - S(200), y + S(5), S(200), S(20));
     y += S(38);
-
     Place(g_lLog, m, y, W - 2 * m, S(18));
     y += S(20);
-    Place(g_hLog, m, y, W - 2 * m, std::max(S(40), H - y - m));
-    (void)logH;
+    Place(g_hLog, m, y, W - 2 * m, std::max(S(60), H - y - m));
 }
 
-static HWND Mk(const wchar_t* cls, const wchar_t* text, DWORD style, int id, DWORD ex = 0) {
-    HWND h = CreateWindowExW(ex, cls, text, WS_CHILD | WS_VISIBLE | style, 0, 0, 10, 10, g_wnd, (HMENU)(INT_PTR)id,
-                             GetModuleHandleW(nullptr), nullptr);
+static HWND Mk(const wchar_t* cls, const wchar_t* text, DWORD style, int id, DWORD ex = 0, HWND parent = nullptr) {
+    HWND h = CreateWindowExW(ex, cls, text, WS_CHILD | WS_VISIBLE | style, 0, 0, 10, 10, parent ? parent : g_wnd,
+                             (HMENU)(INT_PTR)id, GetModuleHandleW(nullptr), nullptr);
     SendMessageW(h, WM_SETFONT, (WPARAM)g_font, TRUE);
     return h;
 }
 
 static void CreateControls() {
-    g_lSource = Mk(L"STATIC", L"Source:", 0, CTL_LABEL);
-    g_hSource = Mk(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, CTL_SOURCE);
-    g_lOut = Mk(L"STATIC", L"Play on - ticked devices get the sound (changes apply live):", 0, CTL_LABEL);
+    g_hHeadline = Mk(L"STATIC", L"Stopped", SS_ENDELLIPSIS, CTL_HEADLINE);
+    SendMessageW(g_hHeadline, WM_SETFONT, (WPARAM)g_bigFont, TRUE);
+    g_hHint = Mk(L"STATIC", L"", SS_ENDELLIPSIS, CTL_HINT);
+    g_hStart = Mk(L"BUTTON", L"Start", BS_DEFPUSHBUTTON | WS_TABSTOP, CTL_START);
+
+    g_lOut = Mk(L"STATIC", L"Play on (tick or untick any time):", 0, CTL_LABEL);
     g_hAuto = Mk(L"BUTTON", L"Auto-pick headphones", BS_AUTOCHECKBOX | WS_TABSTOP, CTL_AUTO);
     SendMessageW(g_hAuto, BM_SETCHECK, BST_CHECKED, 0);  // default on; soundmesh.ini may turn it off
 
@@ -533,21 +610,206 @@ static void CreateControls() {
     SendMessageW(g_hVol, TBM_SETPAGESIZE, 0, 10);
     g_hVolTxt = Mk(L"STATIC", L"", 0, CTL_VOLTXT);
 
+    g_hPhoneOut = Mk(L"BUTTON", L"Listen on my phone (Wi-Fi)...", WS_TABSTOP, CTL_PHONEOUT);
+    g_hPhoneIn = Mk(L"BUTTON", L"Play my phone here (Bluetooth)...", WS_TABSTOP, CTL_PHONEIN);
+    g_hBt = Mk(L"BUTTON", L"Bluetooth settings...", WS_TABSTOP, CTL_BT);
+    g_hMore = Mk(L"BUTTON", L"More options...", WS_TABSTOP, CTL_MORE);
+
+    // "More options"
+    g_lSource = Mk(L"STATIC", L"Source:", 0, CTL_LABEL);
+    g_hSource = Mk(L"COMBOBOX", L"", CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP, CTL_SOURCE);
     g_lNet = Mk(L"STATIC", L"Send to LAN:", 0, CTL_LABEL);
     g_hNet = Mk(L"EDIT", L"", ES_AUTOHSCROLL | WS_TABSTOP, CTL_NET, WS_EX_CLIENTEDGE);
-    SendMessageW(g_hNet, EM_SETCUEBANNER, TRUE, (LPARAM)L"off  -  or IPs like 192.168.1.23, 192.168.1.40  -  or multicast");
+    SendMessageW(g_hNet, EM_SETCUEBANNER, TRUE, (LPARAM)L"off  -  or PCs running SoundMesh/Scream: 192.168.1.23, ...  -  or multicast");
     g_lLat = Mk(L"STATIC", L"Latency ms:", 0, CTL_LABEL);
     g_hLat = Mk(L"EDIT", L"", ES_AUTOHSCROLL | ES_NUMBER | WS_TABSTOP, CTL_LATENCY, WS_EX_CLIENTEDGE);
     SendMessageW(g_hLat, EM_SETCUEBANNER, TRUE, (LPARAM)L"auto");
-
-    g_hStart = Mk(L"BUTTON", L"Start", BS_DEFPUSHBUTTON | WS_TABSTOP, CTL_START);
     g_hRefresh = Mk(L"BUTTON", L"Refresh devices", WS_TABSTOP, CTL_REFRESH);
-    g_hBt = Mk(L"BUTTON", L"Bluetooth settings...", WS_TABSTOP, CTL_BT);
     g_hHelp = Mk(L"BUTTON", L"Network help...", WS_TABSTOP, CTL_HELP);
     g_hSmooth = Mk(L"BUTTON", L"Smooth mode (+70 ms)", BS_AUTOCHECKBOX | WS_TABSTOP, CTL_SMOOTH);
-
     g_lLog = Mk(L"STATIC", L"Log:", 0, CTL_LABEL);
     g_hLog = Mk(L"EDIT", L"", ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL, CTL_LOG, WS_EX_CLIENTEDGE);
+    for (HWND h : {g_lSource, g_hSource, g_lNet, g_hNet, g_lLat, g_hLat, g_hRefresh, g_hHelp, g_hSmooth, g_lLog, g_hLog})
+        g_advanced[g_nAdvanced++] = h;
+}
+
+// --------------------------------------------------------- phone panels ----
+static const wchar_t* kPhoneOutTips =
+    L"1. Connect the phone to the same Wi-Fi as this PC (no internet needed).\r\n"
+    L"2. Scan the code with the phone camera, or type the address in its browser.\r\n"
+    L"3. Tap Play. Use the page's Delay slider to line it up with the headphones.\r\n\r\n"
+    L"Keep the page open and the screen on. Windows may ask to allow SoundMesh "
+    L"through the firewall: allow it on Private networks.\r\n\r\n"
+    L"VLC, smart TVs and Wi-Fi speakers that can open a URL: use .../stream.wav";
+
+static const wchar_t* kPhoneInTips =
+    L"Makes this PC a Bluetooth speaker for your phone. The phone's sound plays here "
+    L"and SoundMesh sends it on to all ticked headphones.\r\n\r\n"
+    L"1. Pair the phone with this PC once (Bluetooth settings).\r\n"
+    L"2. Tick the box above. Your paired phones appear in the list.\r\n"
+    L"3. On the phone, open Bluetooth and tap this PC - or pick the phone here and press Connect.\r\n\r\n"
+    L"Needs Windows 10 (2004) or Windows 11. One Bluetooth radio serves everything, "
+    L"so with several headphones plus a phone the audio may stutter.";
+
+static void UpdateQr() {
+    std::string url;
+    std::wstring all;
+    for (auto& ip : LocalIPv4s()) {
+        std::string u = "http://" + ip.ip + ":" + std::to_string(g_phonePort);
+        if (url.empty()) url = u;
+        all += Wide(u) + L"   (" + Wide(ip.adapter) + L")\r\n";
+    }
+    if (url.empty()) all = L"This PC has no network address. Connect it to your Wi-Fi first.";
+    if (!(g_web && g_web->active)) all = L"Tick the box above to let phones listen.";
+    SetWindowTextW(g_pUrl, all.c_str());
+    InvalidateRect(g_panelOut, nullptr, TRUE);  // sharing may have been switched on/off
+    if (url == g_qrText && !g_qr.empty()) return;
+    g_qrText = url;
+    g_qr.assign(qrcodegen_BUFFER_LEN_MAX, 0);
+    std::vector<uint8_t> tmp(qrcodegen_BUFFER_LEN_MAX);
+    if (url.empty() || !qrcodegen_encodeText(url.c_str(), tmp.data(), g_qr.data(), qrcodegen_Ecc_MEDIUM, qrcodegen_VERSION_MIN,
+                                              qrcodegen_VERSION_MAX, qrcodegen_Mask_AUTO, true))
+        g_qr.clear();
+    InvalidateRect(g_panelOut, nullptr, TRUE);
+}
+
+static void UpdatePhonePanels() {
+    if (g_panelOut && IsWindowVisible(g_panelOut)) {
+        wchar_t b[96];
+        int n = g_web && g_web->active ? g_web->nClients.load() : 0;
+        if (!(g_web && g_web->active)) swprintf(b, 96, L"Off");
+        else if (!g_engineOn) swprintf(b, 96, L"%d listening - press Start in the main window to send sound", n);
+        else swprintf(b, 96, n == 1 ? L"%d phone listening" : L"%d phones listening", n);
+        SetWindowTextW(g_pCount, b);
+    }
+    if (g_panelIn && IsWindowVisible(g_panelIn)) {
+        std::vector<std::wstring> ids;
+        std::vector<std::wstring> rows;
+        EnterCriticalSection(&g_bt.lock);
+        for (auto* p : g_bt.phones) {
+            ids.push_back(p->id);
+            rows.push_back(Wide(p->name) + (p->state ? L"   -  connected, playing here" : L"   -  ready"));
+        }
+        LeaveCriticalSection(&g_bt.lock);
+        if (!g_bt.on) rows.assign(1, g_bt.supported ? L"(off)" : L"(not supported on this Windows)"), ids.assign(1, L"");
+        else if (rows.empty()) rows.assign(1, L"(looking for paired phones...)"), ids.assign(1, L"");
+        bool same = (int)SendMessageW(g_pList, LB_GETCOUNT, 0, 0) == (int)rows.size() && ids == g_pIds;
+        for (size_t i = 0; same && i < rows.size(); i++) {
+            wchar_t cur[256] = L"";
+            if (SendMessageW(g_pList, LB_GETTEXTLEN, i, 0) < 255) SendMessageW(g_pList, LB_GETTEXT, i, (LPARAM)cur);
+            same = rows[i] == cur;
+        }
+        if (!same) {
+            int sel = (int)SendMessageW(g_pList, LB_GETCURSEL, 0, 0);
+            SendMessageW(g_pList, LB_RESETCONTENT, 0, 0);
+            for (auto& r : rows) SendMessageW(g_pList, LB_ADDSTRING, 0, (LPARAM)r.c_str());
+            if (sel >= 0 && sel < (int)rows.size()) SendMessageW(g_pList, LB_SETCURSEL, sel, 0);
+            g_pIds = ids;
+        }
+    }
+}
+
+static void SetPhonesListening(bool on) {
+    if (on) {
+        if (!StartWeb(g_phonePort)) on = false;
+        else Log("Phones can listen: open http://<this PC>:%d on the phone (Listen on my phone... shows a QR code).\n", g_phonePort);
+    } else StopWeb();
+    SendMessageW(g_pWeb, BM_SETCHECK, on ? BST_CHECKED : BST_UNCHECKED, 0);
+    SetWindowTextW(g_hPhoneOut, on ? L"Listen on my phone (Wi-Fi): on" : L"Listen on my phone (Wi-Fi)...");
+    UpdateQr();
+    UpdatePhonePanels();
+}
+
+static void SetPhoneIn(bool on) {
+    if (on) on = StartBtSink();
+    else StopBtSink();
+    SendMessageW(g_pBt, BM_SETCHECK, on ? BST_CHECKED : BST_UNCHECKED, 0);
+    SetWindowTextW(g_hPhoneIn, on ? L"Play my phone here (Bluetooth): on" : L"Play my phone here (Bluetooth)...");
+    UpdatePhonePanels();
+}
+
+static LRESULT CALLBACK PanelProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
+    switch (msg) {
+        case WM_CLOSE: ShowWindow(h, SW_HIDE); return 0;
+        case WM_COMMAND:
+            switch (LOWORD(wp)) {
+                case CTL_P_WEB: SetPhonesListening(SendMessageW(g_pWeb, BM_GETCHECK, 0, 0) == BST_CHECKED); SavePrefs(); break;
+                case CTL_P_BT:
+                    if (SendMessageW(g_pBt, BM_GETCHECK, 0, 0) != BST_CHECKED && g_bt.on) SetWindowTextW(g_pInTips, L"Turning off...");
+                    SetPhoneIn(SendMessageW(g_pBt, BM_GETCHECK, 0, 0) == BST_CHECKED);
+                    SetWindowTextW(g_pInTips, kPhoneInTips);
+                    SavePrefs();
+                    break;
+                case CTL_P_CONNECT: {
+                    int sel = (int)SendMessageW(g_pList, LB_GETCURSEL, 0, 0);
+                    if (sel >= 0 && sel < (int)g_pIds.size() && !g_pIds[sel].empty()) BtConnect(g_pIds[sel]);
+                    else MessageBeep(MB_OK);
+                    break;
+                }
+            }
+            return 0;
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            HDC dc = BeginPaint(h, &ps);
+            if (h == g_panelOut && !g_qr.empty() && g_web && g_web->active) {
+                // QR code, 4-module quiet zone, centred
+                int n = qrcodegen_getSize(g_qr.data()), cell = std::max(2, S(200) / (n + 8));
+                RECT rc;
+                GetClientRect(h, &rc);
+                int total = (n + 8) * cell, x0 = (rc.right - total) / 2, y0 = S(44);
+                RECT bg = {x0, y0, x0 + total, y0 + total};
+                FillRect(dc, &bg, (HBRUSH)GetStockObject(WHITE_BRUSH));
+                for (int y = 0; y < n; y++)
+                    for (int x = 0; x < n; x++)
+                        if (qrcodegen_getModule(g_qr.data(), x, y)) {
+                            RECT r = {x0 + (x + 4) * cell, y0 + (y + 4) * cell, x0 + (x + 5) * cell, y0 + (y + 5) * cell};
+                            FillRect(dc, &r, (HBRUSH)GetStockObject(BLACK_BRUSH));
+                        }
+            }
+            EndPaint(h, &ps);
+            return 0;
+        }
+    }
+    return DefWindowProcW(h, msg, wp, lp);
+}
+
+static HWND MakePanel(const wchar_t* title, int w, int hgt) {
+    RECT r = {0, 0, S(w), S(hgt)};
+    AdjustWindowRect(&r, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, FALSE);
+    return CreateWindowExW(0, L"SoundMeshPanel", title, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, CW_USEDEFAULT, CW_USEDEFAULT,
+                           r.right - r.left, r.bottom - r.top, g_wnd, nullptr, GetModuleHandleW(nullptr), nullptr);
+}
+
+static void CreatePanels() {
+    const int m = S(12);
+    g_panelOut = MakePanel(L"Listen on my phone (Wi-Fi)", 440, 560);
+    g_pWeb = Mk(L"BUTTON", L"Let phones listen over Wi-Fi", BS_AUTOCHECKBOX | WS_TABSTOP, CTL_P_WEB, 0, g_panelOut);
+    Place(g_pWeb, m, m, S(416), S(22));
+    // QR code is painted at y = 44 .. 44 + ~200
+    g_pUrl = Mk(L"EDIT", L"", ES_MULTILINE | ES_READONLY | ES_CENTER, CTL_P_URL, 0, g_panelOut);
+    Place(g_pUrl, m, S(254), S(416), S(58));
+    g_pCount = Mk(L"STATIC", L"Off", SS_CENTER, CTL_P_COUNT, 0, g_panelOut);
+    SendMessageW(g_pCount, WM_SETFONT, (WPARAM)g_bigFont, TRUE);
+    Place(g_pCount, m, S(316), S(416), S(26));
+    g_pTips = Mk(L"STATIC", kPhoneOutTips, 0, CTL_LABEL, 0, g_panelOut);
+    Place(g_pTips, m, S(352), S(416), S(196));
+
+    g_panelIn = MakePanel(L"Play my phone here (Bluetooth)", 440, 420);
+    g_pBt = Mk(L"BUTTON", L"Let my phone play through this PC", BS_AUTOCHECKBOX | WS_TABSTOP, CTL_P_BT, 0, g_panelIn);
+    Place(g_pBt, m, m, S(416), S(22));
+    g_pList = Mk(L"LISTBOX", L"", LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP, CTL_P_LIST, WS_EX_CLIENTEDGE, g_panelIn);
+    Place(g_pList, m, S(42), S(416), S(110));
+    g_pConnect = Mk(L"BUTTON", L"Connect", WS_TABSTOP, CTL_P_CONNECT, 0, g_panelIn);
+    Place(g_pConnect, S(440) - m - S(110), S(158), S(110), S(28));
+    g_pInTips = Mk(L"STATIC", kPhoneInTips, 0, CTL_LABEL, 0, g_panelIn);
+    Place(g_pInTips, m, S(196), S(416), S(216));
+}
+
+static void ShowPanel(HWND p) {
+    UpdateQr();
+    UpdatePhonePanels();
+    ShowWindow(p, SW_SHOW);
+    SetForegroundWindow(p);
 }
 
 // -------------------------------------------------------------- window -----
@@ -557,10 +819,17 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_GETMINMAXINFO: {
             MINMAXINFO* mm = (MINMAXINFO*)lp;
             mm->ptMinTrackSize.x = S(760);
-            mm->ptMinTrackSize.y = S(500);
+            mm->ptMinTrackSize.y = g_showMore ? S(640) : S(420);
             return 0;
         }
         case WM_APP_LOG: AppendLog(); return 0;
+        case WM_CTLCOLORSTATIC:
+            if ((HWND)lp == g_hHint) {  // grey hint line under the headline
+                SetTextColor((HDC)wp, GetSysColor(COLOR_GRAYTEXT));
+                SetBkColor((HDC)wp, GetSysColor(COLOR_BTNFACE));
+                return (LRESULT)GetSysColorBrush(COLOR_BTNFACE);
+            }
+            break;
         case WM_TIMER: OnTimer(); return 0;
         case WM_HSCROLL:
             if ((HWND)lp == g_hDelay || (HWND)lp == g_hVol) OnSlider((HWND)lp);
@@ -573,6 +842,21 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
                     if (AutoOn()) AutoTick();
                     break;
                 case CTL_BT: OpenBluetoothSettings(); break;
+                case CTL_PHONEOUT: ShowPanel(g_panelOut); break;
+                case CTL_PHONEIN: ShowPanel(g_panelIn); break;
+                case CTL_MORE: {
+                    // Grow/shrink the window by the extra section instead of squeezing the list.
+                    g_showMore = !g_showMore;
+                    RECT r;
+                    GetWindowRect(h, &r);
+                    int extra = S(32) + S(32) + S(38) + S(20) + S(130);
+                    if (!IsZoomed(h))
+                        SetWindowPos(h, nullptr, 0, 0, r.right - r.left, r.bottom - r.top + (g_showMore ? extra : -extra),
+                                     SWP_NOMOVE | SWP_NOZORDER);
+                    Layout();
+                    InvalidateRect(h, nullptr, TRUE);
+                    break;
+                }
                 case CTL_HELP: MessageBoxW(h, kNetworkHelp, L"SoundMesh - network", MB_ICONINFORMATION); break;
                 case CTL_REFRESH:
                     if (!g_engineOn) {
@@ -612,9 +896,11 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
             break;
         }
         case WM_CLOSE:
+            SavePrefs();
             if (g_engineOn) Stop();
             g_engineOn = false;
-            SavePrefs();
+            StopWeb();
+            StopBtSink();
             DestroyWindow(h);
             return 0;
         case WM_DESTROY:
@@ -660,6 +946,7 @@ static void ApplyArgs(const Options& opt) {
 int main(int argc, char** argv) {
     InitializeCriticalSection(&g_logLock);
     InitializeCriticalSection(&g_outLock);
+    InitializeCriticalSection(&g_bt.lock);
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     WSADATA wsa;
     WSAStartup(MAKEWORD(2, 2), &wsa);
@@ -675,6 +962,10 @@ int main(int argc, char** argv) {
     ncm.cbSize = sizeof(ncm);
     SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0);
     g_font = CreateFontIndirectW(&ncm.lfMessageFont);
+    LOGFONTW big = ncm.lfMessageFont;
+    big.lfHeight = big.lfHeight * 3 / 2;
+    big.lfWeight = FW_SEMIBOLD;
+    g_bigFont = CreateFontIndirectW(&big);
 
     HINSTANCE inst = GetModuleHandleW(nullptr);
     WNDCLASSEXW wc = {};
@@ -688,12 +979,23 @@ int main(int argc, char** argv) {
     if (!wc.hIcon) wc.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
     wc.hIconSm = wc.hIcon;
     RegisterClassExW(&wc);
+    WNDCLASSEXW pc = wc;
+    pc.lpfnWndProc = PanelProc;
+    pc.lpszClassName = L"SoundMeshPanel";
+    RegisterClassExW(&pc);
     g_wnd = CreateWindowExW(0, wc.lpszClassName, L"SoundMesh", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
-                            S(800), S(640), nullptr, nullptr, inst, nullptr);
+                            S(800), S(560), nullptr, nullptr, inst, nullptr);
     CreateControls();
+    CreatePanels();
     g_logWnd = g_wnd;
 
     LoadPrefs();
+    if (g_showMore) {  // window opens with the extra section already sized in
+        RECT r;
+        GetWindowRect(g_wnd, &r);
+        SetWindowPos(g_wnd, nullptr, 0, 0, r.right - r.left, r.bottom - r.top + S(32) + S(32) + S(38) + S(20) + S(130),
+                     SWP_NOMOVE | SWP_NOZORDER);
+    }
     g_play = ListDevices(eRender);
     g_rec = ListDevices(eCapture);
     Populate();
@@ -705,7 +1007,9 @@ int main(int argc, char** argv) {
         "Pair your headphones once in Bluetooth settings. With 'Auto-pick headphones' on, every\n"
         "headphone that is switched on gets the sound - also ones you switch on later.\n"
         "Click a device to change its delay (to line up lip sync) and volume - works live.\n"
-        "Crackling? Stop, tick 'Smooth mode', Start.\n\n");
+        "Crackling? More options > Smooth mode.\n\n");
+    if (SendMessageW(g_pWeb, BM_GETCHECK, 0, 0) == BST_CHECKED) SetPhonesListening(true);
+    if (SendMessageW(g_pBt, BM_GETCHECK, 0, 0) == BST_CHECKED) SetPhoneIn(true);
 
     Options opt;
     std::string verb;
@@ -719,7 +1023,7 @@ int main(int argc, char** argv) {
 
     MSG m;
     while (GetMessageW(&m, nullptr, 0, 0) > 0) {
-        if (IsDialogMessageW(g_wnd, &m)) continue;
+        if (IsDialogMessageW(GetAncestor(m.hwnd, GA_ROOT), &m)) continue;
         TranslateMessage(&m);
         DispatchMessageW(&m);
     }
