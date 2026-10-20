@@ -30,7 +30,7 @@
 #include <string>
 #include <vector>
 
-#define SM_VERSION "1.0.0"
+#define SM_VERSION "1.1.0"
 
 // ---------------------------------------------------------------- GUIDs ----
 // Defined locally so the build does not depend on which uuid libs the
@@ -47,16 +47,34 @@ static const PROPERTYKEY kPKEY_FriendlyName = {{0xA45C254E, 0xDF1C, 0x4EFD, {0x8
 template <class T> static void SafeRelease(T*& p) { if (p) { p->Release(); p = nullptr; } }
 
 // -------------------------------------------------------------- logging ----
+// Console build prints; the GUI build sets g_logWnd and gets WM_APP_LOG
+// whenever g_logQueue has new text (audio threads never touch windows).
+#define WM_APP_LOG (WM_APP + 1)
 static CRITICAL_SECTION g_logLock;
+static HWND g_logWnd = nullptr;
+static std::string g_logQueue;
+static std::string g_lastError;
+
+static void LogV(const char* fmt, va_list ap) {
+    char buf[1024];
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    EnterCriticalSection(&g_logLock);
+    if (buf[0] == '!') g_lastError = buf + 2;
+    if (g_logWnd) {
+        g_logQueue += buf;
+        PostMessageW(g_logWnd, WM_APP_LOG, 0, 0);
+    } else {
+        fputs(buf, stdout);
+        fflush(stdout);
+    }
+    LeaveCriticalSection(&g_logLock);
+}
 
 static void Log(const char* fmt, ...) {
-    EnterCriticalSection(&g_logLock);
     va_list ap;
     va_start(ap, fmt);
-    vprintf(fmt, ap);
+    LogV(fmt, ap);
     va_end(ap);
-    fflush(stdout);
-    LeaveCriticalSection(&g_logLock);
 }
 
 static std::string Utf8(const std::wstring& w) {
@@ -76,7 +94,7 @@ static std::string Lower(std::string s) {
 static std::atomic<bool> g_running{true};
 static std::atomic<uint32_t> g_rate{48000};      // internal sample rate (Hz), stereo float
 static std::atomic<int> g_baseLatencyMs{60};    // buffering every output keeps before playing
-static HANDLE g_rateKnown = nullptr;             // signalled once g_rate is valid (net source)
+static std::atomic<int> g_deviceBufferMs{30};   // WASAPI buffer per output; larger = fewer crackles, more lag
 
 // ----------------------------------------------------------- devices -------
 struct DevInfo {
@@ -263,13 +281,14 @@ static DWORD WINAPI OutputThread(LPVOID arg) {
             wf.dwChannelMask = SPEAKER_FRONT_LEFT | SPEAKER_FRONT_RIGHT;
             wf.SubFormat = kSubtypeFloat;
             const DWORD conv = AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
-            hr = ac->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK | conv, 300000, 0, (WAVEFORMATEX*)&wf, nullptr);
+            const REFERENCE_TIME bufHns = (REFERENCE_TIME)g_deviceBufferMs * 10000;
+            hr = ac->Initialize(AUDCLNT_SHAREMODE_SHARED, AUDCLNT_STREAMFLAGS_EVENTCALLBACK | conv, bufHns, 0, (WAVEFORMATEX*)&wf, nullptr);
             if (FAILED(hr)) {
                 // Some older drivers refuse event mode together with conversion.
                 SafeRelease(ac);
                 ac = ActivateClient(o->dev.id);
                 useEvent = false;
-                if (ac) hr = ac->Initialize(AUDCLNT_SHAREMODE_SHARED, conv, 600000, 0, (WAVEFORMATEX*)&wf, nullptr);
+                if (ac) hr = ac->Initialize(AUDCLNT_SHAREMODE_SHARED, conv, bufHns * 2, 0, (WAVEFORMATEX*)&wf, nullptr);
             }
             if (SUCCEEDED(hr)) hr = ac->GetBufferSize(&bufFrames);
             if (SUCCEEDED(hr)) hr = ac->GetService(kIID_IAudioRenderClient, (void**)&rc);
@@ -293,6 +312,8 @@ static DWORD WINAPI OutputThread(LPVOID arg) {
         o->ring.r.store(o->ring.w.load(std::memory_order_acquire), std::memory_order_release);
         o->state = OS_BUFFERING;
         double frac = 0.0, ema = 0.0;
+        const int kRamp = 256;  // ~5 ms fade-in after every start/jump: no pops
+        int ramp = 0;
         uint64_t R = o->ring.r.load(std::memory_order_relaxed);
         const float* rb = o->ring.buf;
 
@@ -320,11 +341,13 @@ static DWORD WINAPI OutputThread(LPVOID arg) {
                 else o->state = OS_BUFFERING;
                 frac = 0.0;
                 ema = (double)target;
+                ramp = kRamp;
             }
             if (o->state == OS_BUFFERING && fill >= target) {
                 R = W - target;
                 ema = (double)target;
                 frac = 0.0;
+                ramp = kRamp;
                 o->state = OS_PLAYING;
             }
             if (o->state == OS_PLAYING) {
@@ -342,8 +365,9 @@ static DWORD WINAPI OutputThread(LPVOID arg) {
                     }
                     const uint64_t a = (R & Ring::kMask) * 2, b = ((R + 1) & Ring::kMask) * 2;
                     const float f = (float)frac;
-                    out[2 * i] = (rb[a] + (rb[b] - rb[a]) * f) * vol;
-                    out[2 * i + 1] = (rb[a + 1] + (rb[b + 1] - rb[a + 1]) * f) * vol;
+                    const float g = ramp ? vol * (float)(kRamp - ramp--) / kRamp : vol;
+                    out[2 * i] = (rb[a] + (rb[b] - rb[a]) * f) * g;
+                    out[2 * i + 1] = (rb[a + 1] + (rb[b + 1] - rb[a + 1]) * f) * g;
                     frac += step;
                     while (frac >= 1.0) { frac -= 1.0; R++; }
                 }
@@ -504,6 +528,8 @@ static DWORD WINAPI CaptureThread(LPVOID) {
     return 0;
 }
 
+static void StartOutputs();
+
 static DWORD WINAPI NetReceiveThread(LPVOID) {
     DWORD task = 0;
     HANDLE mm = AvSetMmThreadCharacteristicsW(L"Pro Audio", &task);
@@ -521,7 +547,7 @@ static DWORD WINAPI NetReceiveThread(LPVOID) {
     if (bind(s, (sockaddr*)&a, sizeof(a)) != 0) {
         Log("! cannot listen on UDP port %d (error %d). Is another receiver running?\n", g_src.port, WSAGetLastError());
         g_running = false;
-        SetEvent(g_rateKnown);
+        closesocket(s);
         return 0;
     }
     ip_mreq mr = {};
@@ -552,7 +578,7 @@ static DWORD WINAPI NetReceiveThread(LPVOID) {
         if (!haveRate) {
             g_rate = f.rate;
             haveRate = true;
-            SetEvent(g_rateKnown);
+            StartOutputs();  // devices are opened at the stream's rate
         } else if (f.rate != g_rate) continue;  // outputs are opened at the first rate seen
         uint32_t frames = (uint32_t)(n - 5) / (f.bits / 8 * f.channels);
         if (tmp.size() < frames * 2) tmp.resize(frames * 2);
@@ -565,7 +591,7 @@ static DWORD WINAPI NetReceiveThread(LPVOID) {
 }
 
 // ------------------------------------------------------------------ CLI ----
-static void PrintDevices(const std::vector<DevInfo>& play, const std::vector<DevInfo>& rec) {
+[[maybe_unused]] static void PrintDevices(const std::vector<DevInfo>& play, const std::vector<DevInfo>& rec) {
     Log("\nPlayback devices (outputs, and loopback sources):\n");
     for (size_t i = 0; i < play.size(); i++)
         Log("  [%zu] %s%s%s\n", i + 1, play[i].name.c_str(), play[i].isDefault ? "   <- Windows default" : "",
@@ -608,7 +634,7 @@ static std::vector<std::string> Split(const std::string& s, char sep) {
     return out;
 }
 
-static std::string ReadLine(const char* prompt) {
+[[maybe_unused]] static std::string ReadLine(const char* prompt) {
     Log("%s", prompt);
     char buf[512];
     if (!fgets(buf, sizeof(buf), stdin)) { g_running = false; return std::string(); }
@@ -617,13 +643,13 @@ static std::string ReadLine(const char* prompt) {
     return s;
 }
 
-static void Usage() {
+[[maybe_unused]] static void Usage() {
     Log(
         "SoundMesh " SM_VERSION " - play one sound on many headphones/speakers/PCs at once.\n\n"
-        "  soundmesh                      interactive setup (just double-click the exe)\n"
-        "  soundmesh list                 show devices and their numbers\n"
-        "  soundmesh bt                   open Windows Bluetooth settings (pair headphones there)\n"
-        "  soundmesh [options]\n\n"
+        "  soundmesh-cli                  interactive setup in the console\n"
+        "  soundmesh-cli list                 show devices and their numbers\n"
+        "  soundmesh-cli bt                   open Windows Bluetooth settings (pair headphones there)\n"
+        "  soundmesh-cli [options]        (soundmesh.exe takes the same options and starts playing)\n\n"
         "Options:\n"
         "  --from loop        capture what the default playback device plays (default)\n"
         "  --from loop:N      capture what playback device N plays\n"
@@ -635,13 +661,14 @@ static void Usage() {
         "  --port P           UDP port (default 4010)\n"
         "  --iface IP         local IPv4 to use for multicast (pick the right adapter)\n"
         "  --latency MS       base buffer for every output (default 60, net source 120)\n"
+        "  --buffer MS        device buffer per output (default 30; 100 if you hear crackling)\n"
         "  --delay N=MS,...   extra delay for output N, to line up headphones (lip sync)\n"
         "  --vol N=PCT,...    volume for output N in percent (default 100)\n\n"
         "While running, type:  s = status   d N MS = set delay   v N PCT = set volume\n"
         "                      l MS = base latency   q = quit\n");
 }
 
-static BOOL WINAPI OnCtrl(DWORD) {
+[[maybe_unused]] static BOOL WINAPI OnCtrl(DWORD) {
     g_running = false;
     return TRUE;
 }
@@ -652,6 +679,7 @@ struct Options {
     std::string net;
     std::string delays, vols;
     int latency = -1;
+    int deviceBuffer = 30;
 };
 
 static void ApplyKV(const std::string& spec, bool isDelay) {
@@ -664,7 +692,7 @@ static void ApplyKV(const std::string& spec, bool isDelay) {
     }
 }
 
-static void PrintStatus() {
+[[maybe_unused]] static void PrintStatus() {
     uint32_t rate = g_rate;
     const char* kind = g_src.kind == SRC_NET ? "LAN stream" : (g_src.kind == SRC_MIC ? "mic" : "loopback");
     Log("source: %s %s | %u Hz | %.1f s received\n", kind, g_src.dev.name.c_str(), rate, (double)g_srcFrames / rate);
@@ -674,7 +702,50 @@ static void PrintStatus() {
     if (g_net) Log("  [net] %zu destination(s), %llu packets sent\n", g_net->dests.size(), (unsigned long long)g_net->packets);
 }
 
-static int Run(Options& opt, const std::vector<DevInfo>& play, const std::vector<DevInfo>& rec) {
+// ------------------------------------------------------------- engine ------
+static HANDLE g_srcThread = nullptr;
+
+static void Cleanup() {
+    for (auto* o : g_outputs) {
+        if (o->thread) { WaitForSingleObject(o->thread, 3000); CloseHandle(o->thread); }
+        delete o;
+    }
+    g_outputs.clear();
+    if (g_net) {
+        closesocket(g_net->s);
+        delete g_net;
+        g_net = nullptr;
+    }
+}
+
+// Open every output device at g_rate. Called once the source rate is known:
+// right away for local sources, on the first packet for a LAN source.
+static void StartOutputs() {
+    if (g_net && !g_net->dests.empty() && !ScreamRateByte(g_rate, g_net->rateByte)) {
+        Log("! %u Hz can't be sent to the LAN (needs a multiple of 44100 or 48000); LAN output disabled.\n", g_rate.load());
+        g_net->dests.clear();
+    }
+    for (auto* o : g_outputs) o->thread = CreateThread(nullptr, 0, OutputThread, o, 0, nullptr);
+}
+
+static void Stop() {
+    g_running = false;
+    if (g_srcThread) {
+        WaitForSingleObject(g_srcThread, 3000);
+        CloseHandle(g_srcThread);
+        g_srcThread = nullptr;
+    }
+    Cleanup();
+}
+
+// Validate options, open everything and start the audio threads.
+// Returns false (with the reason logged and in g_lastError) on bad options.
+static bool Start(Options opt, const std::vector<DevInfo>& play, const std::vector<DevInfo>& rec) {
+    g_lastError.clear();
+    g_srcFrames = 0;
+    g_baseLatencyMs = 60;
+    g_src.dev = DevInfo();
+
     // ---- source
     std::string from = Lower(opt.from);
     if (from == "net") {
@@ -684,43 +755,41 @@ static int Run(Options& opt, const std::vector<DevInfo>& play, const std::vector
         g_src.kind = SRC_MIC;
         int i = from.size() > 4 ? Resolve(opt.from.substr(4), rec) : 0;
         if (!i) for (size_t k = 0; k < rec.size(); k++) if (rec[k].isDefault) i = (int)k + 1;
-        if (!i) { Log("! no such recording device: %s\n", opt.from.c_str()); return 1; }
+        if (!i) { Log("! no such recording device: %s\n", opt.from.c_str()); return false; }
         g_src.dev = rec[i - 1];
         g_src.listIdx = i;
     } else {
         g_src.kind = SRC_LOOPBACK;
         int i = from.size() > 5 ? Resolve(opt.from.substr(5), play) : 0;
         if (!i) for (size_t k = 0; k < play.size(); k++) if (play[k].isDefault) i = (int)k + 1;
-        if (!i) { Log("! no such playback device: %s\n", opt.from.c_str()); return 1; }
+        if (!i) { Log("! no such playback device: %s\n", opt.from.c_str()); return false; }
         g_src.dev = play[i - 1];
         g_src.listIdx = i;
     }
 
     // ---- outputs
-    if (!opt.to.empty()) {
-        for (auto& tok : Split(opt.to, ',')) {
-            if (tok.empty()) continue;
-            int i = Resolve(tok, play);
-            if (!i) { Log("! no playback device matches '%s' (try `soundmesh list`)\n", tok.c_str()); return 1; }
-            if (g_src.kind == SRC_LOOPBACK && i == g_src.listIdx) {
-                Log("! [%d] %s is the loopback source; sending it its own sound would echo forever.\n"
-                    "  Make a different device the Windows default, or use --from loop:N.\n", i, play[i - 1].name.c_str());
-                return 1;
-            }
-            bool dup = false;
-            for (auto* o : g_outputs) dup |= (o->listIdx == i);
-            if (dup) continue;
-            Output* o = new Output();
-            o->listIdx = i;
-            o->dev = play[i - 1];
-            g_outputs.push_back(o);
+    for (auto& tok : Split(opt.to, ',')) {
+        if (tok.empty()) continue;
+        int i = Resolve(tok, play);
+        if (!i) { Log("! no playback device matches '%s'\n", tok.c_str()); Cleanup(); return false; }
+        if (g_src.kind == SRC_LOOPBACK && i == g_src.listIdx) {
+            Log("! %s is the source; playing its own sound back into it would echo forever.\n"
+                "  Pick a different source device, or don't use it as an output.\n", play[i - 1].name.c_str());
+            Cleanup();
+            return false;
         }
+        bool dup = false;
+        for (auto* o : g_outputs) dup |= (o->listIdx == i);
+        if (dup) continue;
+        Output* o = new Output();
+        o->listIdx = i;
+        o->dev = play[i - 1];
+        g_outputs.push_back(o);
     }
 
     // ---- network out
-    WSADATA wsa;
-    WSAStartup(MAKEWORD(2, 2), &wsa);
-    if (!opt.net.empty() && Lower(opt.net) != "no") {
+    std::string net = Lower(opt.net);
+    if (!net.empty() && net != "no") {
         g_net = new NetOut();
         g_net->s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
         // TTL 1: packets never leave the local network, so no internet quota.
@@ -731,18 +800,18 @@ static int Run(Options& opt, const std::vector<DevInfo>& play, const std::vector
             in_addr ifa;
             if (ParseIPv4(g_src.iface, ifa)) setsockopt(g_net->s, IPPROTO_IP, IP_MULTICAST_IF, (const char*)&ifa, sizeof(ifa));
         }
-        std::vector<std::string> targets = Lower(opt.net) == "multicast" ? std::vector<std::string>{kScreamGroup} : Split(opt.net, ',');
+        std::vector<std::string> targets = net == "multicast" ? std::vector<std::string>{kScreamGroup} : Split(opt.net, ',');
         for (auto& t : targets) {
             if (t.empty()) continue;
             sockaddr_in d = {};
             d.sin_family = AF_INET;
             d.sin_port = htons((u_short)g_src.port);
-            if (!ParseIPv4(t, d.sin_addr)) { Log("! not an IPv4 address: %s\n", t.c_str()); return 1; }
+            if (!ParseIPv4(t, d.sin_addr)) { Log("! not an IPv4 address: %s\n", t.c_str()); Cleanup(); return false; }
             g_net->dests.push_back(d);
         }
     }
 
-    if (g_outputs.empty() && !g_net) { Log("! nothing to play to: give --to and/or --net\n"); return 1; }
+    if (g_outputs.empty() && !g_net) { Log("! nothing to play to: pick at least one output or a LAN address\n"); return false; }
 
     // ---- sample rate
     if (g_src.kind == SRC_NET) {
@@ -751,68 +820,66 @@ static int Run(Options& opt, const std::vector<DevInfo>& play, const std::vector
         IAudioClient* ac = ActivateClient(g_src.dev.id);
         WAVEFORMATEX* mix = nullptr;
         Fmt f;
-        if (!ac || FAILED(ac->GetMixFormat(&mix)) || !ParseFormat(mix, f)) {
-            Log("! cannot read the format of '%s'\n", g_src.dev.name.c_str());
-            return 1;
-        }
-        CoTaskMemFree(mix);
+        bool ok = ac && SUCCEEDED(ac->GetMixFormat(&mix)) && ParseFormat(mix, f);
+        if (mix) CoTaskMemFree(mix);
         SafeRelease(ac);
+        if (!ok) { Log("! cannot read the format of '%s'\n", g_src.dev.name.c_str()); Cleanup(); return false; }
         g_rate = f.rate;
     }
     if (opt.latency >= 0) g_baseLatencyMs = std::max(10, std::min(1000, opt.latency));
+    g_deviceBufferMs = std::max(10, std::min(500, opt.deviceBuffer));
     ApplyKV(opt.delays, true);
     ApplyKV(opt.vols, false);
 
-    // ---- start
+    // ---- go
     const char* kind = g_src.kind == SRC_NET ? "LAN stream" : (g_src.kind == SRC_MIC ? "microphone" : "loopback of");
-    Log("\nSource : %s %s\n", kind, g_src.kind == SRC_NET ? "" : g_src.dev.name.c_str());
+    Log("Source : %s %s\n", kind, g_src.kind == SRC_NET ? "" : g_src.dev.name.c_str());
     for (auto* o : g_outputs) Log("Output : [%d] %s\n", o->listIdx, o->dev.name.c_str());
     if (g_net) for (auto& d : g_net->dests) {
         char ip[32];
         inet_ntop(AF_INET, &d.sin_addr, ip, sizeof(ip));
         Log("Output : LAN %s:%d\n", ip, g_src.port);
     }
-    Log("Base latency %d ms. Type 's' for status, 'q' to quit.\n\n", g_baseLatencyMs.load());
+    Log("Base latency %d ms, device buffer %d ms.\n", g_baseLatencyMs.load(), g_deviceBufferMs.load());
 
-    HANDLE src = nullptr;
+    g_running = true;
     if (g_src.kind == SRC_NET) {
-        src = CreateThread(nullptr, 0, NetReceiveThread, nullptr, 0, nullptr);
         Log("  waiting for a stream on the LAN...\n");
-        while (g_running && WaitForSingleObject(g_rateKnown, 200) == WAIT_TIMEOUT) {}
+        g_srcThread = CreateThread(nullptr, 0, NetReceiveThread, nullptr, 0, nullptr);
+    } else {
+        StartOutputs();
+        g_srcThread = CreateThread(nullptr, 0, CaptureThread, nullptr, 0, nullptr);
     }
-    if (g_net && !ScreamRateByte(g_rate, g_net->rateByte)) {
-        Log("! %u Hz can't be sent to the LAN (needs a multiple of 44100 or 48000); LAN output disabled.\n", g_rate.load());
-        g_net->dests.clear();
-    }
-    for (auto* o : g_outputs) o->thread = CreateThread(nullptr, 0, OutputThread, o, 0, nullptr);
-    if (g_src.kind != SRC_NET) src = CreateThread(nullptr, 0, CaptureThread, nullptr, 0, nullptr);
-
-    // ---- console commands
-    while (g_running) {
-        std::string line = ReadLine("");
-        if (!g_running) break;
-        auto p = Split(line, ' ');
-        if (p.empty() || p[0].empty()) continue;
-        char c = (char)tolower((unsigned char)p[0][0]);
-        if (c == 'q') break;
-        else if (c == 's') PrintStatus();
-        else if ((c == 'd' || c == 'v') && p.size() == 3) {
-            ApplyKV(p[1] + "=" + p[2], c == 'd');
-            PrintStatus();
-        } else if (c == 'l' && p.size() == 2) {
-            g_baseLatencyMs = std::max(10, std::min(1000, atoi(p[1].c_str())));
-            Log("base latency %d ms\n", g_baseLatencyMs.load());
-        } else Log("commands: s | d N MS | v N PCT | l MS | q\n");
-    }
-    g_running = false;
-    if (src) { WaitForSingleObject(src, 2000); CloseHandle(src); }
-    for (auto* o : g_outputs) if (o->thread) { WaitForSingleObject(o->thread, 2000); CloseHandle(o->thread); }
-    if (g_net) closesocket(g_net->s);
-    WSACleanup();
-    Log("bye\n");
-    return 0;
+    return true;
 }
 
+// Shared by both builds: returns false on a bad option. Sets *verb for
+// `list` / `bt` / `help`.
+static bool ParseArgs(int argc, char** argv, Options& opt, std::string* verb) {
+    for (int i = 1; i < argc; i++) {
+        std::string a = argv[i];
+        auto next = [&](std::string& dst) { if (i + 1 < argc) dst = argv[++i]; };
+        std::string tmp;
+        if (a == "list" || a == "bt") *verb = a;
+        else if (a == "-h" || a == "--help" || a == "help" || a == "/?") *verb = "help";
+        else if (a == "--from") next(opt.from);
+        else if (a == "--to") next(opt.to);
+        else if (a == "--net") next(opt.net);
+        else if (a == "--delay") next(opt.delays);
+        else if (a == "--vol") next(opt.vols);
+        else if (a == "--iface") next(g_src.iface);
+        else if (a == "--port") { next(tmp); g_src.port = atoi(tmp.c_str()); }
+        else if (a == "--latency") { next(tmp); opt.latency = atoi(tmp.c_str()); }
+        else if (a == "--buffer") { next(tmp); opt.deviceBuffer = atoi(tmp.c_str()); }
+        else { Log("! unknown option: %s\n", a.c_str()); return false; }
+    }
+    return true;
+}
+
+static void OpenBluetoothSettings() { ShellExecuteW(nullptr, L"open", L"ms-settings:bluetooth", nullptr, nullptr, SW_SHOWNORMAL); }
+
+#ifdef SM_CONSOLE
+// ------------------------------------------------------------ console ------
 static std::string Quote(const std::string& s) {
     return s.find_first_of(" ,") == std::string::npos ? s : "\"" + s + "\"";
 }
@@ -823,7 +890,7 @@ static void Wizard(Options& opt, const std::vector<DevInfo>& play, const std::ve
     PrintDevices(play, rec);
 
     std::string s = ReadLine("Source? [Enter = what the Windows default device plays | loop:N | mic:N | net]: ");
-    if (s == "bt") { ShellExecuteW(nullptr, L"open", L"ms-settings:bluetooth", nullptr, nullptr, SW_SHOWNORMAL); s = ReadLine("Source? "); }
+    if (s == "bt") { OpenBluetoothSettings(); s = ReadLine("Source? "); }
     // Accept the numbers exactly as the list shows them: "2" = loop:2, "m1" = mic:1.
     if (s.empty()) opt.from = "loop";
     else if (isdigit((unsigned char)s[0])) opt.from = "loop:" + s;
@@ -834,52 +901,60 @@ static void Wizard(Options& opt, const std::vector<DevInfo>& play, const std::ve
     std::string n = ReadLine("Also send over the LAN? [Enter = no | m = multicast | IPs, comma separated]: ");
     opt.net = (Lower(n) == "m") ? "multicast" : n;
 
-    std::string cmd = "soundmesh --from " + Quote(opt.from);
+    std::string cmd = "soundmesh-cli --from " + Quote(opt.from);
     if (!opt.to.empty()) cmd += " --to " + Quote(opt.to);
     if (!opt.net.empty()) cmd += " --net " + opt.net;
-    Log("\nTip: make a shortcut with this command to skip these questions:\n  %s\n", cmd.c_str());
+    Log("\nTip: make a shortcut with this command to skip these questions:\n  %s\n\n", cmd.c_str());
 }
 
 int main(int argc, char** argv) {
     InitializeCriticalSection(&g_logLock);
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCtrlHandler(OnCtrl, TRUE);
-    g_rateKnown = CreateEventW(nullptr, TRUE, FALSE, nullptr);
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    WSADATA wsa;
+    WSAStartup(MAKEWORD(2, 2), &wsa);
     timeBeginPeriod(1);
 
     Options opt;
-    bool interactive = argc == 1;
-    for (int i = 1; i < argc; i++) {
-        std::string a = argv[i];
-        auto next = [&](std::string& dst) { if (i + 1 < argc) dst = argv[++i]; };
-        std::string tmp;
-        if (a == "list") {
-            PrintDevices(ListDevices(eRender), ListDevices(eCapture));
-            return 0;
-        } else if (a == "bt") {
-            ShellExecuteW(nullptr, L"open", L"ms-settings:bluetooth", nullptr, nullptr, SW_SHOWNORMAL);
-            return 0;
-        } else if (a == "-h" || a == "--help" || a == "help" || a == "/?") {
-            Usage();
-            return 0;
-        } else if (a == "--from") next(opt.from);
-        else if (a == "--to") next(opt.to);
-        else if (a == "--net") next(opt.net);
-        else if (a == "--delay") next(opt.delays);
-        else if (a == "--vol") next(opt.vols);
-        else if (a == "--iface") next(g_src.iface);
-        else if (a == "--port") { next(tmp); g_src.port = atoi(tmp.c_str()); }
-        else if (a == "--latency") { next(tmp); opt.latency = atoi(tmp.c_str()); }
-        else { Log("unknown option: %s\n\n", a.c_str()); Usage(); return 1; }
-    }
-
+    std::string verb;
+    if (!ParseArgs(argc, argv, opt, &verb)) { Usage(); return 1; }
+    if (verb == "help") { Usage(); return 0; }
+    if (verb == "bt") { OpenBluetoothSettings(); return 0; }
     auto play = ListDevices(eRender);
     auto rec = ListDevices(eCapture);
+    if (verb == "list") { PrintDevices(play, rec); return 0; }
+
+    bool interactive = argc == 1;
     if (interactive) Wizard(opt, play, rec);
-    int rc = g_running ? Run(opt, play, rec) : 0;
+    int rc = 0;
+    if (g_running && Start(opt, play, rec)) {
+        Log("Type 's' for status, 'q' to quit.\n\n");
+        while (g_running) {
+            std::string line = ReadLine("");
+            if (!g_running) break;
+            auto p = Split(line, ' ');
+            if (p.empty() || p[0].empty()) continue;
+            char c = (char)tolower((unsigned char)p[0][0]);
+            if (c == 'q') break;
+            else if (c == 's') PrintStatus();
+            else if ((c == 'd' || c == 'v') && p.size() == 3) {
+                ApplyKV(p[1] + "=" + p[2], c == 'd');
+                PrintStatus();
+            } else if (c == 'l' && p.size() == 2) {
+                g_baseLatencyMs = std::max(10, std::min(1000, atoi(p[1].c_str())));
+                Log("base latency %d ms\n", g_baseLatencyMs.load());
+            } else Log("commands: s | d N MS | v N PCT | l MS | q\n");
+        }
+        Stop();
+        Log("bye\n");
+    } else rc = 1;
     if (interactive && rc) ReadLine("\nPress Enter to close.");
     timeEndPeriod(1);
+    WSACleanup();
     CoUninitialize();
     return rc;
 }
+#else
+#include "gui.inc"
+#endif

@@ -2,7 +2,7 @@
 
 Play the same sound on several Bluetooth headphones, speakers and other computers at the same time, from a Windows 11 PC.
 
-- **One portable `.exe`** (~220 KB). Nothing to install, no driver, no admin rights, no dependencies.
+- **One portable `.exe`** (~280 KB) with a simple window. Nothing to install, no driver, no admin rights, no dependencies.
 - **Fast and light:** native C++ with WASAPI and real-time audio threads, about 5–10 MB of RAM.
 - **Fan-out:** one source goes to any number of outputs. Each output has its own buffer, clock-drift correction and adjustable delay, so different headphones stay in sync.
 - **Any route:**
@@ -13,45 +13,36 @@ Play the same sound on several Bluetooth headphones, speakers and other computer
 
 ## Quick start
 
-1. Pair every headphone in **Settings → Bluetooth & devices** (or run `soundmesh bt`). Turn them all on.
-2. Double-click `soundmesh.exe` and answer three questions:
+1. Pair every headphone in **Settings → Bluetooth & devices** (the **Bluetooth settings…** button opens it). Turn them all on, then click **Refresh devices**.
+2. Double-click **`soundmesh.exe`**:
 
-```
-Playback devices (outputs, and loopback sources):
-  [1] Speakers (Realtek(R) Audio)   <- Windows default
-  [2] Headphones (WH-1000XM4)
-  [3] Headphones (AirPods Pro)
-  [4] Headset (AirPods Pro Hands-Free)   (Bluetooth call mode: low quality, avoid)
+![SoundMesh window](docs/screenshot.png)
+*(Screenshot from the Wine test run with virtual devices. On your PC the list shows your real headphones.)*
 
-Source? [Enter = what the Windows default device plays | loop:N | mic:N | net]:     <Enter>
-Play on which devices? 2,3
-Also send over the LAN? [Enter = no | m = multicast | IPs, comma separated]:       <Enter>
-```
+3. Set **Source** to *What this PC plays* (usual choice), a specific device, a microphone, or *Another PC on the network*.
+4. **Tick** every headphone or speaker that should get the sound, then press **Start**.
+5. **Click a device** to adjust its **delay** (line up lip sync between headphones) and **volume**. Both change live while playing.
 
-Everything Windows plays (YouTube, Spotify, games) now also plays on both headphones.
+Everything Windows plays (YouTube, Spotify, games) now also plays on every ticked device. The Status column shows each one's state and buffer.
 
-Commands while it runs:
-
-| Type | Does |
-|---|---|
-| `s` | status: buffer level, delay, volume and dropouts for each output |
-| `d 3 120` | delay output 3 by 120 ms (to line up headphones) |
-| `v 2 70` | set output 2 to 70 % volume |
-| `l 80` | set the base latency to 80 ms (raise it if you hear dropouts) |
-| `q` | quit |
-
-The wizard prints the matching command line at the end. Put it in a desktop shortcut to skip the questions next time.
+- **Send to LAN:** type IP addresses (or `multicast`) to also stream to other PCs/phones on your home network. **Network help…** explains the router settings.
+- **Smooth mode:** if a device crackles, stop, tick this and start again. It adds ~70 ms of buffering per device.
+- **Latency ms:** leave it on *auto* (60 ms, 120 ms for a LAN source). Raise it if you hear gaps.
+- **Remembered settings:** the app saves them in `soundmesh.ini` next to the exe (source, ticked devices, delays, volumes), so it stays portable.
 
 ### Command line
 
+`soundmesh.exe` accepts the options below and starts playing immediately (handy for a desktop shortcut). `soundmesh-cli.exe` is the same engine as a console program, with an interactive text wizard and live commands (`s` status, `d N MS` delay, `v N PCT` volume, `q` quit).
+
 ```
-soundmesh list                                     show devices and their numbers
+soundmesh-cli list                                 show devices and their numbers
 soundmesh --to "WH-1000,AirPods"                   default device -> 2 headphones (match by name)
 soundmesh --to 2,3 --delay 3=80 --vol 2=90         by number, with lip-sync delay and volume
 soundmesh --from loop:1 --to 2,3                   capture a specific playback device
-soundmesh --from mic:1 --to 2,3                    microphone -> headphones (e.g. a TV-assist setup)
+soundmesh --from mic:1 --to 2,3                    microphone -> headphones
 soundmesh --to 2 --net 192.168.1.23,192.168.1.40   headphone + two other devices on the LAN
 soundmesh --from net --to 2,3                      receive from another PC and play on local headphones
+soundmesh --to 2,3 --buffer 100                    smooth mode
 ```
 
 Device numbers can change when devices connect or disconnect. Names (or any part of a name) are more reliable.
@@ -75,7 +66,7 @@ Loopback captures what Windows plays on the **default** playback device, and tha
 
 Audio goes over your **local** network only. The router just switches packets between devices in your home, and nothing goes to your ISP. It even works with the router's internet (WAN) cable unplugged.
 
-**On the sending PC:**
+**On the sending PC:** type the receivers' IPs (or `multicast`) into **Send to LAN**, or:
 ```
 soundmesh --to 2 --net 192.168.1.23            unicast to one device (best on Wi-Fi)
 soundmesh --to 2 --net 192.168.1.23,192.168.1.40
@@ -86,7 +77,7 @@ soundmesh --to 2 --net multicast               one stream that every receiver pi
 
 | Receiver | How |
 |---|---|
-| Another Windows PC | `soundmesh --from net --to 2` (its own Bluetooth headphones join the group too) |
+| Another Windows PC | SoundMesh with source *Another PC on the network* (its own Bluetooth headphones join the group too) |
 | Linux / Raspberry Pi | the Scream receiver: `scream -u -o pulse` for unicast, or `scream -o pulse` for multicast |
 | Android | the Scream Android receiver (`Receivers/android` in the Scream repo) |
 
@@ -99,7 +90,7 @@ You do **not** need "media sharing", DLNA, UPnP, port forwarding or a hotspot. C
 1. **Put every device on the same network.** Use the same router and the same subnet (all addresses look like `192.168.1.x`). **Do not use the Guest Wi-Fi.** Guest networks block devices from talking to each other.
 2. **Turn off AP isolation.** It is also called *Client isolation*, *Wireless isolation* or *Station isolation*, usually under Wireless → Advanced. When it is on, devices on Wi-Fi cannot reach each other.
 3. **Set the Windows network to Private:** Settings → Network & internet → Wi-Fi (or Ethernet) → your network → **Private network**.
-4. **Allow the firewall.** Windows asks the first time you run `--from net`. Allow it for **Private networks**. Or run this once in an admin terminal on each receiving PC:
+4. **Allow the firewall.** Windows asks the first time a PC receives (source *Another PC on the network*). Allow it for **Private networks**. Or run this once in an admin terminal on each receiving PC:
    ```
    netsh advfirewall firewall add rule name="SoundMesh" dir=in action=allow protocol=UDP localport=4010 profile=private
    ```
@@ -129,10 +120,10 @@ On Linux, cross-compile with mingw-w64:
 
 ```
 sudo apt install mingw-w64
-./build.sh                 # -> dist/soundmesh.exe
+./build.sh                 # -> dist/soundmesh.exe (window) + dist/soundmesh-cli.exe (console)
 ```
 
-On Windows with MSYS2, run the same `g++` line from `build.sh`.
+On Windows with MSYS2, run the same `windres`/`g++` lines from `build.sh`. The GUI is plain Win32 (`src/gui.inc`), with no frameworks.
 
 ## Tested
 
@@ -141,5 +132,6 @@ The build was tested in Linux under Wine with virtual PulseAudio devices:
 - **Fan-out:** a 1 kHz tone was fanned out to two outputs. Both played it at the correct pitch, with full level and no clicks. Buffers held their 60 ms target with no dropouts.
 - **LAN:** PC→PC over UDP played clean 440 Hz audio on the receiver.
 - **Scream compatibility:** the official Scream receiver decoded SoundMesh's stream correctly.
+- **GUI:** under Xvfb, Start, Stop and close all worked. Settings were saved and restored, and the delay and volume sliders applied live.
 
 Wine does not implement WASAPI loopback, so loopback capture still needs to be confirmed on real Windows. It uses the standard, documented API.
