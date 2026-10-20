@@ -32,7 +32,7 @@
 #include <string>
 #include <vector>
 
-#define SM_VERSION "1.5.0"
+#define SM_VERSION "1.6.0"
 
 // ---------------------------------------------------------------- GUIDs ----
 // Defined locally so the build does not depend on which uuid libs the
@@ -59,11 +59,46 @@ static HWND g_logWnd = nullptr;
 static std::string g_logQueue;
 static std::string g_lastError;
 
+// The window app also keeps soundmesh-log.txt next to the exe (rotated at
+// 512 KB), so a report can include what happened in earlier sessions.
+static FILE* g_logFile = nullptr;
+static bool g_logAtLineStart = true;
+
+static std::wstring ExeDir() {
+    wchar_t p[MAX_PATH];
+    DWORD n = GetModuleFileNameW(nullptr, p, MAX_PATH);
+    std::wstring s(p, n);
+    return s.substr(0, s.find_last_of(L"\\/") + 1);
+}
+
+[[maybe_unused]] static void OpenLogFile() {
+    std::wstring path = ExeDir() + L"soundmesh-log.txt";
+    WIN32_FILE_ATTRIBUTE_DATA fa;
+    if (GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &fa) && fa.nFileSizeLow > 512 * 1024) {
+        std::wstring old = ExeDir() + L"soundmesh-log.old.txt";
+        DeleteFileW(old.c_str());
+        MoveFileW(path.c_str(), old.c_str());
+    }
+    g_logFile = _wfopen(path.c_str(), L"ab");  // read-only folder: no file log, that's fine
+}
+
 static void LogV(const char* fmt, va_list ap) {
     char buf[1024];
     vsnprintf(buf, sizeof(buf), fmt, ap);
     EnterCriticalSection(&g_logLock);
     if (buf[0] == '!') g_lastError = buf + 2;
+    if (g_logFile) {
+        SYSTEMTIME st;
+        GetLocalTime(&st);
+        for (const char* p = buf; *p; p++) {
+            if (g_logAtLineStart && *p != '\n')
+                fprintf(g_logFile, "%04d-%02d-%02d %02d:%02d:%02d  ", st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
+            if (*p == '\n') fputc('\r', g_logFile);
+            fputc(*p, g_logFile);
+            g_logAtLineStart = *p == '\n';
+        }
+        fflush(g_logFile);
+    }
     if (g_logWnd) {
         g_logQueue += buf;
         PostMessageW(g_logWnd, WM_APP_LOG, 0, 0);

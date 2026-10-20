@@ -72,6 +72,20 @@ You don't have to take the app's word for it:
   - The phone server refuses connections from outside your local network.
   - The LAN receiver ignores packets from outside it.
 
+### Sending a report
+
+More options → **Full report / earbuds…** collects everything in one block of text. **Copy report** puts it on the clipboard, and **Save to file** writes `soundmesh-report.txt` next to the exe. It contains:
+- app and Windows version
+- what every output is doing
+- every audio device and how SoundMesh classified it
+- phone, Bluetooth-receiver and Miracast state
+- network addresses and the data meter
+- settings
+- the Bluetooth device report
+- this session's log, plus the history from earlier sessions (kept in `soundmesh-log.txt` next to the exe and rotated at 512 KB)
+
+It includes device names and Bluetooth/local IP addresses, but no passwords.
+
 ### Earbuds: latency, game mode, ANC, renaming
 
 **Earbud / device info…** (under More options, and in the Bluetooth panel) shows a read-only report of every Bluetooth device Windows knows:
@@ -82,6 +96,9 @@ You don't have to take the app's word for it:
 Copy the report and share it. Game mode, ANC, renaming the earbuds themselves and factory reset all go through each chip maker's own private protocol. Whether a PC can do them depends on that chip, and on the earbuds exposing a control channel.
 
 Until then, these work on any earbuds:
+- **Stop the muffled "call mode":** when any app opens the earbuds' microphone, Windows switches them to the low-quality Hands-Free link. SoundMesh warns you when that happens. To prevent it:
+  - Report window → **Sound settings…** → disable the earbuds' *Headset … Hands-Free* entry on both the Playback and Recording tabs.
+  - Or use **Devices and Printers…** → earbuds → Properties → Services → untick *Handsfree Telephony*. (You lose the earbuds' microphone until you turn it back on.)
 - **Game mode:** most unbranded earbuds switch it with a gesture. Try a triple tap, or tap-and-hold for about 2 s; it usually beeps or says "game mode".
 - **Factory reset:** put both earbuds in the case with the lid open, then hold the case button for 10–15 s, or tap one earbud 5 times.
 - **SoundMesh's own buffering:** set **Latency ms** (More options) to 20. That trims about 40 ms from SoundMesh's side; the earbuds' own buffer is the bigger part.

@@ -1,2 +1,4 @@
 build/
 dist/soundmesh.ini
+dist/soundmesh-log*.txt
+dist/soundmesh-report.txt

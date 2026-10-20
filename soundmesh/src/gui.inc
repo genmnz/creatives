@@ -12,6 +12,7 @@ enum {
     CTL_SOURCE = 100, CTL_LIST, CTL_SEL, CTL_DELAY, CTL_DELAYTXT, CTL_VOL, CTL_VOLTXT,
     CTL_NET, CTL_LATENCY, CTL_SMOOTH, CTL_AUTO, CTL_PHONEOUT, CTL_PHONEIN, CTL_MORE, CTL_HEADLINE, CTL_HINT,
     CTL_METER, CTL_VERIFY, CTL_SCREEN, CTL_BTINFO,
+    CTL_I_SAVE, CTL_I_SOUND, CTL_I_DEVPRN,
     CTL_P_KEYS, CTL_P_BTSET, CTL_P_INFO, CTL_S_STATUS, CTL_S_PROJECT, CTL_S_FEATURE, CTL_S_TIPS, CTL_I_TEXT, CTL_I_COPY, CTL_I_REFRESH,
     CTL_P_WEB, CTL_P_URL, CTL_P_COUNT, CTL_P_BT, CTL_P_LIST, CTL_P_CONNECT, CTL_START, CTL_REFRESH, CTL_BT, CTL_HELP, CTL_LOG, CTL_LABEL
 };
@@ -33,7 +34,9 @@ static HWND g_lSource, g_lOut, g_lNet, g_lLat, g_lLog;
 static HWND g_hHeadline, g_hHint, g_hPhoneOut, g_hPhoneIn, g_hMore, g_hMeter, g_hVerify, g_hScreen, g_hBtInfo;
 static HWND g_pKeys, g_pBtSet, g_pInfo;                       // extra controls on the phone panels
 static HWND g_panelScreen, g_sStatus, g_sProject, g_sFeature, g_sTips;  // "Phone screen on this PC"
-static HWND g_panelInfo, g_iText, g_iCopy, g_iRefresh;         // Bluetooth device report
+static HWND g_panelInfo, g_iText, g_iCopy, g_iRefresh, g_iSave, g_iSound, g_iDevPrn;  // full report window
+static std::wstring MiracastStatus();
+static std::string FullReportText();
 static ConnAudit g_audit;
 static bool g_meterClean = true;  // nothing has gone outside the local network
 static HWND g_panelOut, g_pWeb, g_pUrl, g_pCount, g_pTips;    // "Listen on my phone" window
@@ -310,6 +313,19 @@ static void DetectDevices() {
         if (cameBack) Log("Connected: %s\n", g_play[i].name.c_str());
     }
     if (AutoOn()) AutoTick();
+
+    // Earbuds in call mode (an app opened their microphone, or Windows picked the
+    // Hands-Free endpoint) sound muffled: say so once per occurrence.
+    static std::wstring warned;
+    std::wstring now_hf;
+    for (auto& d : g_play)
+        if (d.isDefault && IsHandsFree(d)) now_hf = d.id;
+    if (!now_hf.empty() && now_hf != warned)
+        for (auto& d : g_play)
+            if (d.id == now_hf)
+                Log("! %s is in call mode (low quality). Pick its 'Headphones' entry as the Windows output, or disable the "
+                    "Hands-Free entry: More options > Full report > Sound settings.\n", d.name.c_str());
+    warned = now_hf;
 }
 
 // Status column for every row (also when stopped: shows unplugged devices).
@@ -686,7 +702,7 @@ static void CreateControls() {
     g_hHelp = Mk(L"BUTTON", L"Network help...", WS_TABSTOP, CTL_HELP);
     g_hSmooth = Mk(L"BUTTON", L"Smooth mode (+70 ms)", BS_AUTOCHECKBOX | WS_TABSTOP, CTL_SMOOTH);
     g_hBt = Mk(L"BUTTON", L"Bluetooth settings...", WS_TABSTOP, CTL_BT);
-    g_hBtInfo = Mk(L"BUTTON", L"Earbud / device info...", WS_TABSTOP, CTL_BTINFO);
+    g_hBtInfo = Mk(L"BUTTON", L"Full report / earbuds...", WS_TABSTOP, CTL_BTINFO);
     g_lLog = Mk(L"STATIC", L"Log:", 0, CTL_LABEL);
     g_hLog = Mk(L"EDIT", L"", ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL, CTL_LOG, WS_EX_CLIENTEDGE);
     for (HWND h : {g_lSource, g_hSource, g_lNet, g_hNet, g_lLat, g_hLat, g_hRefresh, g_hHelp, g_hBt, g_hBtInfo, g_hSmooth, g_lLog, g_hLog})
@@ -871,12 +887,34 @@ static LRESULT CALLBACK PanelProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
                 case CTL_P_BTSET: OpenBluetoothSettings(); break;
                 case CTL_P_INFO:
                 case CTL_I_REFRESH: {
-                    SetWindowTextW(g_iText, L"Reading...");
+                    SetWindowTextW(g_iText, L"Collecting...");
+                    SetWindowTextW(g_iCopy, L"Copy report");
                     ShowWindow(g_panelInfo, SW_SHOW);
                     SetForegroundWindow(g_panelInfo);
-                    SetWindowTextW(g_iText, Wide(BluetoothReportText()).c_str());
+                    UpdateWindow(g_panelInfo);
+                    SetWindowTextW(g_iText, Wide(FullReportText()).c_str());
                     break;
                 }
+                case CTL_I_SAVE: {
+                    std::wstring path = ExeDir() + L"soundmesh-report.txt";
+                    FILE* f = _wfopen(path.c_str(), L"wb");
+                    if (f) {
+                        int n = GetWindowTextLengthW(g_iText);
+                        std::wstring w(n + 1, L'\0');
+                        GetWindowTextW(g_iText, &w[0], n + 1);
+                        w.resize(n);
+                        std::string u = Utf8(w);
+                        fwrite("\xEF\xBB\xBF", 1, 3, f);  // UTF-8 BOM so Notepad shows names correctly
+                        fwrite(u.data(), 1, u.size(), f);
+                        fclose(f);
+                        ShellExecuteW(nullptr, L"open", L"explorer.exe", (L"/select,\"" + path + L"\"").c_str(), nullptr, SW_SHOWNORMAL);
+                    } else MessageBoxW(h, L"Can't write next to the exe. Use Copy report instead.", L"SoundMesh", MB_ICONWARNING);
+                    break;
+                }
+                case CTL_I_SOUND: ShellExecuteW(nullptr, L"open", L"control.exe", L"mmsys.cpl", nullptr, SW_SHOWNORMAL); break;
+                case CTL_I_DEVPRN:
+                    ShellExecuteW(nullptr, L"open", L"explorer.exe", L"shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}", nullptr, SW_SHOWNORMAL);
+                    break;
                 case CTL_I_COPY: {
                     int n = GetWindowTextLengthW(g_iText);
                     HGLOBAL mem = GlobalAlloc(GMEM_MOVEABLE, (n + 1) * sizeof(wchar_t));
@@ -925,6 +963,129 @@ static LRESULT CALLBACK PanelProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     return DefWindowProcW(h, msg, wp, lp);
 }
 
+// Everything useful for helping from a distance, in one block of text.
+// Contains device names, Bluetooth and local IP addresses - no passwords.
+static std::string FullReportText() {
+    std::string t;
+    auto line = [&](const std::string& s) { t += s + "\r\n"; };
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    char b[512];
+    snprintf(b, sizeof(b), "===== SoundMesh %s report  %04d-%02d-%02d %02d:%02d =====", SM_VERSION, st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute);
+    line(b);
+
+    // Windows version (RtlGetVersion tells the truth; GetVersionEx does not)
+    typedef LONG(WINAPI * RtlGetVersionFn)(OSVERSIONINFOW*);
+    OSVERSIONINFOW vi = {sizeof(vi)};
+    if (auto fn = (RtlGetVersionFn)GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlGetVersion")) fn(&vi);
+    snprintf(b, sizeof(b), "Windows %lu.%lu build %lu%s", vi.dwMajorVersion, vi.dwMinorVersion, vi.dwBuildNumber,
+             vi.dwBuildNumber >= 22000 ? " (Windows 11)" : vi.dwBuildNumber >= 19041 ? " (Windows 10 2004+)" : "");
+    line(b);
+
+    line("");
+    line("--- Engine ---");
+    if (!g_engineOn) line("stopped");
+    else {
+        const char* kind = g_src.kind == SRC_NET ? "LAN stream" : (g_src.kind == SRC_MIC ? "microphone" : "loopback");
+        snprintf(b, sizeof(b), "source: %s '%s'%s, %u Hz, %.0f s received, base latency %d ms, device buffer %d ms", kind,
+                 g_src.dev.name.c_str(), g_src.followDefault ? " (follows Windows default)" : "", g_rate.load(),
+                 (double)g_srcFrames / std::max(1u, g_rate.load()), g_baseLatencyMs.load(), g_deviceBufferMs.load());
+        line(b);
+        for (auto* o : Outputs()) {
+            snprintf(b, sizeof(b), "output '%s': %s%s, buffer %d ms, delay %d ms, volume %d%%, gaps %u", o->dev.name.c_str(),
+                     kStateName[o->state], o->enabled ? "" : " (unticked)", o->fillMs.load(), o->delayMs.load(), o->volPct.load(),
+                     o->underruns.load());
+            line(b);
+        }
+        if (g_net)
+            for (auto& d : g_net->dests) {
+                char ip[32];
+                inet_ntop(AF_INET, &d.sin_addr, ip, sizeof(ip));
+                line(std::string("LAN output ") + ip + " (" + std::to_string(g_net->packets) + " packets)");
+            }
+    }
+
+    line("");
+    line("--- Audio devices (bus / form factor: 1 speakers, 3 headphones, 5 headset) ---");
+    for (auto& d : ListDevices(eRender)) {
+        snprintf(b, sizeof(b), "play: %s | bus %s | form %d%s%s%s", d.name.c_str(), d.bus.empty() ? "?" : d.bus.c_str(), d.formFactor,
+                 d.isDefault ? " | Windows default" : "", IsHandsFree(d) ? " | CALL MODE endpoint" : "",
+                 IsAutoHeadphone(d) ? " | auto-picked as headphones" : "");
+        line(b);
+    }
+    for (auto& d : ListDevices(eCapture)) {
+        snprintf(b, sizeof(b), "mic:  %s | bus %s%s", d.name.c_str(), d.bus.empty() ? "?" : d.bus.c_str(), d.isDefault ? " | Windows default" : "");
+        line(b);
+    }
+
+    line("");
+    line("--- Phones ---");
+    if (g_web && g_web->active)
+        snprintf(b, sizeof(b), "Wi-Fi listening: on, port %d, %d connected, media keys %s", g_web->port, g_web->nClients.load(),
+                 g_web->remoteKeys ? "allowed" : "off");
+    else snprintf(b, sizeof(b), "Wi-Fi listening: off");
+    line(b);
+    std::string bt = g_bt.on ? "on" : (g_bt.supported ? "off" : "not supported on this Windows");
+    line("Bluetooth receiver: " + bt);
+    EnterCriticalSection(&g_bt.lock);
+    for (auto* p : g_bt.phones) line("  phone '" + p->name + "': " + (p->state ? "connected" : "ready"));
+    LeaveCriticalSection(&g_bt.lock);
+    line("Miracast: " + Utf8(MiracastStatus()));
+
+    line("");
+    line("--- Network ---");
+    for (auto& ip : LocalIPv4s()) line("address " + ip.ip + " on '" + ip.adapter + "'" + (ip.wifi ? " (Wi-Fi)" : ""));
+    ConnAudit au = AuditConnections();
+    snprintf(b, sizeof(b), "data meter: %s local, %s internet; open connections %d, outside the local network %d%s%s",
+             FmtBytes(g_bytesLocal).c_str(), FmtBytes(g_bytesInternet).c_str(), au.local + au.outside, au.outside,
+             au.outside ? " -> " : "", au.outsideAddr.c_str());
+    line(b);
+
+    line("");
+    line("--- Settings (soundmesh.ini) ---");
+    SavePrefs();
+    if (FILE* f = _wfopen(IniPath().c_str(), L"rb")) {
+        char l[1024];
+        while (fgets(l, sizeof(l), f)) {
+            std::string s(l);
+            while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
+            line("  " + s);
+        }
+        fclose(f);
+    }
+
+    line("");
+    line("--- Bluetooth devices ---");
+    t += BluetoothReportText();
+
+    line("");
+    line("--- Log, this session ---");
+    int n = GetWindowTextLengthW(g_hLog);
+    std::wstring w(n + 1, L'\0');
+    GetWindowTextW(g_hLog, &w[0], n + 1);
+    w.resize(n);
+    t += Utf8(w);
+
+    line("");
+    line("--- Log history (soundmesh-log.txt, last 400 lines) ---");
+    for (const wchar_t* name : {L"soundmesh-log.old.txt", L"soundmesh-log.txt"}) {
+        FILE* f = _wfopen((ExeDir() + name).c_str(), L"rb");
+        if (!f) continue;
+        std::vector<std::string> lines;
+        char l[1200];
+        while (fgets(l, sizeof(l), f)) lines.push_back(l);
+        fclose(f);
+        if (wcscmp(name, L"soundmesh-log.old.txt") == 0 && lines.size() > 100) lines.erase(lines.begin(), lines.end() - 100);
+        if (lines.size() > 300) lines.erase(lines.begin(), lines.end() - 300);
+        for (auto& s : lines) {
+            while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
+            line(s);
+        }
+    }
+    line("===== end of report =====");
+    return t;
+}
+
 static HWND MakePanel(const wchar_t* title, int w, int hgt) {
     RECT r = {0, 0, S(w), S(hgt)};
     AdjustWindowRect(&r, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU, FALSE);
@@ -958,7 +1119,7 @@ static void CreatePanels() {
     Place(g_pConnect, S(440) - m - S(110), S(158), S(110), S(28));
     g_pBtSet = Mk(L"BUTTON", L"Bluetooth settings...", WS_TABSTOP, CTL_P_BTSET, 0, g_panelIn);
     Place(g_pBtSet, m, S(158), S(150), S(28));
-    g_pInfo = Mk(L"BUTTON", L"Device info...", WS_TABSTOP, CTL_P_INFO, 0, g_panelIn);
+    g_pInfo = Mk(L"BUTTON", L"Full report...", WS_TABSTOP, CTL_P_INFO, 0, g_panelIn);
     Place(g_pInfo, m + S(158), S(158), S(120), S(28));
     g_pInTips = Mk(L"STATIC", kPhoneInTips, 0, CTL_LABEL, 0, g_panelIn);
     Place(g_pInTips, m, S(196), S(416), S(256));
@@ -976,13 +1137,21 @@ static void CreatePanels() {
     Place(g_sTips, m, S(112), S(436), S(350));
 
     // Bluetooth device report
-    g_panelInfo = MakePanel(L"Earbud / Bluetooth device info", 560, 520);
-    g_iText = Mk(L"EDIT", L"", ES_MULTILINE | ES_READONLY | WS_VSCROLL | ES_AUTOVSCROLL, CTL_I_TEXT, WS_EX_CLIENTEDGE, g_panelInfo);
-    Place(g_iText, m, m, S(536), S(452));
+    g_panelInfo = MakePanel(L"SoundMesh report (devices, earbuds, network, log)", 640, 560);
+    g_iText = Mk(L"EDIT", L"", ES_MULTILINE | ES_READONLY | WS_VSCROLL | WS_HSCROLL | ES_AUTOVSCROLL | ES_AUTOHSCROLL,
+                 CTL_I_TEXT, WS_EX_CLIENTEDGE, g_panelInfo);
+    Place(g_iText, m, m, S(616), S(492));
+    SendMessageW(g_iText, EM_SETLIMITTEXT, 4 * 1024 * 1024, 0);
     g_iRefresh = Mk(L"BUTTON", L"Refresh", WS_TABSTOP, CTL_I_REFRESH, 0, g_panelInfo);
-    Place(g_iRefresh, m, S(474), S(110), S(30));
+    Place(g_iRefresh, m, S(514), S(80), S(30));
+    g_iSound = Mk(L"BUTTON", L"Sound settings...", WS_TABSTOP, CTL_I_SOUND, 0, g_panelInfo);
+    Place(g_iSound, m + S(88), S(514), S(120), S(30));
+    g_iDevPrn = Mk(L"BUTTON", L"Devices and Printers...", WS_TABSTOP, CTL_I_DEVPRN, 0, g_panelInfo);
+    Place(g_iDevPrn, m + S(216), S(514), S(150), S(30));
+    g_iSave = Mk(L"BUTTON", L"Save to file", WS_TABSTOP, CTL_I_SAVE, 0, g_panelInfo);
+    Place(g_iSave, S(640) - m - S(236), S(514), S(110), S(30));
     g_iCopy = Mk(L"BUTTON", L"Copy report", WS_TABSTOP, CTL_I_COPY, 0, g_panelInfo);
-    Place(g_iCopy, S(560) - m - S(130), S(474), S(130), S(30));
+    Place(g_iCopy, S(640) - m - S(118), S(514), S(118), S(30));
 }
 
 static void ShowPanel(HWND p) {
@@ -1146,6 +1315,7 @@ int main(int argc, char** argv) {
     InitializeCriticalSection(&g_logLock);
     InitializeCriticalSection(&g_outLock);
     InitializeCriticalSection(&g_bt.lock);
+    OpenLogFile();
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     WSADATA wsa;
     WSAStartup(MAKEWORD(2, 2), &wsa);
