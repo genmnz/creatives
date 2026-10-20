@@ -11,7 +11,8 @@ extern "C" {
 enum {
     CTL_SOURCE = 100, CTL_LIST, CTL_SEL, CTL_DELAY, CTL_DELAYTXT, CTL_VOL, CTL_VOLTXT,
     CTL_NET, CTL_LATENCY, CTL_SMOOTH, CTL_AUTO, CTL_PHONEOUT, CTL_PHONEIN, CTL_MORE, CTL_HEADLINE, CTL_HINT,
-    CTL_METER, CTL_VERIFY,
+    CTL_METER, CTL_VERIFY, CTL_SCREEN, CTL_BTINFO,
+    CTL_P_KEYS, CTL_P_BTSET, CTL_P_INFO, CTL_S_STATUS, CTL_S_PROJECT, CTL_S_FEATURE, CTL_S_TIPS, CTL_I_TEXT, CTL_I_COPY, CTL_I_REFRESH,
     CTL_P_WEB, CTL_P_URL, CTL_P_COUNT, CTL_P_BT, CTL_P_LIST, CTL_P_CONNECT, CTL_START, CTL_REFRESH, CTL_BT, CTL_HELP, CTL_LOG, CTL_LABEL
 };
 enum { COL_DEVICE, COL_STATUS, COL_DELAY, COL_VOLUME };
@@ -29,7 +30,10 @@ struct SrcItem {
 static HWND g_wnd, g_hSource, g_hList, g_hSel, g_hDelay, g_hDelayTxt, g_hVol, g_hVolTxt;
 static HWND g_hAuto, g_hNet, g_hLat, g_hSmooth, g_hStart, g_hRefresh, g_hBt, g_hHelp, g_hLog;
 static HWND g_lSource, g_lOut, g_lNet, g_lLat, g_lLog;
-static HWND g_hHeadline, g_hHint, g_hPhoneOut, g_hPhoneIn, g_hMore, g_hMeter, g_hVerify;
+static HWND g_hHeadline, g_hHint, g_hPhoneOut, g_hPhoneIn, g_hMore, g_hMeter, g_hVerify, g_hScreen, g_hBtInfo;
+static HWND g_pKeys, g_pBtSet, g_pInfo;                       // extra controls on the phone panels
+static HWND g_panelScreen, g_sStatus, g_sProject, g_sFeature, g_sTips;  // "Phone screen on this PC"
+static HWND g_panelInfo, g_iText, g_iCopy, g_iRefresh;         // Bluetooth device report
 static ConnAudit g_audit;
 static bool g_meterClean = true;  // nothing has gone outside the local network
 static HWND g_panelOut, g_pWeb, g_pUrl, g_pCount, g_pTips;    // "Listen on my phone" window
@@ -99,6 +103,7 @@ static void SavePrefs() {
     fprintf(f, "phones=%d\n", g_web && g_web->active ? 1 : 0);
     fprintf(f, "phoneport=%d\n", g_phonePort);
     fprintf(f, "phonein=%d\n", g_bt.on ? 1 : 0);
+    fprintf(f, "phonekeys=%d\n", SendMessageW(g_pKeys, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0);
     fprintf(f, "smooth=%d\n", SendMessageW(g_hSmooth, BM_GETCHECK, 0, 0) == BST_CHECKED ? 1 : 0);
     for (auto& kv : g_prefs)
         fprintf(f, "dev=%d|%d|%d|%s\n", kv.second.on ? 1 : 0, kv.second.delay, kv.second.vol, Utf8(kv.first).c_str());
@@ -126,6 +131,7 @@ static void LoadPrefs() {
         else if (k == "more") g_showMore = v == "1";
         else if (k == "phones") SendMessageW(g_pWeb, BM_SETCHECK, v == "1" ? BST_CHECKED : BST_UNCHECKED, 0);
         else if (k == "phoneport") g_phonePort = std::max(1, std::min(65535, atoi(v.c_str())));
+        else if (k == "phonekeys") SendMessageW(g_pKeys, BM_SETCHECK, v == "1" ? BST_CHECKED : BST_UNCHECKED, 0);
         else if (k == "phonein") SendMessageW(g_pBt, BM_SETCHECK, v == "1" ? BST_CHECKED : BST_UNCHECKED, 0);
         else if (k == "auto") SendMessageW(g_hAuto, BM_SETCHECK, v == "1" ? BST_CHECKED : BST_UNCHECKED, 0);
         else if (k == "smooth") SendMessageW(g_hSmooth, BM_SETCHECK, v == "1" ? BST_CHECKED : BST_UNCHECKED, 0);
@@ -547,7 +553,7 @@ static const wchar_t* kNetworkHelp =
 // -------------------------------------------------------------- layout -----
 static void Place(HWND h, int x, int y, int w, int hgt) { MoveWindow(h, x, y, std::max(1, w), std::max(1, hgt), TRUE); }
 
-static HWND g_advanced[16];
+static HWND g_advanced[20];
 static int g_nAdvanced = 0;
 
 static void Layout() {
@@ -589,7 +595,7 @@ static void Layout() {
     int bw = (W - 2 * m - 3 * S(8)) / 4, bh = S(32);
     Place(g_hPhoneOut, m, y, bw, bh);
     Place(g_hPhoneIn, m + (bw + S(8)), y, bw, bh);
-    Place(g_hBt, m + 2 * (bw + S(8)), y, bw, bh);
+    Place(g_hScreen, m + 2 * (bw + S(8)), y, bw, bh);
     Place(g_hMore, m + 3 * (bw + S(8)), y, bw, bh);
     y += S(40);
     Place(g_hVerify, W - m - S(150), y - S(2), S(150), S(24));
@@ -611,9 +617,11 @@ static void Layout() {
     y += S(32);
     Place(g_hRefresh, m, y, S(140), S(30));
     Place(g_hHelp, m + S(148), y, S(140), S(30));
-    Place(g_hSmooth, W - m - S(200), y + S(5), S(200), S(20));
+    Place(g_hBt, m + S(296), y, S(150), S(30));
+    Place(g_hBtInfo, m + S(454), y, S(150), S(30));
     y += S(38);
-    Place(g_lLog, m, y, W - 2 * m, S(18));
+    Place(g_lLog, m, y, S(100), S(18));
+    Place(g_hSmooth, W - m - S(190), y - S(2), S(190), S(20));
     y += S(20);
     Place(g_hLog, m, y, W - 2 * m, std::max(S(60), H - y - m));
 }
@@ -660,7 +668,7 @@ static void CreateControls() {
 
     g_hPhoneOut = Mk(L"BUTTON", L"Listen on my phone (Wi-Fi)...", WS_TABSTOP, CTL_PHONEOUT);
     g_hPhoneIn = Mk(L"BUTTON", L"Play my phone here (Bluetooth)...", WS_TABSTOP, CTL_PHONEIN);
-    g_hBt = Mk(L"BUTTON", L"Bluetooth settings...", WS_TABSTOP, CTL_BT);
+    g_hScreen = Mk(L"BUTTON", L"Phone screen on this PC...", WS_TABSTOP, CTL_SCREEN);
     g_hMore = Mk(L"BUTTON", L"More options...", WS_TABSTOP, CTL_MORE);
     g_hMeter = Mk(L"STATIC", L"", SS_ENDELLIPSIS, CTL_METER);
     g_hVerify = Mk(L"BUTTON", L"Check it yourself...", WS_TABSTOP, CTL_VERIFY);
@@ -677,9 +685,11 @@ static void CreateControls() {
     g_hRefresh = Mk(L"BUTTON", L"Refresh devices", WS_TABSTOP, CTL_REFRESH);
     g_hHelp = Mk(L"BUTTON", L"Network help...", WS_TABSTOP, CTL_HELP);
     g_hSmooth = Mk(L"BUTTON", L"Smooth mode (+70 ms)", BS_AUTOCHECKBOX | WS_TABSTOP, CTL_SMOOTH);
+    g_hBt = Mk(L"BUTTON", L"Bluetooth settings...", WS_TABSTOP, CTL_BT);
+    g_hBtInfo = Mk(L"BUTTON", L"Earbud / device info...", WS_TABSTOP, CTL_BTINFO);
     g_lLog = Mk(L"STATIC", L"Log:", 0, CTL_LABEL);
     g_hLog = Mk(L"EDIT", L"", ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL, CTL_LOG, WS_EX_CLIENTEDGE);
-    for (HWND h : {g_lSource, g_hSource, g_lNet, g_hNet, g_lLat, g_hLat, g_hRefresh, g_hHelp, g_hSmooth, g_lLog, g_hLog})
+    for (HWND h : {g_lSource, g_hSource, g_lNet, g_hNet, g_lLat, g_hLat, g_hRefresh, g_hHelp, g_hBt, g_hBtInfo, g_hSmooth, g_lLog, g_hLog})
         g_advanced[g_nAdvanced++] = h;
 }
 
@@ -690,16 +700,77 @@ static const wchar_t* kPhoneOutTips =
     L"3. Tap Play. Use the page's Delay slider to line it up with the headphones.\r\n\r\n"
     L"Keep the page open and the screen on. Windows may ask to allow SoundMesh "
     L"through the firewall: allow it on Private networks.\r\n\r\n"
-    L"VLC, smart TVs and Wi-Fi speakers that can open a URL: use .../stream.wav";
+    L"VLC, smart TVs and Wi-Fi speakers that can open a URL: use .../stream.wav\r\n"
+    L"The page's buttons pause / skip what plays on the PC (YouTube, Spotify...).";
+
+static const wchar_t* kScreenTips =
+    L"Uses Miracast, which is built into Windows and most Android phones: phone and PC connect "
+    L"directly over Wi-Fi (Wi-Fi Direct). No router, no internet, nothing to install on the phone. "
+    L"The phone's sound comes along and SoundMesh sends it on to your headphones.\r\n\r\n"
+    L"Once: click 1 and add the free 'Wireless Display' feature. Click 2 and set "
+    L"'Some Windows and Android devices can project...' to 'Available everywhere', "
+    L"'Ask to project' to 'First time only' and 'Require PIN' to 'Never'.\r\n\r\n"
+    L"Each time: open 'Wireless Display' from the Start menu (the PC now waits), then on the phone "
+    L"pull down quick settings and tap Smart View / Screen Cast / Cast / Wireless projection / Mirror "
+    L"screen, and pick this PC.\r\n\r\n"
+    L"Samsung, Xiaomi, OnePlus, OPPO, Realme, vivo, Huawei support it. Google Pixel phones do not "
+    L"(Pixel can only cast to Chromecast).";
+
+// Ask Windows whether the Wi-Fi adapter and graphics driver can receive Miracast.
+static std::wstring MiracastStatus() {
+    SECURITY_ATTRIBUTES sa = {sizeof(sa), nullptr, TRUE};
+    HANDLE rd = nullptr, wr = nullptr;
+    if (!CreatePipe(&rd, &wr, &sa, 0)) return L"";
+    SetHandleInformation(rd, HANDLE_FLAG_INHERIT, 0);
+    STARTUPINFOW si = {sizeof(si)};
+    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+    si.hStdOutput = si.hStdError = wr;
+    PROCESS_INFORMATION pi = {};
+    wchar_t cmd[] = L"netsh.exe wlan show drivers";
+    std::string out;
+    if (CreateProcessW(nullptr, cmd, nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
+        CloseHandle(wr);
+        wr = nullptr;
+        char buf[4096];
+        DWORD n;
+        while (ReadFile(rd, buf, sizeof(buf), &n, nullptr) && n) out.append(buf, n);
+        WaitForSingleObject(pi.hProcess, 5000);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+    }
+    if (wr) CloseHandle(wr);
+    CloseHandle(rd);
+    // English line: "Wireless Display Supported: Yes (Graphics Driver: Yes, Wi-Fi Driver: Yes)"
+    for (size_t p = 0; p < out.size();) {
+        size_t e = out.find('\n', p);
+        std::string line = out.substr(p, e == std::string::npos ? std::string::npos : e - p);
+        p = e == std::string::npos ? out.size() : e + 1;
+        std::string l = Lower(line);
+        if (l.find("wireless display") == std::string::npos && l.find("miracast") == std::string::npos) continue;
+        size_t c = line.find(':');
+        std::string v = c == std::string::npos ? line : line.substr(c + 1);
+        while (!v.empty() && isspace((unsigned char)v.front())) v.erase(v.begin());
+        while (!v.empty() && isspace((unsigned char)v.back())) v.pop_back();
+        if (Lower(v).rfind("yes", 0) == 0) return L"This PC can show phone screens (Miracast supported).";
+        if (Lower(v).rfind("no", 0) == 0)
+            return L"This PC's Wi-Fi or graphics driver can't receive Miracast: " + Wide(v) + L". Updating the Wi-Fi driver sometimes helps.";
+        return L"Miracast: " + Wide(v);
+    }
+    return out.empty() ? L"Couldn't ask Windows about Miracast (is Wi-Fi on?)." : L"Couldn't read Miracast support - try it anyway.";
+}
 
 static const wchar_t* kPhoneInTips =
-    L"Makes this PC a Bluetooth speaker for your phone. The phone's sound plays here "
-    L"and SoundMesh sends it on to all ticked headphones.\r\n\r\n"
-    L"1. Pair the phone with this PC once (Bluetooth settings).\r\n"
-    L"2. Tick the box above. Your paired phones appear in the list.\r\n"
-    L"3. On the phone, open Bluetooth and tap this PC - or pick the phone here and press Connect.\r\n\r\n"
-    L"Needs Windows 10 (2004) or Windows 11. One Bluetooth radio serves everything, "
-    L"so with several headphones plus a phone the audio may stutter.";
+    L"Makes this PC a Bluetooth speaker for your phone; its sound goes on to all ticked headphones. "
+    L"Needs Windows 10 (2004) or 11.\r\n\r\n"
+    L"PC says 'Connected' but the phone says it can't connect?\r\n"
+    L"The phone learned what this PC can do when you paired - before the PC could act as a speaker. "
+    L"Fix, once:\r\n"
+    L"1. Tick the box above first.\r\n"
+    L"2. On the phone: Bluetooth > this PC > Forget / Unpair. On the PC: remove the phone.\r\n"
+    L"3. Pair again, then pick the phone here and press Connect (or tap the PC on the phone and turn on 'Media audio').\r\n"
+    L"Also: close Phone Link if it holds the phone, and switch off one headphone if 2+ are connected - "
+    L"one Bluetooth radio carries everything.";
 
 static void UpdateQr() {
     std::string url;
@@ -762,7 +833,10 @@ static void UpdatePhonePanels() {
 static void SetPhonesListening(bool on) {
     if (on) {
         if (!StartWeb(g_phonePort)) on = false;
-        else Log("Phones can listen: open http://<this PC>:%d on the phone (Listen on my phone... shows a QR code).\n", g_phonePort);
+        else {
+            g_web->remoteKeys = SendMessageW(g_pKeys, BM_GETCHECK, 0, 0) == BST_CHECKED;
+            Log("Phones can listen: open http://<this PC>:%d on the phone (Listen on my phone... shows a QR code).\n", g_phonePort);
+        }
     } else StopWeb();
     SendMessageW(g_pWeb, BM_SETCHECK, on ? BST_CHECKED : BST_UNCHECKED, 0);
     SetWindowTextW(g_hPhoneOut, on ? L"Listen on my phone (Wi-Fi): on" : L"Listen on my phone (Wi-Fi)...");
@@ -790,6 +864,34 @@ static LRESULT CALLBACK PanelProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
                     SetWindowTextW(g_pInTips, kPhoneInTips);
                     SavePrefs();
                     break;
+                case CTL_P_KEYS:
+                    if (g_web) g_web->remoteKeys = SendMessageW(g_pKeys, BM_GETCHECK, 0, 0) == BST_CHECKED;
+                    SavePrefs();
+                    break;
+                case CTL_P_BTSET: OpenBluetoothSettings(); break;
+                case CTL_P_INFO:
+                case CTL_I_REFRESH: {
+                    SetWindowTextW(g_iText, L"Reading...");
+                    ShowWindow(g_panelInfo, SW_SHOW);
+                    SetForegroundWindow(g_panelInfo);
+                    SetWindowTextW(g_iText, Wide(BluetoothReportText()).c_str());
+                    break;
+                }
+                case CTL_I_COPY: {
+                    int n = GetWindowTextLengthW(g_iText);
+                    HGLOBAL mem = GlobalAlloc(GMEM_MOVEABLE, (n + 1) * sizeof(wchar_t));
+                    if (mem && OpenClipboard(h)) {
+                        GetWindowTextW(g_iText, (wchar_t*)GlobalLock(mem), n + 1);
+                        GlobalUnlock(mem);
+                        EmptyClipboard();
+                        SetClipboardData(CF_UNICODETEXT, mem);
+                        CloseClipboard();
+                        SetWindowTextW(g_iCopy, L"Copied");
+                    } else if (mem) GlobalFree(mem);
+                    break;
+                }
+                case CTL_S_FEATURE: ShellExecuteW(nullptr, L"open", L"ms-settings:optionalfeatures", nullptr, nullptr, SW_SHOWNORMAL); break;
+                case CTL_S_PROJECT: ShellExecuteW(nullptr, L"open", L"ms-settings:project", nullptr, nullptr, SW_SHOWNORMAL); break;
                 case CTL_P_CONNECT: {
                     int sel = (int)SendMessageW(g_pList, LB_GETCURSEL, 0, 0);
                     if (sel >= 0 && sel < (int)g_pIds.size() && !g_pIds[sel].empty()) BtConnect(g_pIds[sel]);
@@ -832,7 +934,7 @@ static HWND MakePanel(const wchar_t* title, int w, int hgt) {
 
 static void CreatePanels() {
     const int m = S(12);
-    g_panelOut = MakePanel(L"Listen on my phone (Wi-Fi)", 440, 560);
+    g_panelOut = MakePanel(L"Listen on my phone (Wi-Fi)", 440, 562);
     g_pWeb = Mk(L"BUTTON", L"Let phones listen over Wi-Fi", BS_AUTOCHECKBOX | WS_TABSTOP, CTL_P_WEB, 0, g_panelOut);
     Place(g_pWeb, m, m, S(416), S(22));
     // QR code is painted at y = 44 .. 44 + ~200
@@ -842,17 +944,45 @@ static void CreatePanels() {
     SendMessageW(g_pCount, WM_SETFONT, (WPARAM)g_bigFont, TRUE);
     Place(g_pCount, m, S(316), S(416), S(26));
     g_pTips = Mk(L"STATIC", kPhoneOutTips, 0, CTL_LABEL, 0, g_panelOut);
-    Place(g_pTips, m, S(352), S(416), S(196));
+    Place(g_pTips, m, S(352), S(416), S(170));
+    g_pKeys = Mk(L"BUTTON", L"Phones may pause / skip what plays on this PC", BS_AUTOCHECKBOX | WS_TABSTOP, CTL_P_KEYS, 0, g_panelOut);
+    SendMessageW(g_pKeys, BM_SETCHECK, BST_CHECKED, 0);
+    Place(g_pKeys, m, S(528), S(416), S(22));
 
-    g_panelIn = MakePanel(L"Play my phone here (Bluetooth)", 440, 420);
+    g_panelIn = MakePanel(L"Play my phone here (Bluetooth)", 440, 460);
     g_pBt = Mk(L"BUTTON", L"Let my phone play through this PC", BS_AUTOCHECKBOX | WS_TABSTOP, CTL_P_BT, 0, g_panelIn);
     Place(g_pBt, m, m, S(416), S(22));
     g_pList = Mk(L"LISTBOX", L"", LBS_NOTIFY | WS_VSCROLL | WS_TABSTOP, CTL_P_LIST, WS_EX_CLIENTEDGE, g_panelIn);
     Place(g_pList, m, S(42), S(416), S(110));
     g_pConnect = Mk(L"BUTTON", L"Connect", WS_TABSTOP, CTL_P_CONNECT, 0, g_panelIn);
     Place(g_pConnect, S(440) - m - S(110), S(158), S(110), S(28));
+    g_pBtSet = Mk(L"BUTTON", L"Bluetooth settings...", WS_TABSTOP, CTL_P_BTSET, 0, g_panelIn);
+    Place(g_pBtSet, m, S(158), S(150), S(28));
+    g_pInfo = Mk(L"BUTTON", L"Device info...", WS_TABSTOP, CTL_P_INFO, 0, g_panelIn);
+    Place(g_pInfo, m + S(158), S(158), S(120), S(28));
     g_pInTips = Mk(L"STATIC", kPhoneInTips, 0, CTL_LABEL, 0, g_panelIn);
-    Place(g_pInTips, m, S(196), S(416), S(216));
+    Place(g_pInTips, m, S(196), S(416), S(256));
+
+    // Phone screen on this PC (Miracast - built into Windows and most Android phones)
+    g_panelScreen = MakePanel(L"Phone screen on this PC (Wi-Fi)", 460, 470);
+    g_sStatus = Mk(L"STATIC", L"", 0, CTL_S_STATUS, 0, g_panelScreen);
+    SendMessageW(g_sStatus, WM_SETFONT, (WPARAM)g_bigFont, TRUE);
+    Place(g_sStatus, m, m, S(436), S(52));
+    g_sFeature = Mk(L"BUTTON", L"1. Add 'Wireless Display'...", WS_TABSTOP, CTL_S_FEATURE, 0, g_panelScreen);
+    Place(g_sFeature, m, S(70), S(212), S(30));
+    g_sProject = Mk(L"BUTTON", L"2. Projecting to this PC...", WS_TABSTOP, CTL_S_PROJECT, 0, g_panelScreen);
+    Place(g_sProject, m + S(224), S(70), S(212), S(30));
+    g_sTips = Mk(L"STATIC", kScreenTips, 0, CTL_S_TIPS, 0, g_panelScreen);
+    Place(g_sTips, m, S(112), S(436), S(350));
+
+    // Bluetooth device report
+    g_panelInfo = MakePanel(L"Earbud / Bluetooth device info", 560, 520);
+    g_iText = Mk(L"EDIT", L"", ES_MULTILINE | ES_READONLY | WS_VSCROLL | ES_AUTOVSCROLL, CTL_I_TEXT, WS_EX_CLIENTEDGE, g_panelInfo);
+    Place(g_iText, m, m, S(536), S(452));
+    g_iRefresh = Mk(L"BUTTON", L"Refresh", WS_TABSTOP, CTL_I_REFRESH, 0, g_panelInfo);
+    Place(g_iRefresh, m, S(474), S(110), S(30));
+    g_iCopy = Mk(L"BUTTON", L"Copy report", WS_TABSTOP, CTL_I_COPY, 0, g_panelInfo);
+    Place(g_iCopy, S(560) - m - S(130), S(474), S(130), S(30));
 }
 
 static void ShowPanel(HWND p) {
@@ -898,6 +1028,14 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
                     break;
                 case CTL_BT: OpenBluetoothSettings(); break;
                 case CTL_PHONEOUT: ShowPanel(g_panelOut); break;
+                case CTL_SCREEN:
+                    SetWindowTextW(g_sStatus, L"Checking this PC...");
+                    ShowWindow(g_panelScreen, SW_SHOW);
+                    SetForegroundWindow(g_panelScreen);
+                    UpdateWindow(g_panelScreen);
+                    SetWindowTextW(g_sStatus, MiracastStatus().c_str());
+                    break;
+                case CTL_BTINFO: SendMessageW(g_panelIn, WM_COMMAND, CTL_P_INFO, 0); break;
                 case CTL_VERIFY: {
                     wchar_t msg[2048];
                     swprintf(msg, 2048, kVerifyHelp, (unsigned)GetCurrentProcessId(), (unsigned)GetCurrentProcessId());

@@ -178,12 +178,18 @@ static DWORD WINAPI BtSinkThread(LPVOID) {
                 Log("  connecting to %s...\n", p->name.c_str());
                 void* res = nullptr;
                 int status = 3;
-                if (SUCCEEDED(CallOut(p->conn, kConn_Open, &res)) && res)
+                HRESULT ext = S_OK;
+                HRESULT hr = CallOut(p->conn, kConn_Open, &res);
+                if (SUCCEEDED(hr) && res) {
                     Slot<HRESULT(STDMETHODCALLTYPE*)(void*, int*)>(res, kOpenResult_Status)(res, &status);
+                    Slot<HRESULT(STDMETHODCALLTYPE*)(void*, HRESULT*)>(res, kOpenResult_ExtendedError)(res, &ext);
+                } else ext = hr;
                 WrtRelease(res);
                 static const char* why[] = {"ok", "the phone did not answer (timed out)", "Windows refused", "failed"};
-                if (status) Log("! could not connect to %s: %s. Start playing on the phone and connect to this PC from its Bluetooth menu.\n",
-                                p->name.c_str(), why[std::max(0, std::min(3, status))]);
+                if (status)
+                    Log("! could not connect to %s: %s (code 0x%08lx). Forget the PC on the phone and pair again with this "
+                        "receiver on - see the tips in this window.\n",
+                        p->name.c_str(), why[std::max(0, std::min(3, status))], (unsigned long)ext);
             }
         }
         Sleep(100);

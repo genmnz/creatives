@@ -39,7 +39,22 @@ If Windows switches the default output to newly connected headphones, SoundMesh 
 - Keep the page open and the screen on.
 - Windows asks once to allow SoundMesh through the firewall; allow it on Private networks.
 
+The phone page also has **⏮ ⏯ ⏭** buttons. They press the PC's media keys, so they pause or skip YouTube in a browser, Spotify, VLC and so on. The same controls show up on the phone's lock screen where the browser supports it. You can turn this off in the panel (*Phones may pause / skip…*). The page can only send those three keys, and only devices on your local network can open it.
+
+**Phone screen on this PC…** uses **Miracast**, which is built into Windows and most Android phones. The phone and PC connect directly over Wi-Fi (Wi-Fi Direct), so it needs no router, no internet and no app on the phone. The phone's sound comes along and SoundMesh sends it on to your headphones. The panel checks whether your Wi-Fi and graphics drivers support it (using `netsh wlan show drivers`) and opens the two Windows settings you need:
+1. Add the free *Wireless Display* optional feature.
+2. In *Projecting to this PC*, choose *Available everywhere*, ask *First time only*, PIN *Never*.
+
+After that, open *Wireless Display* from the Start menu and pick the PC from the phone's *Smart View / Screen Cast / Wireless projection* tile. Samsung, Xiaomi, OnePlus, OPPO, Realme, vivo and Huawei support it. **Google Pixel phones do not** (they only cast to Chromecast).
+
 **Play my phone here (Bluetooth)…** → tick *Let my phone play through this PC*, then connect to the PC from the phone's Bluetooth menu (or pick the phone and press **Connect**). The PC acts as a Bluetooth speaker, so the phone's music, videos and calls-audio play on the PC and SoundMesh sends them on to every ticked headphone. This needs Windows 10 version 2004 or newer, or Windows 11, and the phone must be paired with the PC once. All Bluetooth audio shares one radio, so a phone plus several headphones may stutter.
+
+*PC says "Connected" but the phone says it can't connect?* The phone remembers what the PC could do when you paired them, which was before SoundMesh made the PC a speaker. To fix it once:
+1. Tick the receiver box first.
+2. *Forget/Unpair* the PC on the phone, and remove the phone on the PC.
+3. Pair again, then press **Connect** in the panel (or tap the PC on the phone and enable *Media audio*).
+
+Also close Phone Link if it holds the phone, and switch off one headphone if two are already connected.
 
 **Phone → PC over Wi-Fi is not possible without an app on the phone.** Browsers cannot capture a phone's system audio (only its microphone, and only over HTTPS), so this direction uses Bluetooth.
 
@@ -56,6 +71,20 @@ You don't have to take the app's word for it:
   - It sends network audio with TTL 1, so the first router drops it instead of forwarding it.
   - The phone server refuses connections from outside your local network.
   - The LAN receiver ignores packets from outside it.
+
+### Earbuds: latency, game mode, ANC, renaming
+
+**Earbud / device info…** (under More options, and in the Bluetooth panel) shows a read-only report of every Bluetooth device Windows knows:
+- who made its Bluetooth chip (from the vendor ID it reports: Airoha, JieLi, Bluetrum, Actions, BES, Realtek, Qualcomm, …)
+- what it offers: music, calls, remote control, a *serial port* or *vendor service* control channel, LE Audio, Fast Pair
+- its battery level
+
+Copy the report and share it. Game mode, ANC, renaming the earbuds themselves and factory reset all go through each chip maker's own private protocol. Whether a PC can do them depends on that chip, and on the earbuds exposing a control channel.
+
+Until then, these work on any earbuds:
+- **Game mode:** most unbranded earbuds switch it with a gesture. Try a triple tap, or tap-and-hold for about 2 s; it usually beeps or says "game mode".
+- **Factory reset:** put both earbuds in the case with the lid open, then hold the case button for 10–15 s, or tap one earbud 5 times.
+- **SoundMesh's own buffering:** set **Latency ms** (More options) to 20. That trims about 40 ms from SoundMesh's side; the earbuds' own buffer is the bigger part.
 
 ### More options
 
@@ -84,6 +113,7 @@ soundmesh --from net --to 2,3                      receive from another PC and p
 soundmesh --to 2,3 --buffer 100                    smooth mode
 soundmesh --phones                                 phones listen over Wi-Fi (http://<pc>:4011)
 soundmesh --phone-in                               PC acts as a Bluetooth speaker for paired phones
+soundmesh-cli btinfo                               report what each Bluetooth device is built on
 ```
 
 Device numbers can change when devices connect or disconnect. Names (or any part of a name) are more reliable.
@@ -123,6 +153,17 @@ soundmesh --to 2 --net multicast               one stream that every receiver pi
 | Android | the Scream Android receiver (`Receivers/android` in the Scream repo) |
 
 Bandwidth is about 1.4 Mbit/s per unicast receiver (44.1 kHz, 16-bit, stereo), which is tiny for any Wi-Fi.
+
+### Router settings for phones and other PCs
+
+You don't need the router's *Media sharing / DLNA / Home sharing / UPnP* features, port forwarding or a hotspot; you can leave them as they are. Check these:
+1. **Everything on the same Wi-Fi/network, not the Guest network.** Guest networks block devices from seeing each other.
+2. **Turn off *AP isolation*** (also called *Client isolation*, *Wireless isolation* or *Station isolation*, usually under Wireless → Advanced).
+3. **Same band if possible.** Some older routers isolate 2.4 GHz from 5 GHz. If the phone can't open the page, put the phone and the PC on the same band, or give the two bands different names and join the same one.
+4. **Set the Windows network to *Private***, and allow SoundMesh through the firewall on Private networks.
+5. Optional: give the PC a fixed address (*DHCP reservation*) so the phone's bookmark keeps working.
+
+Screen sharing (Miracast) and the Bluetooth receiver don't use the router at all.
 
 ### Router / modem and Windows settings
 
@@ -178,6 +219,7 @@ The build was tested in Linux under Wine with virtual PulseAudio devices:
 - **Scream compatibility:** the official Scream receiver decoded SoundMesh's stream correctly.
 - **GUI:** under Xvfb, Start, Stop and close all worked. Settings were saved and restored, and the delay and volume sliders applied live.
 - **Phones:** headless Chromium opened the phone page and pressed Play. It received the stream in real time (about 172 KB/s at 44.1 kHz) and scheduled every packet. `/stream.wav` delivered a clean 1 kHz tone with no clicks.
+- **Phone controls:** headless Chromium pressed the page's play/pause, next and previous buttons, and each one arrived on the PC as a media-key press. The page used the play-with-screen-off audio path.
 - **Data meter:** streaming to a browser and a LAN address showed 2.3 MB local and 0 bytes internet. A test stream aimed at a public address (8.8.8.8) was flagged as internet (194 KB), and TTL 1 kept it from going past the first router. The open-connections check needs real Windows; under Wine it always reported 0.
 - **Not testable here:** the QR code display was checked visually, but not scanned. The Bluetooth receiver only reports "not supported" under Wine, which has no such API. It needs a real Windows 10 2004+/11 PC and a paired phone.
 

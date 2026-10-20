@@ -32,7 +32,7 @@
 #include <string>
 #include <vector>
 
-#define SM_VERSION "1.4.0"
+#define SM_VERSION "1.5.0"
 
 // ---------------------------------------------------------------- GUIDs ----
 // Defined locally so the build does not depend on which uuid libs the
@@ -623,6 +623,7 @@ static void MarkSourceOutputs() {
 
 #include "web.inc"
 #include "btsink.inc"
+#include "btinfo.inc"
 
 static void Distribute(const float* st, uint32_t frames) {
     for (auto* o : Outputs()) o->ring.Push(st, frames);
@@ -853,6 +854,7 @@ static std::vector<std::string> Split(const std::string& s, char sep) {
         "  soundmesh-cli                  interactive setup in the console\n"
         "  soundmesh-cli list                 show devices and their numbers\n"
         "  soundmesh-cli bt                   open Windows Bluetooth settings (pair headphones there)\n"
+        "  soundmesh-cli btinfo               report what each Bluetooth device is built on (read-only)\n"
         "  soundmesh-cli [options]        (soundmesh.exe takes the same options and starts playing)\n\n"
         "Options:\n"
         "  --from loop        capture what the default playback device plays (default)\n"
@@ -1108,7 +1110,7 @@ static bool ParseArgs(int argc, char** argv, Options& opt, std::string* verb) {
         std::string a = argv[i];
         auto next = [&](std::string& dst) { if (i + 1 < argc) dst = argv[++i]; };
         std::string tmp;
-        if (a == "list" || a == "bt") *verb = a;
+        if (a == "list" || a == "bt" || a == "btinfo") *verb = a;
         else if (a == "-h" || a == "--help" || a == "help" || a == "/?") *verb = "help";
         else if (a == "--from") next(opt.from);
         else if (a == "--to") next(opt.to);
@@ -1193,6 +1195,12 @@ int main(int argc, char** argv) {
     auto play = ListDevices(eRender);
     auto rec = ListDevices(eCapture);
     if (verb == "list") { PrintDevices(play, rec); return 0; }
+    if (verb == "btinfo") {
+        std::string t = BluetoothReportText();
+        for (size_t p; (p = t.find('\r')) != std::string::npos;) t.erase(p, 1);
+        Log("%s", t.c_str());
+        return 0;
+    }
 
     bool interactive = argc == 1;
     if (interactive) Wizard(opt, play, rec);

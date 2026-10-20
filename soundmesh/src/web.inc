@@ -14,25 +14,37 @@ display:flex;min-height:100vh;align-items:center;justify-content:center}
 main{width:min(420px,92vw);text-align:center}h1{font-size:22px;margin:0 0 4px}p{color:#9aa4b5;margin:6px 0 18px}
 button{width:180px;height:180px;border-radius:50%;border:0;background:#2b6cd6;color:#fff;font-size:22px;font-weight:600}
 button.on{background:#1f8f55}label{display:block;text-align:left;margin:22px 0 4px;color:#9aa4b5;font-size:15px}
-input{width:100%}#st{margin-top:18px;min-height:1.4em}small{color:#6b7587;display:block;margin-top:22px;line-height:1.5}
+input{width:100%}#k{display:flex;justify-content:center;gap:14px;margin-top:22px}
+#k a{width:64px;height:52px;line-height:52px;border-radius:14px;background:#1e2533;font-size:24px;cursor:pointer;user-select:none}
+#k a:active{background:#2b6cd6}#st{margin-top:18px;min-height:1.4em}small{color:#6b7587;display:block;margin-top:22px;line-height:1.5}
 </style></head><body><main>
 <h1>SoundMesh</h1><p>Plays this PC's sound on this phone</p>
 <button id="b">Play</button><div id="st"></div>
+<div id="k"><a data-k="prev">&#9198;</a><a data-k="playpause">&#9199;</a><a data-k="next">&#9197;</a></div>
+<small style="margin-top:6px">These control what plays on the PC</small>
 <label>Volume <span id="vv">100%</span></label><input id="v" type="range" min="0" max="150" value="100">
 <label>Delay (line up with headphones) <span id="dv">250 ms</span></label><input id="d" type="range" min="80" max="1500" step="10" value="250">
-<small>Keep this page open and the screen on.<br>iPhone: turn the silent switch off.</small>
+<small>Keep this page open. iPhone: turn the silent switch off.</small>
 </main><script>
 var ctx,gain,ws,next=0,rate=48000,on=false,t0=0;
-var $=function(i){return document.getElementById(i)};
+var $=function(i){return document.getElementById(i)},el,key=function(k){if(ws&&ws.readyState==1)ws.send('key:'+k)};
+document.querySelectorAll('#k a').forEach(function(a){a.onclick=function(){key(a.dataset.k)}});
+if('mediaSession' in navigator){var ms=navigator.mediaSession;try{ms.metadata=new MediaMetadata({title:'Sound from your PC',artist:'SoundMesh'});
+ ms.setActionHandler('play',function(){key('playpause')});ms.setActionHandler('pause',function(){key('playpause')});
+ ms.setActionHandler('previoustrack',function(){key('prev')});ms.setActionHandler('nexttrack',function(){key('next')})}catch(e){}}
 function st(s){$('st').textContent=s}
 function lat(){return $('d').value/1000}
 $('v').oninput=function(){$('vv').textContent=this.value+'%';if(gain)gain.gain.value=this.value/100};
 $('d').oninput=function(){$('dv').textContent=this.value+' ms';next=0;try{localStorage.d=this.value}catch(e){}};
 try{if(localStorage.d){$('d').value=localStorage.d;$('dv').textContent=localStorage.d+' ms'}}catch(e){}
 $('b').onclick=function(){
- if(on){on=false;if(ws)ws.close();ctx.suspend();this.textContent='Play';this.className='';st('');return}
- if(!ctx){var C=window.AudioContext||window.webkitAudioContext;ctx=new C();gain=ctx.createGain();gain.gain.value=$('v').value/100;gain.connect(ctx.destination)}
- ctx.resume();on=true;this.textContent='Stop';this.className='on';connect()};
+ if(on){on=false;if(ws)ws.close();ctx.suspend();if(el)el.pause();this.textContent='Play';this.className='';st('');return}
+ if(!ctx){var C=window.AudioContext||window.webkitAudioContext;ctx=new C();gain=ctx.createGain();gain.gain.value=$('v').value/100;
+  // Play through an <audio> element when possible: keeps playing with the screen off
+  // and gives lock-screen controls. Falls back to plain Web Audio.
+  try{var d=ctx.createMediaStreamDestination();gain.connect(d);el=new Audio();el.srcObject=d.stream;
+   el.play().catch(function(){gain.disconnect();gain.connect(ctx.destination)})}catch(e){gain.connect(ctx.destination)}}
+ ctx.resume();if(el)el.play().catch(function(){});on=true;this.textContent='Stop';this.className='on';connect()};
 function connect(){
  if(!on)return;st('Connecting...');
  ws=new WebSocket('ws://'+location.host+'/ws');ws.binaryType='arraybuffer';
@@ -107,6 +119,7 @@ struct WebClient {
 
 struct WebOut {
     std::atomic<bool> active{false};
+    std::atomic<bool> remoteKeys{true};  // phones may press play/pause/next/previous on this PC
     int port = 4011;
     SOCKET listener = INVALID_SOCKET;
     Ring ring;
@@ -193,13 +206,64 @@ static void HandleHttp(SOCKET c) {
     }
 }
 
+// Media keys pressed on the phone page. Only these three exist - the page
+// cannot send anything else to this PC.
+static void PressMediaKey(const std::string& cmd) {
+    WORD vk = cmd == "playpause" ? VK_MEDIA_PLAY_PAUSE : cmd == "next" ? VK_MEDIA_NEXT_TRACK : cmd == "prev" ? VK_MEDIA_PREV_TRACK : 0;
+    if (!vk || !g_web->remoteKeys) return;
+    INPUT in[2] = {};
+    in[0].type = INPUT_KEYBOARD;
+    in[0].ki.wVk = vk;
+    in[1] = in[0];
+    in[1].ki.dwFlags = KEYEVENTF_KEYUP;
+    SendInput(2, in, sizeof(INPUT));
+    Log("  phone pressed %s\n", cmd == "playpause" ? "play/pause" : cmd.c_str());
+}
+
+// One (small) WebSocket frame from a phone. Returns false when the phone is gone.
+static bool ReadClientFrame(SOCKET s) {
+    uint8_t b[512];
+    int n = recv(s, (char*)b, sizeof(b), 0);
+    if (n <= 0) return false;
+    CountSocket(s, (uint64_t)n);
+    if (n < 6) return true;
+    int op = b[0] & 0x0F, len = b[1] & 0x7F, off = 2;
+    if (op == 0x8) return false;  // close
+    if (len >= 126 || !(b[1] & 0x80) || off + 4 + len > n) return true;  // not a short masked frame: ignore
+    const uint8_t* mask = b + off;
+    std::string msg;
+    for (int i = 0; i < len; i++) msg += (char)(b[off + 4 + i] ^ mask[i & 3]);
+    if (op == 0x1 && msg.rfind("key:", 0) == 0) PressMediaKey(msg.substr(4));
+    return true;
+}
+
 static DWORD WINAPI WebAcceptThread(LPVOID) {
     while (g_web->active) {
         fd_set fs;
         FD_ZERO(&fs);
         FD_SET(g_web->listener, &fs);
+        std::vector<SOCKET> ws;
+        EnterCriticalSection(&g_web->lock);
+        for (auto& c : g_web->clients)
+            if (c.ws && ws.size() < FD_SETSIZE - 1) ws.push_back(c.s);
+        LeaveCriticalSection(&g_web->lock);
+        for (SOCKET c : ws) FD_SET(c, &fs);
         timeval tv = {0, 300000};
         if (select(0, &fs, nullptr, nullptr, &tv) <= 0) continue;
+        for (SOCKET c : ws) {
+            if (!FD_ISSET(c, &fs) || ReadClientFrame(c)) continue;
+            EnterCriticalSection(&g_web->lock);  // phone closed the page
+            for (size_t i = 0; i < g_web->clients.size(); i++)
+                if (g_web->clients[i].s == c) {
+                    closesocket(c);
+                    g_web->clients.erase(g_web->clients.begin() + i);
+                    g_web->nClients = (int)g_web->clients.size();
+                    Log("  phone/browser left (%d listening)\n", (int)g_web->clients.size());
+                    break;
+                }
+            LeaveCriticalSection(&g_web->lock);
+        }
+        if (!FD_ISSET(g_web->listener, &fs)) continue;
         sockaddr_in peer = {};
         int len = sizeof(peer);
         SOCKET c = accept(g_web->listener, (sockaddr*)&peer, &len);
