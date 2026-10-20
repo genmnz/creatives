@@ -9,7 +9,7 @@ Play the same sound on several Bluetooth headphones, wired headphones, speakers,
   - **PC → phone over Wi-Fi:** scan a QR code and the phone's browser plays the PC's sound. No app needed.
   - **Phone → PC over Bluetooth:** the PC becomes a Bluetooth speaker for your phone, and the phone's sound goes on to all your headphones.
 - **Other PCs on the network:** SoundMesh ↔ SoundMesh, or [Scream](https://github.com/duncanthrax/scream) receivers on Windows/Linux/Android/Raspberry Pi.
-- **Never uses the internet:** everything stays on your local network and does not count against your data quota.
+- **Never uses the internet, and shows it:** a meter in the window counts every byte SoundMesh sends or receives. It shows *Internet data used: 0 bytes* in green, and turns red if anything ever goes outside your local network. See [Proving it uses no internet](#proving-it-uses-no-internet).
 
 ## Quick start
 
@@ -42,6 +42,20 @@ If Windows switches the default output to newly connected headphones, SoundMesh 
 **Play my phone here (Bluetooth)…** → tick *Let my phone play through this PC*, then connect to the PC from the phone's Bluetooth menu (or pick the phone and press **Connect**). The PC acts as a Bluetooth speaker, so the phone's music, videos and calls-audio play on the PC and SoundMesh sends them on to every ticked headphone. This needs Windows 10 version 2004 or newer, or Windows 11, and the phone must be paired with the PC once. All Bluetooth audio shares one radio, so a phone plus several headphones may stutter.
 
 **Phone → PC over Wi-Fi is not possible without an app on the phone.** Browsers cannot capture a phone's system audio (only its microphone, and only over HTTPS), so this direction uses Bluetooth.
+
+### Proving it uses no internet
+
+You don't have to take the app's word for it:
+
+- **The meter** (bottom of the window) counts every byte SoundMesh sends or receives. Anything not addressed to a private home-network address (`192.168.x.x`, `10.x.x.x`, `172.16–31.x.x`, link-local, local multicast) counts as *internet*. Every couple of seconds it also asks Windows for the list of network connections this process has open. It shows *Internet data used: 0 bytes* in green, or a red warning naming the outside address.
+- **Unplug test:** pull the cable from the router's internet/WAN port and keep the router on. Headphones, phones over Wi-Fi and the Bluetooth receiver all keep working, because traffic between devices in your home never leaves the router.
+- **Windows' own tools:** run `resmon` (Resource Monitor) → *Network* → tick `soundmesh.exe` to see every address it talks to, or run `netstat -ano` and look for its process ID. The **Check it yourself…** button explains both. Windows' *Data usage* page also counts traffic inside your home network, so a few MB there is not internet use.
+- **By design:**
+  - It never looks up a name (no DNS).
+  - It has no update check, telemetry or ads.
+  - It sends network audio with TTL 1, so the first router drops it instead of forwarding it.
+  - The phone server refuses connections from outside your local network.
+  - The LAN receiver ignores packets from outside it.
 
 ### More options
 
@@ -164,6 +178,7 @@ The build was tested in Linux under Wine with virtual PulseAudio devices:
 - **Scream compatibility:** the official Scream receiver decoded SoundMesh's stream correctly.
 - **GUI:** under Xvfb, Start, Stop and close all worked. Settings were saved and restored, and the delay and volume sliders applied live.
 - **Phones:** headless Chromium opened the phone page and pressed Play. It received the stream in real time (about 172 KB/s at 44.1 kHz) and scheduled every packet. `/stream.wav` delivered a clean 1 kHz tone with no clicks.
+- **Data meter:** streaming to a browser and a LAN address showed 2.3 MB local and 0 bytes internet. A test stream aimed at a public address (8.8.8.8) was flagged as internet (194 KB), and TTL 1 kept it from going past the first router. The open-connections check needs real Windows; under Wine it always reported 0.
 - **Not testable here:** the QR code display was checked visually, but not scanned. The Bluetooth receiver only reports "not supported" under Wine, which has no such API. It needs a real Windows 10 2004+/11 PC and a paired phone.
 
 Wine does not implement WASAPI loopback, so loopback capture still needs to be confirmed on real Windows. It uses the standard, documented API.

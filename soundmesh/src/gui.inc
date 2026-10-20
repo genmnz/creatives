@@ -11,6 +11,7 @@ extern "C" {
 enum {
     CTL_SOURCE = 100, CTL_LIST, CTL_SEL, CTL_DELAY, CTL_DELAYTXT, CTL_VOL, CTL_VOLTXT,
     CTL_NET, CTL_LATENCY, CTL_SMOOTH, CTL_AUTO, CTL_PHONEOUT, CTL_PHONEIN, CTL_MORE, CTL_HEADLINE, CTL_HINT,
+    CTL_METER, CTL_VERIFY,
     CTL_P_WEB, CTL_P_URL, CTL_P_COUNT, CTL_P_BT, CTL_P_LIST, CTL_P_CONNECT, CTL_START, CTL_REFRESH, CTL_BT, CTL_HELP, CTL_LOG, CTL_LABEL
 };
 enum { COL_DEVICE, COL_STATUS, COL_DELAY, COL_VOLUME };
@@ -28,7 +29,9 @@ struct SrcItem {
 static HWND g_wnd, g_hSource, g_hList, g_hSel, g_hDelay, g_hDelayTxt, g_hVol, g_hVolTxt;
 static HWND g_hAuto, g_hNet, g_hLat, g_hSmooth, g_hStart, g_hRefresh, g_hBt, g_hHelp, g_hLog;
 static HWND g_lSource, g_lOut, g_lNet, g_lLat, g_lLog;
-static HWND g_hHeadline, g_hHint, g_hPhoneOut, g_hPhoneIn, g_hMore;
+static HWND g_hHeadline, g_hHint, g_hPhoneOut, g_hPhoneIn, g_hMore, g_hMeter, g_hVerify;
+static ConnAudit g_audit;
+static bool g_meterClean = true;  // nothing has gone outside the local network
 static HWND g_panelOut, g_pWeb, g_pUrl, g_pCount, g_pTips;    // "Listen on my phone" window
 static HWND g_panelIn, g_pBt, g_pList, g_pConnect, g_pInTips; // "Play my phone here" window
 static std::vector<std::wstring> g_pIds;                      // phone ids shown in g_pList
@@ -365,8 +368,35 @@ static void UpdateHeadline() {
 
 static void SetPhoneIn(bool on);
 
+static void UpdateMeter() {
+    if (g_tick % 4 == 0) g_audit = AuditConnections();
+    const uint64_t inet = g_bytesInternet, local = g_bytesLocal;
+    std::string t;
+    if (!inet && !g_audit.outside) {
+        t = "Internet data used: 0 bytes.  Local network: " + FmtBytes(local) + ".  Open connections: " +
+            std::to_string(g_audit.local) + (g_audit.local ? ", all inside your network." : ".");
+    } else {
+        char ip[32] = "";
+        in_addr a;
+        a.s_addr = g_lastInternetPeer;
+        if (a.s_addr) inet_ntop(AF_INET, &a, ip, sizeof(ip));
+        t = "WARNING: " + FmtBytes(inet) + " to/from outside your local network" + (ip[0] ? std::string(" (last: ") + ip + ")" : "") +
+            (g_audit.outside ? ", open connection to " + g_audit.outsideAddr : "") + ". Check 'Send to LAN' addresses.";
+    }
+    bool clean = !inet && !g_audit.outside;
+    std::wstring w = Wide(t);
+    wchar_t cur[512] = L"";
+    GetWindowTextW(g_hMeter, cur, 512);
+    if (w != cur || clean != g_meterClean) {
+        g_meterClean = clean;
+        SetWindowTextW(g_hMeter, w.c_str());
+        InvalidateRect(g_hMeter, nullptr, TRUE);
+    }
+}
+
 static void OnTimer() {
     if (g_bt.thread && !g_bt.on) SetPhoneIn(false);  // the receiver stopped itself (e.g. not supported)
+    UpdateMeter();
     UpdateHeadline();
     UpdatePhonePanels();
     if (g_tick % 20 == 0 && g_panelOut && IsWindowVisible(g_panelOut)) UpdateQr();  // address may change
@@ -483,6 +513,21 @@ static void AppendLog() {
     if (!t.empty()) SetWindowTextW(g_hHint, t.c_str());
 }
 
+static const wchar_t* kVerifyHelp =
+    L"You don't have to trust this app. Ways to check it with Windows itself:\n\n"
+    L"1. Unplug the internet: pull the cable from the router's internet/WAN port (or switch off its "
+    L"mobile data) and keep the router on. Headphones, phones over Wi-Fi and the Bluetooth receiver all keep working.\n\n"
+    L"2. Resource Monitor: press Win+R, type  resmon , open the Network tab and tick soundmesh.exe "
+    L"(process ID %u). 'TCP Connections' and 'Network Activity' list every address it talks to: only "
+    L"192.168.x.x / 10.x.x.x / 172.16-31.x.x addresses should appear.\n\n"
+    L"3. Command prompt:  netstat -ano | findstr %u   lists the same connections.\n\n"
+    L"Note: Windows' 'Data usage' page also counts traffic inside your home network, so a few MB there "
+    L"is not internet use - test 1 proves it.\n\n"
+    L"By design SoundMesh never looks up a name (no DNS), has no update check, ads or telemetry, sends "
+    L"network audio with TTL 1 (a router drops it instead of forwarding it), and refuses phone connections "
+    L"from outside your local network. The meter counts every byte it sends or receives; anything not "
+    L"addressed to a private home-network address is counted as internet.";
+
 static const wchar_t* kNetworkHelp =
     L"Sending to other PCs / phones on your home network (never uses the internet):\n\n"
     L"In 'Send to LAN' type the receivers' IP addresses, comma separated "
@@ -520,7 +565,7 @@ static void Layout() {
     Place(g_hAuto, W - m - S(200), y, S(200), S(20));
     y += S(22);
 
-    const int below = S(34) + S(42) + (g_showMore ? S(32) + S(32) + S(38) + S(20) + S(130) : 0) + m;
+    const int below = S(34) + S(42) + S(30) + (g_showMore ? S(32) + S(32) + S(38) + S(20) + S(130) : 0) + m;
     const int listH = std::max(S(100), H - y - below);
     Place(g_hList, m, y, W - 2 * m, listH);
     int colW = W - 2 * m - S(300) - GetSystemMetrics(SM_CXVSCROLL);
@@ -546,7 +591,10 @@ static void Layout() {
     Place(g_hPhoneIn, m + (bw + S(8)), y, bw, bh);
     Place(g_hBt, m + 2 * (bw + S(8)), y, bw, bh);
     Place(g_hMore, m + 3 * (bw + S(8)), y, bw, bh);
-    y += S(42);
+    y += S(40);
+    Place(g_hVerify, W - m - S(150), y - S(2), S(150), S(24));
+    Place(g_hMeter, m, y + S(2), W - 3 * m - S(150), S(18));
+    y += S(32);
 
     for (int i = 0; i < g_nAdvanced; i++) ShowWindow(g_advanced[i], g_showMore ? SW_SHOW : SW_HIDE);
     SetWindowTextW(g_hMore, g_showMore ? L"Fewer options" : L"More options...");
@@ -614,6 +662,8 @@ static void CreateControls() {
     g_hPhoneIn = Mk(L"BUTTON", L"Play my phone here (Bluetooth)...", WS_TABSTOP, CTL_PHONEIN);
     g_hBt = Mk(L"BUTTON", L"Bluetooth settings...", WS_TABSTOP, CTL_BT);
     g_hMore = Mk(L"BUTTON", L"More options...", WS_TABSTOP, CTL_MORE);
+    g_hMeter = Mk(L"STATIC", L"", SS_ENDELLIPSIS, CTL_METER);
+    g_hVerify = Mk(L"BUTTON", L"Check it yourself...", WS_TABSTOP, CTL_VERIFY);
 
     // "More options"
     g_lSource = Mk(L"STATIC", L"Source:", 0, CTL_LABEL);
@@ -819,11 +869,16 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_GETMINMAXINFO: {
             MINMAXINFO* mm = (MINMAXINFO*)lp;
             mm->ptMinTrackSize.x = S(760);
-            mm->ptMinTrackSize.y = g_showMore ? S(640) : S(420);
+            mm->ptMinTrackSize.y = g_showMore ? S(670) : S(450);
             return 0;
         }
         case WM_APP_LOG: AppendLog(); return 0;
         case WM_CTLCOLORSTATIC:
+            if ((HWND)lp == g_hMeter) {  // green while nothing leaves the local network, red otherwise
+                SetTextColor((HDC)wp, g_meterClean ? RGB(0x1E, 0x7B, 0x34) : RGB(0xC6, 0x28, 0x28));
+                SetBkColor((HDC)wp, GetSysColor(COLOR_BTNFACE));
+                return (LRESULT)GetSysColorBrush(COLOR_BTNFACE);
+            }
             if ((HWND)lp == g_hHint) {  // grey hint line under the headline
                 SetTextColor((HDC)wp, GetSysColor(COLOR_GRAYTEXT));
                 SetBkColor((HDC)wp, GetSysColor(COLOR_BTNFACE));
@@ -843,6 +898,12 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
                     break;
                 case CTL_BT: OpenBluetoothSettings(); break;
                 case CTL_PHONEOUT: ShowPanel(g_panelOut); break;
+                case CTL_VERIFY: {
+                    wchar_t msg[2048];
+                    swprintf(msg, 2048, kVerifyHelp, (unsigned)GetCurrentProcessId(), (unsigned)GetCurrentProcessId());
+                    MessageBoxW(h, msg, L"SoundMesh - no internet, check it yourself", MB_ICONINFORMATION);
+                    break;
+                }
                 case CTL_PHONEIN: ShowPanel(g_panelIn); break;
                 case CTL_MORE: {
                     // Grow/shrink the window by the extra section instead of squeezing the list.
@@ -984,7 +1045,7 @@ int main(int argc, char** argv) {
     pc.lpszClassName = L"SoundMeshPanel";
     RegisterClassExW(&pc);
     g_wnd = CreateWindowExW(0, wc.lpszClassName, L"SoundMesh", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT,
-                            S(800), S(560), nullptr, nullptr, inst, nullptr);
+                            S(800), S(590), nullptr, nullptr, inst, nullptr);
     CreateControls();
     CreatePanels();
     g_logWnd = g_wnd;
@@ -1015,7 +1076,14 @@ int main(int argc, char** argv) {
     std::string verb;
     if (!ParseArgs(argc, argv, opt, &verb)) MessageBoxW(g_wnd, Wide(g_lastError).c_str(), L"SoundMesh", MB_ICONWARNING);
     else if (verb == "bt") OpenBluetoothSettings();
-    else if (argc > 1 && verb.empty()) ApplyArgs(opt);
+    else if (argc > 1 && verb.empty()) {
+        if (opt.phones) {
+            g_phonePort = opt.phonePort;
+            SetPhonesListening(true);
+        }
+        if (opt.phoneIn) SetPhoneIn(true);
+        ApplyArgs(opt);
+    }
     else if (AutoOn()) {
         Log("Auto mode: starting. Untick 'Auto-pick headphones' to choose devices yourself.\n");
         OnStartStop();

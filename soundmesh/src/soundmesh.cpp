@@ -32,7 +32,7 @@
 #include <string>
 #include <vector>
 
-#define SM_VERSION "1.3.0"
+#define SM_VERSION "1.4.0"
 
 // ---------------------------------------------------------------- GUIDs ----
 // Defined locally so the build does not depend on which uuid libs the
@@ -485,6 +485,80 @@ static DWORD WINAPI OutputThread(LPVOID arg) {
 static const char* kScreamGroup = "239.255.77.77";
 static const int kScreamPayload = 1152;
 
+// --------------------------------------------------------- data meter ------
+// Every byte SoundMesh puts on (or takes off) the network is counted here and
+// sorted by the other side's address. "Local" = private home-network ranges;
+// anything else counts as internet. SoundMesh never resolves host names and
+// sends with TTL 1, so this should stay at zero - the meter is there to prove it.
+static std::atomic<uint64_t> g_bytesLocal{0}, g_bytesInternet{0};
+static std::atomic<uint32_t> g_lastInternetPeer{0};  // network byte order, for the warning
+
+static bool IsLocalAddr(in_addr a) {
+    uint32_t ip = ntohl(a.s_addr);
+    return (ip >> 24) == 10 ||                    // 10.0.0.0/8
+           (ip >> 20) == (172u << 4 | 1) ||       // 172.16.0.0/12
+           (ip >> 16) == (192u << 8 | 168) ||     // 192.168.0.0/16
+           (ip >> 16) == (169u << 8 | 254) ||     // 169.254.0.0/16 link-local (cable between two PCs)
+           (ip >> 24) == 127 ||                   // this PC
+           (ip >> 28) == 0xE ||                   // multicast; ours is sent with TTL 1
+           ip == 0xFFFFFFFF;                      // broadcast
+}
+
+static void CountBytes(in_addr peer, uint64_t n) {
+    if (IsLocalAddr(peer)) g_bytesLocal += n;
+    else {
+        g_bytesInternet += n;
+        g_lastInternetPeer = peer.s_addr;
+    }
+}
+
+static void CountSocket(SOCKET s, uint64_t n) {
+    sockaddr_in a = {};
+    int len = sizeof(a);
+    if (getpeername(s, (sockaddr*)&a, &len) == 0) CountBytes(a.sin_addr, n);
+    else g_bytesInternet += n;  // unknown peer: be strict
+}
+
+static std::string FmtBytes(uint64_t b) {
+    char t[32];
+    if (b < 1024) snprintf(t, sizeof(t), "%llu bytes", (unsigned long long)b);
+    else if (b < 1024 * 1024) snprintf(t, sizeof(t), "%.1f KB", b / 1024.0);
+    else if (b < 1024ull * 1024 * 1024) snprintf(t, sizeof(t), "%.1f MB", b / 1048576.0);
+    else snprintf(t, sizeof(t), "%.2f GB", b / 1073741824.0);
+    return t;
+}
+
+// Independent check that does not trust the counters above: ask Windows for
+// every TCP connection this process owns and flag any whose remote end is
+// not on the local network.
+struct ConnAudit {
+    int local = 0, outside = 0;
+    std::string outsideAddr;
+};
+static ConnAudit AuditConnections() {
+    ConnAudit r;
+    DWORD size = 0, pid = GetCurrentProcessId();
+    GetExtendedTcpTable(nullptr, &size, FALSE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0);
+    std::vector<char> buf(size + 4096);
+    size = (DWORD)buf.size();
+    if (GetExtendedTcpTable(buf.data(), &size, FALSE, AF_INET, TCP_TABLE_OWNER_PID_ALL, 0) != NO_ERROR) return r;
+    auto* t = (MIB_TCPTABLE_OWNER_PID*)buf.data();
+    for (DWORD i = 0; i < t->dwNumEntries; i++) {
+        const auto& row = t->table[i];
+        if (row.dwOwningPid != pid || row.dwState == MIB_TCP_STATE_LISTEN) continue;
+        in_addr a;
+        a.s_addr = row.dwRemoteAddr;
+        if (IsLocalAddr(a)) r.local++;
+        else {
+            r.outside++;
+            char ip[32];
+            inet_ntop(AF_INET, &a, ip, sizeof(ip));
+            r.outsideAddr = ip;
+        }
+    }
+    return r;
+}
+
 struct NetOut {
     SOCKET s = INVALID_SOCKET;
     std::vector<sockaddr_in> dests;
@@ -517,7 +591,9 @@ static void NetSend(NetOut* n, const float* st, uint32_t frames) {
             pkt[3] = 0x03;  // dwChannelMask = FL | FR
             pkt[4] = 0x00;
             memcpy(pkt + 5, n->acc, kScreamPayload);
-            for (auto& d : n->dests) sendto(n->s, (const char*)pkt, sizeof(pkt), 0, (const sockaddr*)&d, sizeof(d));
+            for (auto& d : n->dests)
+                if (sendto(n->s, (const char*)pkt, sizeof(pkt), 0, (const sockaddr*)&d, sizeof(d)) > 0)
+                    CountBytes(d.sin_addr, sizeof(pkt) + 28);  // + IP/UDP headers
             n->packets++;
             n->accFrames = 0;
         }
@@ -687,8 +763,11 @@ static DWORD WINAPI NetReceiveThread(LPVOID) {
     bool haveRate = false;
     uint8_t lastHdr[3] = {0, 0, 0};
     while (g_running) {
-        int n = recv(s, (char*)pkt, sizeof(pkt), 0);
-        if (n <= 5) continue;
+        sockaddr_in from = {};
+        int fromLen = sizeof(from);
+        int n = recvfrom(s, (char*)pkt, sizeof(pkt), 0, (sockaddr*)&from, &fromLen);
+        if (n > 0) CountBytes(from.sin_addr, (uint64_t)n + 28);
+        if (n <= 5 || !IsLocalAddr(from.sin_addr)) continue;  // only accept audio from this network
         Fmt f;
         f.rate = ((pkt[0] & 0x80) ? 44100u : 48000u) * (pkt[0] & 0x7F);
         f.bits = pkt[1];
@@ -833,6 +912,9 @@ static void ApplyKV(const std::string& spec, bool isDelay) {
         Log("  [%d] %-40s %-12s buffer %4d ms  delay %4d ms  vol %3d%%  dropouts %u\n", o->listIdx, o->dev.name.c_str(),
             kStateName[o->state], o->fillMs.load(), o->delayMs.load(), o->volPct.load(), o->underruns.load());
     if (g_net) Log("  [net] %zu destination(s), %llu packets sent\n", g_net->dests.size(), (unsigned long long)g_net->packets);
+    ConnAudit au = AuditConnections();
+    Log("  data: %s on your local network, %s to/from the internet; %d open connection(s), %d outside your network\n",
+        FmtBytes(g_bytesLocal).c_str(), FmtBytes(g_bytesInternet).c_str(), au.local + au.outside, au.outside);
 }
 
 // ------------------------------------------------------------- engine ------

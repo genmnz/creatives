@@ -122,6 +122,7 @@ static bool SendAll(SOCKET s, const char* p, int n) {
     while (n > 0) {
         int k = send(s, p, n, 0);
         if (k <= 0) return false;
+        CountSocket(s, (uint64_t)k);
         p += k;
         n -= k;
     }
@@ -148,6 +149,7 @@ static void HandleHttp(SOCKET c) {
     while (req.find("\r\n\r\n") == std::string::npos && req.size() < 8192) {
         int n = recv(c, buf, sizeof(buf), 0);
         if (n <= 0) { closesocket(c); return; }
+        CountSocket(c, (uint64_t)n);
         req.append(buf, n);
     }
     std::string path;
@@ -198,8 +200,18 @@ static DWORD WINAPI WebAcceptThread(LPVOID) {
         FD_SET(g_web->listener, &fs);
         timeval tv = {0, 300000};
         if (select(0, &fs, nullptr, nullptr, &tv) <= 0) continue;
-        SOCKET c = accept(g_web->listener, nullptr, nullptr);
-        if (c != INVALID_SOCKET) HandleHttp(c);
+        sockaddr_in peer = {};
+        int len = sizeof(peer);
+        SOCKET c = accept(g_web->listener, (sockaddr*)&peer, &len);
+        if (c == INVALID_SOCKET) continue;
+        if (!IsLocalAddr(peer.sin_addr)) {  // only devices on this network may listen
+            char ip[32];
+            inet_ntop(AF_INET, &peer.sin_addr, ip, sizeof(ip));
+            Log("  refused a connection from %s (not on your local network)\n", ip);
+            closesocket(c);
+            continue;
+        }
+        HandleHttp(c);
     }
     return 0;
 }
