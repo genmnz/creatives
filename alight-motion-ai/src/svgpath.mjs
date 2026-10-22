@@ -6,11 +6,14 @@ const NUM = /[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/y;
 
 function tokenize(d) {
   const out = [];
-  let i = 0;
+  let i = 0, cmd = "", n = 0;
   while (i < d.length) {
     const c = d[i];
-    if (/[MmLlHhVvCcSsQqTtAaZz]/.test(c)) { out.push(c); i++; continue; }
+    if (/[MmLlHhVvCcSsQqTtAaZz]/.test(c)) { out.push(c); cmd = c; n = 0; i++; continue; }
     if (/[\s,]/.test(c)) { i++; continue; }
+    // Arc flags are single digits and may be written without separators ("a5 5 0 017.07 0").
+    if ((cmd === "a" || cmd === "A") && (n % 7 === 3 || n % 7 === 4) && (c === "0" || c === "1")) { out.push(Number(c)); n++; i++; continue; }
+    n++;
     NUM.lastIndex = i;
     const m = NUM.exec(d);
     if (!m) throw new Error(`bad path data near "${d.slice(i, i + 12)}"`);

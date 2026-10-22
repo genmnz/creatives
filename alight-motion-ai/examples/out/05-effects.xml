@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='UTF-8' ?>
 <!-- Created for Alight Motion with alight-motion-ai -->
-<scene title="05 Effects" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#FF14161F" totalTime="4000" fps="30" modifiedTime="1792666887198" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
-  <media uri="am-internal:///9D0CA354E282739AF1803987E61112DFC71BD6A3.jpg" filename="9D0CA354E282739AF1803987E61112DFC71BD6A3.jpg" title="dusk.jpg" type="image/jpeg" size="35175" sig="9D0CA354E282739AF1803987E61112DFC71BD6A3" orientation="0" infoUpdated="1792666887188" width="1200" height="800"/>
-  <shape id="1" label="Photo, blurred" startTime="0" endTime="4000" fillType="media" fillImage="am-internal:///9D0CA354E282739AF1803987E61112DFC71BD6A3.jpg" mediaFillMode="fill">
+<scene title="05 Effects" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#FF14161F" totalTime="4000" fps="30" modifiedTime="1792674906151" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+  <media uri="amproj:dusk.jpg" filename="dusk.jpg" title="dusk.jpg" type="image/jpeg" size="35175" sig="9D0CA354E282739AF1803987E61112DFC71BD6A3" orientation="0" infoUpdated="1792674906144" width="1200" height="800"/>
+  <shape id="1" label="Photo, blurred" startTime="0" endTime="4000" fillType="media" fillImage="amproj:dusk.jpg" mediaFillMode="fill">
     <transform>
       <location value="540.000000,540.000000,0.000000"/>
     </transform>

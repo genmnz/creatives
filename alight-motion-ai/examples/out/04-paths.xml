@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8' ?>
 <!-- Created for Alight Motion with alight-motion-ai -->
-<scene title="04 Drawn paths" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#FF11131A" totalTime="4000" fps="30" modifiedTime="1792666886131" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+<scene title="04 Drawn paths" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#FF11131A" totalTime="4000" fps="30" modifiedTime="1792674905181" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
   <shape id="1" label="Heart" startTime="0" endTime="4000" fillType="color">
     <transform>
       <location value="540.000000,425.000000,0.000000"/>

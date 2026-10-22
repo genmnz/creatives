@@ -1,9 +1,9 @@
 <?xml version='1.0' encoding='UTF-8' ?>
 <!-- Created for Alight Motion with alight-motion-ai -->
-<scene title="07 Showcase" width="1080" height="1920" exportWidth="1080" exportHeight="1920" bgcolor="#FF0E0F16" totalTime="6000" fps="30" modifiedTime="1792666889534" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
-  <media uri="am-internal:///9D0CA354E282739AF1803987E61112DFC71BD6A3.jpg" filename="9D0CA354E282739AF1803987E61112DFC71BD6A3.jpg" title="dusk.jpg" type="image/jpeg" size="35175" sig="9D0CA354E282739AF1803987E61112DFC71BD6A3" orientation="0" infoUpdated="1792666889522" width="1200" height="800"/>
-  <media uri="am-internal:///D59055C4C59F2D23A01E93E5490EA7907B533615.png" filename="D59055C4C59F2D23A01E93E5490EA7907B533615.png" title="badge.png" type="image/png" size="7766" sig="D59055C4C59F2D23A01E93E5490EA7907B533615" orientation="0" infoUpdated="1792666889530" width="600" height="600"/>
-  <shape id="1" label="Backdrop" startTime="0" endTime="6000" fillType="media" fillImage="am-internal:///9D0CA354E282739AF1803987E61112DFC71BD6A3.jpg" mediaFillMode="fill">
+<scene title="07 Showcase" width="1080" height="1920" exportWidth="1080" exportHeight="1920" bgcolor="#FF0E0F16" totalTime="6000" fps="30" modifiedTime="1792674908513" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+  <media uri="amproj:dusk.jpg" filename="dusk.jpg" title="dusk.jpg" type="image/jpeg" size="35175" sig="9D0CA354E282739AF1803987E61112DFC71BD6A3" orientation="0" infoUpdated="1792674908504" width="1200" height="800"/>
+  <media uri="amproj:badge.png" filename="badge.png" title="badge.png" type="image/png" size="7766" sig="D59055C4C59F2D23A01E93E5490EA7907B533615" orientation="0" infoUpdated="1792674908508" width="600" height="600"/>
+  <shape id="1" label="Backdrop" startTime="0" endTime="6000" fillType="media" fillImage="amproj:dusk.jpg" mediaFillMode="fill">
     <transform>
       <location value="540.000000,960.000000,0.000000"/>
       <scale>
@@ -31,7 +31,7 @@
     <property name="size" type="vec2" value="440.000000,520.000000"/>
     <property name="cornerRadius" type="float" value="48.000000"/>
   </shape>
-  <shape id="3" label="Badge" startTime="600" endTime="6000" fillType="media" fillImage="am-internal:///D59055C4C59F2D23A01E93E5490EA7907B533615.png" mediaFillMode="fill">
+  <shape id="3" label="Badge" startTime="600" endTime="6000" fillType="media" fillImage="amproj:badge.png" mediaFillMode="fill">
     <transform>
       <location value="540.000000,700.000000,0.000000"/>
       <scale>

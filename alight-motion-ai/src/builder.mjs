@@ -10,6 +10,8 @@ import { el, kid, kids, parseXml, serializeXml, textOf } from "./xml.mjs";
 import { keyableNode, toColor, formatValue } from "./anim.mjs";
 import { findEffect, findShape, BLEND_MODES } from "./catalog.mjs";
 import { parsePath, formatPath, mapPath, pathBounds } from "./svgpath.mjs";
+import { svgToLayers } from "./svgimport.mjs";
+import { transitionEffects, findPreset, presetEffectNodes, PRESET_TIMINGS } from "./presets.mjs";
 
 export const APP = {
   amver: "1028425",
@@ -133,8 +135,11 @@ export class Scene {
   layers() { return this.node.children.filter(isElement); }
 
   nextId() {
+    // Also counts ids handed out to layers not attached yet (a group's children are built before the group is added).
     const ids = this.root.allLayers().map((l) => Number(l.attrs.id) || 0);
-    return Math.max(0, ...ids) + 1;
+    const id = Math.max(0, this.root.lastId ?? 0, ...ids) + 1;
+    this.root.lastId = id;
+    return id;
   }
 
   /** Find a layer by numeric id or by label (exact, then case-insensitive). */
@@ -194,6 +199,11 @@ export class Scene {
   }
 
   resolveMedia(spec) {
+    if (typeof spec.media === "string") {
+      // A uri already in the project (or a device uri with no <media> entry).
+      const m = kids(this.root.node, "media").find((x) => x.attrs.uri === spec.media);
+      return m ? { ...m.attrs } : { uri: spec.media, external: true };
+    }
     if (spec.media) return spec.media;
     if (this.root.mediaResolver) return this.root.mediaResolver(spec.src ?? spec.image ?? spec.file);
     if (spec.uri) return { uri: spec.uri, filename: spec.uri.split("/").pop(), type: spec.mime ?? "image/png", width: spec.mediaWidth, height: spec.mediaHeight };
@@ -209,12 +219,29 @@ export class Scene {
     const builders = {
       text: () => this.#text(spec), shape: () => this.#shape(spec), image: () => this.#image(spec),
       path: () => this.#path(spec), drawing: () => this.#drawing(spec), null: () => this.#base("nullobj", spec, "Null"),
-      group: () => this.#group(spec), audio: () => this.#audio(spec),
+      group: () => this.#group(spec), audio: () => this.#audio(spec), svg: () => this.#svg(spec),
     };
-    if (!builders[type]) throw new Error(`unknown layer type "${spec.type}" (use ${Object.keys(builders).join(", ")})`);
+    if (type === "xml") {
+      // A layer kept verbatim (e.g. from toSpec): camera, audio, drawing, anything unknown.
+      const node = parseXml(spec.xml);
+      this.node.children.push(node);
+      return node;
+    }
+    if (!builders[type]) throw new Error(`unknown layer type "${spec.type}" (use ${Object.keys(builders).join(", ")}, xml)`);
     const node = builders[type]();
     this.node.children.push(node);
     this.#applyCommon(node, spec);
+    for (const x of spec.keep ?? []) {
+      const c = parseXml(x);
+      if (["transform", "fillColor", "gradient", "path", "content"].includes(c.tag)) replaceChild(node, c.tag, c);
+      else insertChild(node, c);
+    }
+    if (spec.drop) node.children = node.children.filter((c) => !spec.drop.includes(c.tag));
+    if (spec.attrs) {
+      const a = { ...node.attrs };
+      for (const [k, v] of Object.entries(spec.attrs)) { if (v === null) delete a[k]; else a[k] = String(v); }
+      node.attrs = reorderAttrs(a);
+    }
     return node;
   }
 
@@ -240,8 +267,8 @@ export class Scene {
     const anim = spec.animate ?? {};
     const pos = anim.position ?? anim.location ?? spec.position ?? (spec.x !== undefined || spec.y !== undefined
       ? [spec.x ?? this.width / 2, spec.y ?? this.height / 2]
-      : [this.width / 2, this.height / 2]);
-    this.set(node, "location", pos);
+      : spec.parent !== undefined ? [0, 0] : [this.width / 2, this.height / 2]); // a child's position is relative to its parent
+    if (spec.position !== null) this.set(node, "location", pos); // null: leave location unset (the app reads 0,0)
     for (const k of ["scale", "rotation", "opacity", "pivot", "skew"]) {
       const v = anim[k] ?? spec[k];
       if (v !== undefined) this.set(node, k, v);
@@ -251,13 +278,44 @@ export class Scene {
       node.attrs = reorderAttrs({ ...node.attrs, blending: spec.blend });
     }
     if (spec.parent !== undefined) {
-      node.attrs = reorderAttrs({ ...node.attrs, parent: this.mustFind(spec.parent).attrs.id });
+      // A numeric id may point at a layer added later (the app writes children before parents).
+      const p = /^\d+$/.test(String(spec.parent)) ? this.find(spec.parent) ?? { attrs: { id: String(spec.parent) } } : this.mustFind(spec.parent);
+      node.attrs = reorderAttrs({ ...node.attrs, parent: p.attrs.id });
     }
     for (const fx of spec.effects ?? []) this.addEffect(node, fx);
+    if (spec.shadow) this.#decoration(node, "shadow", spec.shadow);
+    for (const b of [spec.border ?? []].flat()) this.#decoration(node, "border", b);
+    for (const p of [spec.presets ?? spec.preset ?? []].flat()) this.applyPreset(node, p);
+    if (spec.in) this.addTransition(node, "in", spec.in, { both: !!spec.out });
+    if (spec.out) this.addTransition(node, "out", spec.out, { both: !!spec.in });
     for (const [k, v] of Object.entries(anim)) {
       if (["position", "location", "scale", "rotation", "opacity", "pivot", "skew"].includes(k)) continue;
       this.set(node, k, v);
     }
+  }
+
+  /**
+   * Edge decorations in the child form modern app exports use:
+   * <shadow direction="outside"><color/><size/><opacity/><offset/></shadow>,
+   * <border direction="inside|outside|centered" id="1"><color/><size/></border>.
+   */
+  #decoration(node, tag, d) {
+    const o = d === true ? {} : d;
+    const dur = layerDuration(node);
+    const k = (name, type, v, map = (x) => x) => (v === undefined ? null : keyableNode(name, type, isKeyframes(v) ? normKeys(v, dur, map) : map(v)));
+    const attrs = { direction: o.direction ?? o.align ?? "outside" };
+    if (tag === "border") attrs.id = String(kids(node, "border").length + 1);
+    if (o.enabled === false) attrs.enabled = "false";
+    const n = el(tag, attrs, [
+      k("color", "color", o.color ?? (tag === "shadow" ? "#000000" : "#FFFFFF")),
+      k("size", "float", o.size ?? o.width ?? (tag === "shadow" ? 20 : 8), Number),
+      tag === "shadow" ? k("opacity", "float", o.opacity ?? 0.5, Number) : null,
+      tag === "shadow" ? k("offset", "vec2", o.offset ?? [0, 12], (v) => vec(v, 2)) : null,
+      tag === "shadow" && o.hardness !== undefined ? k("hardness", "float", o.hardness, Number) : null,
+    ].filter(Boolean));
+    if (tag === "shadow") replaceChild(node, "shadow", n);
+    else insertChild(node, n);
+    return n;
   }
 
   #fill(spec, node, defaultColor) {
@@ -313,7 +371,7 @@ export class Scene {
     this.#stroke(spec, node);
     const params = { ...(spec.params ?? {}) };
     const has = (id) => tpl.params.some((p) => p.id === id);
-    if (has("size") && params.size === undefined) {
+    if (has("size") && params.size === undefined && !spec.exactParams) {
       const w = spec.width ?? (spec.radius !== undefined ? spec.radius * 2 : spec.size ?? 200);
       const h = spec.height ?? (spec.radius !== undefined ? spec.radius * 2 : spec.size ?? w);
       params.size = isKeyframes(w) ? w.map((k) => (Array.isArray(k) ? [k[0], [k[1][0] / 2, k[1][1] / 2], k[2]] : { ...k, v: [k.v[0] / 2, k.v[1] / 2] })) : [w / 2, h / 2];
@@ -331,9 +389,9 @@ export class Scene {
 
   #mediaFill(node, src) {
     const info = this.resolveMedia(typeof src === "string" ? { src } : src);
-    this.addMedia(info);
+    if (!info.external) this.addMedia(info);
     node.attrs.fillType = "media";
-    node.attrs.fillImage = info.uri;
+    node.attrs[src?.video ? "fillVideo" : "fillImage"] = info.uri;
     node.attrs.mediaFillMode = node.attrs.mediaFillMode ?? "fill";
     node.children = node.children.filter((c) => c.tag !== "fillColor" && c.tag !== "gradient");
     node.attrs = reorderAttrs(node.attrs);
@@ -373,7 +431,8 @@ export class Scene {
     const node = this.#base("shape", spec, spec.labelBase ?? "Shape", { fillType: "color" });
     this.#fill(spec, node, spec.stroke ? "none" : "#FFFFFFFF");
     this.#stroke(spec, node);
-    insertChild(node, el("path", { d: formatPath(segs) }));
+    insertChild(node, el("path", { d: spec.absolute === false && !spec.normalize ? spec.d : formatPath(segs) }));
+    if (spec.image) this.#mediaFill(node, spec.image);
     return node;
   }
 
@@ -394,6 +453,28 @@ export class Scene {
     return node;
   }
 
+  /**
+   * Vector art from SVG text: a group holding one path layer per drawable
+   * element. box {x, y, width, height} places it (default: centered, 80% of the
+   * canvas). stagger (s) starts each piece a little later, each with itemIn.
+   */
+  #svg(spec) {
+    if (!spec.svg) throw new Error('svg layers need "svg" (the SVG text; the CLI and MCP also take "src": "file.svg")');
+    const b = spec.box;
+    const box = b ? { x: b.x ?? 0, y: b.y ?? 0, w: b.width ?? b.w ?? this.width, h: b.height ?? b.h ?? this.height } : undefined;
+    const { layers } = svgToLayers(spec.svg, { width: this.width, height: this.height, box, label: spec.label ?? "SVG" });
+    const start = spec.startMs !== undefined ? spec.startMs / 1000 : spec.start ?? 0;
+    const end = spec.endMs !== undefined ? spec.endMs / 1000 : spec.end ?? (spec.duration !== undefined ? start + spec.duration : this.duration);
+    const stagger = Number(spec.stagger ?? 0);
+    const items = layers.map((l, i) => {
+      const o = { ...l };
+      if (stagger) o.start = Math.min(i * stagger, (end - start) * 0.9);
+      if (spec.itemIn) o.in = spec.itemIn;
+      return o;
+    });
+    return this.#group({ ...spec, title: spec.title ?? spec.label ?? "SVG", width: this.width, height: this.height, layers: items });
+  }
+
   #group(spec) {
     const w = spec.width ?? this.width, h = spec.height ?? this.height;
     const node = this.#base("embedScene", spec, spec.title ?? "Group");
@@ -402,6 +483,8 @@ export class Scene {
       title: spec.title ?? node.attrs.label, width: w, height: h, background: "#00000000",
       duration: (Number(node.attrs.endTime) - Number(node.attrs.startTime)) / 1000,
     });
+    if (spec.sceneAttrs) inner.node.attrs = { ...spec.sceneAttrs };
+    for (const x of spec.sceneKeep ?? []) inner.node.children.push(parseXml(x));
     insertChild(node, inner.node);
     for (const l of spec.layers ?? []) inner.add(l);
     return node;
@@ -485,6 +568,31 @@ export class Scene {
     return fx;
   }
 
+  /**
+   * Add an entrance ("in") or exit ("out") built from effects.
+   * t: transition name, or {type, duration (s), distance (px), ease}.
+   */
+  addTransition(ref, which, t, { both = false } = {}) {
+    const node = this.mustFind(ref);
+    if (which !== "in" && which !== "out") throw new Error(`transition must be "in" or "out", not "${which}"`);
+    const o = typeof t === "string" ? { type: t } : { ...t };
+    const specs = transitionEffects(o.type ?? o.name, which, layerDuration(node), node.tag, { ...o, both });
+    for (const s of specs) this.addEffect(node, s);
+    return specs.length;
+  }
+
+  /** Apply one of the app's own presets (catalog/presets.json) by name or code. */
+  applyPreset(ref, q, opts = {}) {
+    const node = this.mustFind(ref);
+    const o = typeof q === "string" ? { name: q, ...opts } : { ...q, ...opts };
+    const p = findPreset(o.name ?? o.preset ?? o.code);
+    if (!p) throw new Error(`unknown preset "${o.name ?? o.code}" (search with amx presets <words>)`);
+    if (o.timing && !PRESET_TIMINGS.includes(o.timing)) throw new Error(`timing must be one of ${PRESET_TIMINGS.join(", ")}`);
+    const layerMs = Number(node.attrs.endTime) - Number(node.attrs.startTime);
+    for (const fx of presetEffectNodes(p, layerMs, o.timing ?? p.timing)) insertChild(node, fx);
+    return p;
+  }
+
   removeEffect(ref, fxRef) {
     const node = this.mustFind(ref);
     const fx = this.#findEffectNode(node, fxRef);
@@ -525,6 +633,8 @@ function reorderAttrs(a) {
 /** Build a whole project from a JSON design spec: {scene: {...}, layers: [...]} */
 export function buildFromSpec(spec, opts = {}) {
   const scene = new Scene({ ...(spec.scene ?? {}), ...opts });
+  if (spec.scene?.attrs) Object.assign(scene.node.attrs, Object.fromEntries(Object.entries(spec.scene.attrs).map(([k, v]) => [k, String(v)])));
+  for (const x of spec.keep ?? []) scene.node.children.push(parseXml(x));
   for (const layer of spec.layers ?? []) scene.add(layer);
   return scene;
 }

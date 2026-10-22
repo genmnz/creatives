@@ -1,0 +1,160 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!-- Created for Alight Motion with alight-motion-ai -->
+<scene title="09 SVG Import" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#FFF6F1E8" totalTime="4000" fps="30" modifiedTime="1792674910766" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+  <embedScene id="1" label="Mark" startTime="0" endTime="4000">
+    <transform>
+      <location value="540.000000,540.000000,0.000000"/>
+    </transform>
+    <scene title="Mark" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#00000000" totalTime="4000" fps="30" modifiedTime="1792674910759" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+      <shape id="2" label="Mark circle 1" startTime="0" endTime="4000" fillType="gradient">
+        <transform>
+          <location value="540.000000,440.000000,0.000000"/>
+        </transform>
+        <gradient type="linear" startColor="#FFFF4F9E" endColor="#FFF2B445" start="0.000000,0.000000" end="0.000000,1.000000"/>
+        <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+          <property name="scale" type="float">
+            <kf t="0.000000" v="0.000000"/>
+            <kf t="0.150000" v="1.000000" e="cubicBezier 0.34 1.56 0.64 1.0"/>
+          </property>
+        </effect>
+        <path d="M -270.0 0.0C -270.0 149.117, -149.117 270.0, 0.0 270.0C 149.117 270.0, 270.0 149.117, 270.0 0.0C 270.0 -149.117, 149.117 -270.0, 0.0 -270.0C -149.117 -270.0, -270.0 -149.117, -270.0 0.0Z"/>
+      </shape>
+      <shape id="3" label="Mark line 2" startTime="120" endTime="4000" fillType="none">
+        <transform>
+          <location value="540.000000,260.000000,0.000000"/>
+        </transform>
+        <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+          <property name="scale" type="float">
+            <kf t="0.000000" v="0.000000"/>
+            <kf t="0.154639" v="1.000000" e="cubicBezier 0.34 1.56 0.64 1.0"/>
+          </property>
+        </effect>
+        <path-stroke direction="centered" cap="round">
+          <color value="#FFFFFFFF"/>
+          <size value="18.000000"/>
+        </path-stroke>
+        <path d="M 0.0 -30.0L 0.0 30.0"/>
+      </shape>
+      <shape id="4" label="Mark line 3" startTime="240" endTime="4000" fillType="none">
+        <transform>
+          <location value="667.279000,312.721000,0.000000"/>
+        </transform>
+        <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+          <property name="scale" type="float">
+            <kf t="0.000000" v="0.000000"/>
+            <kf t="0.159574" v="1.000000" e="cubicBezier 0.34 1.56 0.64 1.0"/>
+          </property>
+        </effect>
+        <path-stroke direction="centered" cap="round">
+          <color value="#FFFFFFFF"/>
+          <size value="18.000000"/>
+        </path-stroke>
+        <path d="M 21.213 -21.213L -21.213 21.213"/>
+      </shape>
+      <shape id="5" label="Mark line 4" startTime="360" endTime="4000" fillType="none">
+        <transform>
+          <location value="412.721000,312.721000,0.000000"/>
+        </transform>
+        <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+          <property name="scale" type="float">
+            <kf t="0.000000" v="0.000000"/>
+            <kf t="0.164835" v="1.000000" e="cubicBezier 0.34 1.56 0.64 1.0"/>
+          </property>
+        </effect>
+        <path-stroke direction="centered" cap="round">
+          <color value="#FFFFFFFF"/>
+          <size value="18.000000"/>
+        </path-stroke>
+        <path d="M -21.213 -21.213L 21.213 21.213"/>
+      </shape>
+      <shape id="6" label="Mark line 5" startTime="480" endTime="4000" fillType="none">
+        <transform>
+          <location value="720.000000,440.000000,0.000000"/>
+        </transform>
+        <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+          <property name="scale" type="float">
+            <kf t="0.000000" v="0.000000"/>
+            <kf t="0.170455" v="1.000000" e="cubicBezier 0.34 1.56 0.64 1.0"/>
+          </property>
+        </effect>
+        <path-stroke direction="centered" cap="round">
+          <color value="#FFFFFFFF"/>
+          <size value="18.000000"/>
+        </path-stroke>
+        <path d="M 30.0 0.0L -30.0 0.0"/>
+      </shape>
+      <shape id="7" label="Mark line 6" startTime="600" endTime="4000" fillType="none">
+        <transform>
+          <location value="360.000000,440.000000,0.000000"/>
+        </transform>
+        <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+          <property name="scale" type="float">
+            <kf t="0.000000" v="0.000000"/>
+            <kf t="0.176471" v="1.000000" e="cubicBezier 0.34 1.56 0.64 1.0"/>
+          </property>
+        </effect>
+        <path-stroke direction="centered" cap="round">
+          <color value="#FFFFFFFF"/>
+          <size value="18.000000"/>
+        </path-stroke>
+        <path d="M -30.0 0.0L 30.0 0.0"/>
+      </shape>
+      <shape id="8" label="Mark path 7" startTime="720" endTime="4000" fillType="color">
+        <transform>
+          <location value="540.000000,460.000000,0.000000"/>
+        </transform>
+        <fillColor value="#FFFFFFFF"/>
+        <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+          <property name="scale" type="float">
+            <kf t="0.000000" v="0.000000"/>
+            <kf t="0.182927" v="1.000000" e="cubicBezier 0.34 1.56 0.64 1.0"/>
+          </property>
+        </effect>
+        <path d="M -180.0 70.0C -60.0 -70.0, 60.0 -70.0, 180.0 70.0Z"/>
+      </shape>
+      <shape id="9" label="Mark rect 8" startTime="840" endTime="4000" fillType="color">
+        <transform>
+          <location value="540.000000,545.000000,0.000000"/>
+        </transform>
+        <fillColor value="#FF1A1530"/>
+        <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+          <property name="scale" type="float">
+            <kf t="0.000000" v="0.000000"/>
+            <kf t="0.189873" v="1.000000" e="cubicBezier 0.34 1.56 0.64 1.0"/>
+          </property>
+        </effect>
+        <path d="M -189.0 -21.0L 189.0 -21.0C 200.598 -21.0, 210.0 -11.598, 210.0 0.0L 210.0 0.0C 210.0 11.598, 200.598 21.0, 189.0 21.0L -189.0 21.0C -200.598 21.0, -210.0 11.598, -210.0 0.0L -210.0 0.0C -210.0 -11.598, -200.598 -21.0, -189.0 -21.0Z"/>
+      </shape>
+      <shape id="10" label="Mark polygon 9" startTime="960" endTime="4000" fillType="color">
+        <transform>
+          <location value="540.000000,620.000000,0.000000"/>
+        </transform>
+        <fillColor value="#991A1530"/>
+        <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+          <property name="scale" type="float">
+            <kf t="0.000000" v="0.000000"/>
+            <kf t="0.197368" v="1.000000" e="cubicBezier 0.34 1.56 0.64 1.0"/>
+          </property>
+        </effect>
+        <path d="M 0.0 -30.0L 36.0 30.0L -36.0 30.0Z"/>
+      </shape>
+    </scene>
+  </embedScene>
+  <text id="11" label="Text 1" startTime="900" endTime="4000" fillType="color" size="54.000000" font="googlefonts?name=IBM Plex Sans&amp;weight=600" wrapWidth="972" align="center">
+    <transform>
+      <location value="540.000000,870.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FF1A1530"/>
+    <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+      <property name="offset" type="vec2">
+        <kf t="0.000000" v="0.000000,240.000000"/>
+        <kf t="0.193548" v="0.000000,0.000000" e="cubicBezier 0.0 0.0 0.3377031 0.9916667"/>
+      </property>
+      <property name="alpha" type="float">
+        <kf t="0.000000" v="0.000000"/>
+        <kf t="0.193548" v="1.000000" e="cubicBezier 0.0 0.0 0.3377031 0.9916667"/>
+      </property>
+    </effect>
+    <content>vector art, one layer per shape</content>
+  </text>
+</scene>

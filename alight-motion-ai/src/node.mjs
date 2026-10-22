@@ -1,12 +1,15 @@
 // Node-only helpers: catalog loading, local media info, and zip packaging.
 
-import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { renderSVG } from "./render.mjs";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { inflateRawSync } from "node:zlib";
 import { basename, dirname, extname, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setCatalog } from "./catalog.mjs";
+import { setPresets } from "./presets.mjs";
 import { Scene, buildFromSpec } from "./builder.mjs";
 import { kids } from "./xml.mjs";
 
@@ -16,6 +19,8 @@ let loaded = false;
 export function loadCatalog() {
   if (!loaded) {
     setCatalog(JSON.parse(readFileSync(join(ROOT, "catalog/catalog.json"), "utf8")));
+    const pp = join(ROOT, "catalog/presets.json");
+    if (existsSync(pp)) setPresets(JSON.parse(readFileSync(pp, "utf8")));
     loaded = true;
   }
 }
@@ -23,7 +28,7 @@ export function loadCatalog() {
 const MIME = {
   ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif",
   ".mp4": "video/mp4", ".mov": "video/quicktime", ".webm": "video/webm",
-  ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/wav", ".ogg": "audio/ogg", ".aac": "audio/aac",
+  ".mp3": "audio/mpeg", ".m4a": "audio/mp4", ".wav": "audio/x-wav", ".ogg": "audio/ogg", ".aac": "audio/aac",
 };
 
 /** Pixel size from PNG, JPEG, GIF or WebP headers. */
@@ -49,9 +54,11 @@ export function imageSize(buf) {
 }
 
 /**
- * Media info for a local file, in the form the app uses for packaged projects:
- * the content hash (SHA-1, upper-case hex) is the signature and the internal
- * file name, so uri = am-internal:///<SIG>.<ext>.
+ * Media info for a local file, in the form the app writes into shared project
+ * packages: uri = amproj:<file name>, sig = SHA-1 of the bytes (upper-case
+ * hex), and the package carries the file under that name plus a manifest.txt
+ * line "SIG:name". (The APK's own presets use am-internal:///<SIG>.<ext> for
+ * media stored inside the app; that form is read but not written.)
  */
 export function mediaInfoFromFile(path, baseDir = process.cwd()) {
   const full = resolve(baseDir, path);
@@ -61,8 +68,9 @@ export function mediaInfoFromFile(path, baseDir = process.cwd()) {
   const sig = createHash("sha1").update(buf).digest("hex").toUpperCase();
   const type = MIME[ext] ?? "application/octet-stream";
   const dims = type.startsWith("image/") ? imageSize(buf) : {};
+  const name = basename(full).replace(/[\\/:*?"<>|\s]+/g, "_");
   return {
-    uri: `am-internal:///${sig}${ext}`, filename: `${sig}${ext}`, title: basename(full),
+    uri: `amproj:${name}`, filename: name, title: basename(full),
     type, size: buf.length, sig, ...dims, localPath: full,
   };
 }
@@ -72,17 +80,38 @@ export function newScene(opts = {}, baseDir = process.cwd()) {
   return new Scene({ ...opts, mediaResolver: (src) => mediaInfoFromFile(src, baseDir) });
 }
 
+/** Read "src" of svg layers (recursively) into "svg" text, relative to base. */
+export function inlineSvgFiles(layers, base) {
+  for (const l of layers ?? []) {
+    if (l.type === "svg" && !l.svg && l.src) l.svg = readFileSync(resolve(base, l.src), "utf8");
+    if (l.layers) inlineSvgFiles(l.layers, base);
+  }
+  return layers;
+}
+
 export function buildSpecFile(specPath) {
   loadCatalog();
   const spec = JSON.parse(readFileSync(specPath, "utf8"));
   const base = dirname(resolve(specPath));
+  inlineSvgFiles(spec.layers, base);
   return buildFromSpec(spec, { mediaResolver: (src) => mediaInfoFromFile(src, base) });
 }
 
 export function openXml(path, mediaDir) {
   loadCatalog();
+  if (/\.zip$/i.test(path)) return openPackage(path);
   const scene = Scene.parse(readFileSync(path, "utf8"), { mediaResolver: (src) => mediaInfoFromFile(src, dirname(resolve(path))) });
   linkMedia(scene, mediaDir ?? dirname(resolve(path)));
+  return scene;
+}
+
+/** Open a package zip: media files are unpacked to a temp folder for previews and re-export. */
+export function openPackage(path) {
+  const { xml, files } = unzip(readFileSync(path));
+  const dir = mkdtempSync(join(tmpdir(), "amx-"));
+  for (const [name, data] of files) if (!name.includes("/") && !name.endsWith(".xml")) writeFileSync(join(dir, name), data);
+  const scene = Scene.parse(xml, { mediaResolver: (src) => mediaInfoFromFile(src, dirname(resolve(path))) });
+  linkMedia(scene, dir);
   return scene;
 }
 
@@ -90,7 +119,7 @@ export function openXml(path, mediaDir) {
 export function linkMedia(scene, dir) {
   for (const m of kids(scene.node, "media")) {
     if (scene.mediaFiles.has(m.attrs.uri)) continue;
-    for (const name of [m.attrs.filename, m.attrs.title, m.attrs.uri?.split("/").pop()]) {
+    for (const name of [m.attrs.uri?.startsWith("amproj:") ? m.attrs.uri.slice(7) : null, m.attrs.filename, m.attrs.title, m.attrs.uri?.split("/").pop()]) {
       if (name && existsSync(join(dir, name))) { scene.mediaFiles.set(m.attrs.uri, join(dir, name)); break; }
     }
   }
@@ -129,23 +158,56 @@ export function zip(files) {
   return Buffer.concat([...parts, cd, end]);
 }
 
-/** Write <name>.xml plus, when the project uses media, <name>.zip with the XML and media files. */
+/**
+ * Write <name>.xml, and when the project uses media also <name>.zip laid out
+ * like the packages the app shares: <uuid>.xml, manifest.txt ("SIG:file" per
+ * line) and each media file under its amproj: name.
+ */
 export function writeProject(scene, outXml) {
   const xml = scene.toXML();
   writeFileSync(outXml, xml);
   const written = [outXml];
   const media = kids(scene.node, "media");
   if (media.length) {
-    const files = [{ name: basename(outXml), data: Buffer.from(xml) }];
+    const files = [{ name: `${randomUUID()}.xml`, data: Buffer.from(xml) }];
+    const manifest = [];
     for (const m of media) {
       const src = scene.mediaFiles.get(m.attrs.uri);
-      if (src && existsSync(src)) files.push({ name: m.attrs.filename, data: readFileSync(src) });
+      if (!src || !existsSync(src)) continue;
+      const name = m.attrs.uri.startsWith("amproj:") ? m.attrs.uri.slice(7) : m.attrs.filename ?? basename(src);
+      const data = readFileSync(src);
+      files.push({ name, data });
+      manifest.push(`${m.attrs.sig ?? createHash("sha1").update(data).digest("hex").toUpperCase()}:${name}`);
     }
+    files.splice(1, 0, { name: "manifest.txt", data: Buffer.from(manifest.join("\n")) });
     const zipPath = outXml.replace(/\.xml$/i, "") + ".zip";
     writeFileSync(zipPath, zip(files));
     written.push(zipPath);
   }
   return written;
+}
+
+/** Read a package zip (stored or deflated): returns {xml, files: Map(name -> Buffer)}. */
+export function unzip(buf) {
+  const files = new Map();
+  let eocd = buf.length - 22;
+  while (eocd >= 0 && buf.readUInt32LE(eocd) !== 0x06054b50) eocd--;
+  if (eocd < 0) throw new Error("not a zip file");
+  let p = buf.readUInt32LE(eocd + 16);
+  const count = buf.readUInt16LE(eocd + 10);
+  for (let i = 0; i < count; i++) {
+    const method = buf.readUInt16LE(p + 10), size = buf.readUInt32LE(p + 20);
+    const nl = buf.readUInt16LE(p + 28), xl = buf.readUInt16LE(p + 30), cl = buf.readUInt16LE(p + 32);
+    const off = buf.readUInt32LE(p + 42);
+    const name = buf.toString("utf8", p + 46, p + 46 + nl);
+    const dataStart = off + 30 + buf.readUInt16LE(off + 26) + buf.readUInt16LE(off + 28);
+    const raw = buf.subarray(dataStart, dataStart + size);
+    if (!name.endsWith("/")) files.set(name, method === 8 ? inflateRawSync(raw) : Buffer.from(raw));
+    p += 46 + nl + xl + cl;
+  }
+  const xmlName = [...files.keys()].find((n) => n.toLowerCase().endsWith(".xml") && !n.includes("/"));
+  if (!xmlName) throw new Error("package has no project .xml");
+  return { xmlName, xml: files.get(xmlName).toString("utf8"), files };
 }
 
 // ----- rendering to files -----

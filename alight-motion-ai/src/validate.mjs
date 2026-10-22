@@ -2,7 +2,7 @@
 
 import { kid, kids, textOf, parseXml } from "./xml.mjs";
 import { findEffect, findShape, BLEND_MODES } from "./catalog.mjs";
-import { readKeyable } from "./anim.mjs";
+import { readKeyable, EASING_FORMS } from "./anim.mjs";
 import { parsePath } from "./svgpath.mjs";
 
 const ELEMENT_TAGS = new Set(["shape", "text", "drawing", "embedScene", "audio", "camera", "nullobj"]);
@@ -12,6 +12,7 @@ const TRANSFORM_KIDS = new Set(["location", "pivot", "scale", "skew", "rotation"
 const RANK = {
   transform: 0, fillColor: 1, gradient: 2, effect: 3, gain: 4, speedMap: 5, border: 6, glow: 6,
   "path-stroke": 7, stroke: 7, shadow: 8, property: 9, parameter: 9, path: 10, scene: 10, content: 11,
+  fov: 9, "focus-blur": 9, fog: 9,
 };
 
 const isInt = (v) => v !== undefined && /^-?\d+$/.test(String(v).trim());
@@ -61,7 +62,10 @@ function checkScene(scene, where, add, isRoot) {
   for (const e of els) checkElement(e, { add, ids, media, total, where });
 }
 
+let span = null; // {start, dur, total} of the layer whose keyframes are being checked
+
 function checkElement(e, { add, ids, media, total, where }) {
+  span = { start: Number(e.attrs.startTime) || 0, dur: (Number(e.attrs.endTime) || 0) - (Number(e.attrs.startTime) || 0), total };
   const w = `${where} > ${e.tag}#${e.attrs.id ?? "?"}${e.attrs.label ? ` "${e.attrs.label}"` : ""}`;
   if (!isInt(e.attrs.id) || Number(e.attrs.id) <= 0) add("error", w, "id must be a positive integer");
   else if (ids.get(e.attrs.id) > 1) add("error", w, `duplicate id ${e.attrs.id}`);
@@ -72,7 +76,7 @@ function checkElement(e, { add, ids, media, total, where }) {
   }
   if (e.attrs.blending && !BLEND_MODES.includes(e.attrs.blending)) add("error", w, `unknown blending "${e.attrs.blending}"`);
   if (e.attrs.parent && !ids.has(e.attrs.parent)) add("error", w, `parent ${e.attrs.parent} is not a layer in this scene`);
-  if (e.attrs.fillImage && !media.has(e.attrs.fillImage)) add("warn", w, "fillImage has no matching <media> entry");
+  if (e.attrs.fillImage && !media.has(e.attrs.fillImage)) add(/^(content|sample):/.test(e.attrs.fillImage) ? "info" : "warn", w, "fillImage has no matching <media> entry (device-local media is not portable)");
 
   let prev = -1;
   for (const c of e.children) {
@@ -147,14 +151,18 @@ function checkKeyable(node, where, add, type) {
     if (type === "color" && node.attrs.value && !COLOR.test(node.attrs.value)) add("error", where, `bad color ${node.attrs.value}`);
     return;
   }
+  const ts = kfs.map((k) => Number(k.attrs.t));
   for (const k of kfs) {
     if (!isNum(k.attrs.t)) add("error", where, "keyframe without numeric t");
-    else if (Number(k.attrs.t) < -0.5 || Number(k.attrs.t) > 1.5) {
-      // The app's own exports have t a little outside 0..1 (e.g. -0.0165), but never far.
-      add("error", where, `keyframe t=${k.attrs.t} is far outside 0..1. t is a fraction of the layer's duration, not seconds`);
-    }
     if (k.attrs.v === undefined) add("error", where, "keyframe without v");
-    if (k.attrs.e && !/^(local )?(cubicBezier( -?[\d.eE-]+){4}|cyclic( -?[\d.eE-]+){5})$/.test(k.attrs.e)) add("warn", where, `unusual easing "${k.attrs.e}"`);
+    if (k.attrs.e && !EASING_FORMS.test(k.attrs.e)) add("warn", where, `unusual easing "${k.attrs.e}"`);
+  }
+  // t is a fraction of the layer's duration. Split or trimmed layers keep keyframes
+  // outside 0..1 (but inside the original clip), so only flag the seconds-as-t pattern:
+  // no keyframe inside the layer, none negative, and the last one past the scene's end.
+  const lastAbs = span && span.dur > 0 ? span.start + Math.max(...ts) * span.dur : Infinity;
+  if (ts.every(Number.isFinite) && Math.max(...ts) > 1.5 && Math.min(...ts) >= 0 && !ts.some((t) => t > 0.0001 && t < 0.9999) && !(span?.total > 0 && lastAbs <= span.total)) {
+    add("warn", where, `keyframes t=${ts.join(",")} all fall outside the layer; t is a fraction of the layer's duration, not seconds`);
   }
 }
 

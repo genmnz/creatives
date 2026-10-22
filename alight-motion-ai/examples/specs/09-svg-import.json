@@ -1,0 +1,9 @@
+{
+  "scene": { "title": "09 SVG Import", "width": 1080, "height": 1080, "duration": 4, "background": "#F6F1E8" },
+  "layers": [
+    { "type": "svg", "src": "../assets/mark.svg", "label": "Mark", "box": { "x": 240, "y": 140, "width": 600, "height": 600 },
+      "stagger": 0.12, "itemIn": "pop" },
+    { "type": "text", "text": "vector art, one layer per shape", "font": "IBM Plex Sans", "weight": 600, "size": 54, "y": 870,
+      "color": "#1A1530", "start": 0.9, "in": "slide-up" }
+  ]
+}

@@ -7,6 +7,10 @@ export const OPS_HELP = `Operations (JSON objects, applied in order):
   {"op":"scene", "title"?, "width"?, "height"?, "duration"? (s), "fps"?, "background"?}
   {"op":"add", "layer": {<layer spec>}}                       add a layer on top
   {"op":"effect", "layer": <id|label>, "effect": <id|name>, "params"?: {...}}
+  {"op":"transition", "layer": <id|label>, "in"?: <name|{type,duration,distance,ease}>, "out"?: ...}
+      names: fade, slide-up/down/left/right, pop, zoom, grow, spin, bounce, elastic, blur,
+             wipe-right/left/up/down, typewriter (text), draw (shapes)
+  {"op":"preset", "layer": <id|label>, "preset": <app preset name or code>, "timing"?: start|end|split|extend|stretch}
   {"op":"set", "layer": <id|label>, "prop": <name>, "value": <value or keyframes>}
       prop: position, scale, rotation, opacity, pivot, skew, fill, text,
             a shape parameter (size, cornerRadius, pointCount, ...),
@@ -45,6 +49,14 @@ function run(scene, ops) {
         log.push(`added effect ${fx.attrs.id} to ${op.layer}`);
         break;
       }
+      case "transition": {
+        if (!op.in && !op.out) throw new Error(`transition needs "in" and/or "out"`);
+        if (op.in) scene.addTransition(op.layer, "in", op.in, { both: !!op.out });
+        if (op.out) scene.addTransition(op.layer, "out", op.out, { both: !!op.in });
+        log.push(`transition on ${op.layer}`);
+        break;
+      }
+      case "preset": { const p = scene.applyPreset(op.layer, op.preset, { timing: op.timing }); log.push(`applied preset "${p.name}" (${p.timing}) to ${op.layer}`); break; }
       case "set": scene.set(op.layer, op.prop, op.value); log.push(`set ${op.prop} on ${op.layer}`); break;
       case "timing": scene.setTiming(op.layer, op); log.push(`timing of ${op.layer}`); break;
       case "order": scene.reorder(op.layer, op.where); log.push(`moved ${op.layer} to ${op.where}`); break;

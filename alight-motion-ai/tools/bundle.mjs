@@ -5,7 +5,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SRC = join(dirname(fileURLToPath(import.meta.url)), "..", "src");
-const ORDER = ["xml", "anim", "catalog", "svgpath", "shapes", "builder", "validate", "render", "ops"];
+const ORDER = ["xml", "anim", "catalog", "svgpath", "shapes", "presets", "svgimport", "builder", "validate", "fxpreview", "render", "ops"];
 
 function convert(name) {
   let code = readFileSync(join(SRC, `${name}.mjs`), "utf8");

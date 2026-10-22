@@ -12,9 +12,10 @@ this toolkit gives a model the app's file format.
 | --- | --- |
 | [`spec/FORMAT.md`](spec/FORMAT.md) | The project XML format, each rule tagged by how sure it is |
 | [`prompt/SYSTEM_PROMPT.md`](prompt/SYSTEM_PROMPT.md) | Paste into any AI's instructions; it can then write projects, with or without tools |
-| `bin/amx.mjs` | CLI: build from a JSON design spec, edit, inspect, validate, render frames, HTML preview |
+| `bin/amx.mjs` | CLI: build from a JSON design spec, edit, decompile, import SVG, inspect, validate, render frames, HTML preview |
 | `mcp/server.mjs` | MCP server with the same abilities, for Claude and other MCP clients |
 | `catalog/catalog.json` | 282 effects (196 current) and 19 shape templates with exact parameter names, types, defaults and ranges |
+| `catalog/presets.json` | the app's own 208 presets (transitions, glitches, looks, 3D, text animations), extracted from the APK |
 | `examples/` | Design specs and the importable projects built from them |
 
 No dependencies; Node 18 or newer. PNG frames need Chromium (found
@@ -24,13 +25,30 @@ automatically, or set `CHROME=/path/to/chrome`).
 
 The Alight Motion APK (v5.0.273) ships 13 projects that the app itself
 exported, which it loads as its built-in presets. They are the ground truth:
-the app's reader is known to accept them. They were combined with a community
-decompile ([kuchingneko28/alight-motion-docs](https://github.com/kuchingneko28/alight-motion-docs))
-and checked against each other. Two of the decompile's claims turned out wrong
+the app's reader is known to accept them. 28 more genuine exports come from
+users who published their projects on GitHub (app versions 3.6 to 5.0.275,
+Android and iOS, including two shared packages with their media). They were
+combined with a community decompile
+([kuchingneko28/alight-motion-docs](https://github.com/kuchingneko28/alight-motion-docs))
+and checked against each other. Some of the decompile's claims turned out wrong
 and are corrected in the spec:
 
 - Keyframe `t` is a fraction of the layer's duration (0 to 1), not seconds.
 - Custom shapes are `<shape>` with an SVG `<path d>` of absolute M/L/C/Z.
+- Shadows and borders are written with keyable children, not attributes.
+- Shared packages use `amproj:<name>` uris and a `manifest.txt`; media
+  signatures are SHA-1.
+
+What the toolkit does with the 41 real projects (`tools/fetch-corpus.sh`
+collects them; `AM_CORPUS=<dir>/xml npm test` runs the checks):
+
+- all 41 pass the validator;
+- all 41 decompile to a design spec and rebuild to XML that renders
+  identically (1,775 layers in readable form, 27 kept verbatim);
+- the previewer draws every one of them.
+
+The SVG importer was run on 3,921 real SVG files (the gilbarbara/logos and
+Lucide icon sets): all import and validate, and side-by-side renders match.
 
 Also learned from the app's exports: template shape `size` is half the width
 and height, strokes are `<path-stroke>` with `<color>` and `<size>` children,
@@ -50,6 +68,10 @@ node bin/amx.mjs inspect my.xml
 node bin/amx.mjs effects glow
 node bin/amx.mjs effect "Text Progress"
 node bin/amx.mjs apply my.xml '[{"op":"set","layer":"Title","prop":"text","value":"HELLO"}]'
+node bin/amx.mjs decompile project.zip -o project.json   # read any project as a spec
+node bin/amx.mjs import-svg logo.svg my.xml --in pop --stagger 0.1
+node bin/amx.mjs transitions
+node bin/amx.mjs presets glitch
 npm test
 ```
 
@@ -81,9 +103,11 @@ widths and heights. The builder converts to the app's units (milliseconds,
 
 Claude Code: `claude mcp add alight-motion -- node /path/to/alight-motion-ai/mcp/server.mjs`
 
-Tools: `am_guide`, `am_build`, `am_new`, `am_open`, `am_open_text`, `am_edit`,
+Tools: `am_guide`, `am_build`, `am_new`, `am_open` (.xml or package .zip),
+`am_open_text`, `am_edit`, `am_spec` (project as an editable spec),
 `am_inspect`, `am_xml`, `am_render` (returns PNG frames the model can look at),
-`am_export`, `am_effects`, `am_effect`, `am_shapes`.
+`am_export`, `am_effects`, `am_effect`, `am_shapes`, `am_transitions`,
+`am_presets`.
 
 **No tools:** paste `prompt/SYSTEM_PROMPT.md` into the AI's instructions and
 ask for XML. The prompt has the rules, an example and an effect reference.
@@ -99,7 +123,8 @@ ask for XML. The prompt has the rules, an example and an effect reference.
 ## Regenerating
 
 - `python3 tools/extract-catalog.py <apktool dump>` rebuilds the catalog from a
-  newer APK.
+  newer APK; `node tools/extract-presets.mjs <dump>/assets/effects/presets`
+  rebuilds the preset library.
 - `npm run prompt` rebuilds the prompt's reference tables from the catalog.
 - `npm run examples` rebuilds every example.
 - `AM_PRESETS=<apktool dump>/assets/effects/presets npm test` also checks the
@@ -107,9 +132,13 @@ ask for XML. The prompt has the rules, an example and an effect reference.
 
 ## Known gaps
 
-- The preview draws geometry, fills, gradients, images, text, strokes,
-  parenting, nesting, keyframes, blur, Drawing Progress and Text Progress.
-  Other effects show as labels only.
-- `<drawing>` freehand strokes, `<border>`/`<shadow>`/`<glow>` decorations and
-  the zip layout come from the decompile only; prefer path shapes and the Glow
-  and Long Shadow effects until a phone import confirms them.
+- Nothing has been imported into the app yet: the build machine could not run
+  an Android emulator (no hardware virtualization; the SDK and APK hosts were
+  blocked). Every rule is checked against the app's own files instead.
+- The preview approximates about 40 common effects; the others show as labels.
+  Transform-type effects (oscillate, swing, shake, spin, pulse), opacity
+  effects (fade, blink), wipes, tiling, blurs, glows, shadows and color
+  effects are drawn. Warps, displacement, 3D, particles and keying are not.
+- Elastic, bounce and step easings are approximated in the preview.
+- Cameras, audio and freehand drawings are read and kept, but the builder
+  does not make cameras.

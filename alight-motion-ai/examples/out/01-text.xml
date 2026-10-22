@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8' ?>
 <!-- Created for Alight Motion with alight-motion-ai -->
-<scene title="01 Text" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#FF14161F" totalTime="4000" fps="30" modifiedTime="1792666882191" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+<scene title="01 Text" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#FF14161F" totalTime="4000" fps="30" modifiedTime="1792674902096" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
   <text id="1" label="Headline" startTime="0" endTime="4000" fillType="color" size="120.000000" font="googlefonts?name=Archivo Black&amp;weight=400" wrapWidth="972" align="center">
     <transform>
       <location value="540.000000,470.000000,0.000000"/>

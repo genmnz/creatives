@@ -16,6 +16,9 @@ or export it there.
    then `am_effect` / `amx effect <name>` for parameter names and ranges.
 4. Edit with operations (`am_edit` / `amx apply`), then export with `am_export`.
    Give the user the `.xml`, or the `.zip` when it uses images.
+5. To change an existing project, open it (`am_open`, .xml or .zip) and read
+   it as a spec (`am_spec` / `amx decompile`): seconds, pixels and effect
+   names instead of raw XML. Edit that and rebuild, or use edit operations.
 
 **Without tools:** write the XML directly by following the rules and the
 example at the end, and keep to the shapes and effects listed here.
@@ -54,12 +57,30 @@ Layer types:
   inside the canvas like the app does on import. `fit: "cover"` fills the canvas.
 - **path**: `d` (any SVG path data, in canvas coordinates), `fill`, `stroke`.
   Use this for drawings, icons, lettering, curves, anything custom.
+- **svg**: `src` (an .svg file) or `svg` (SVG text). Vector art becomes a
+  group of path layers with its fills, strokes and gradients. `box`
+  `{x, y, width, height}` places it; `stagger` (s) and `itemIn` (a transition)
+  animate the pieces in one after another.
 - **null**: invisible parent for rigging; **group**: `width`, `height`, `layers`.
+  A layer with a `parent` is positioned relative to the parent (no `x`/`y`
+  means it sits on the parent's origin).
 
 Common fields: `label`, `start`, `end` (seconds on the scene timeline),
 `x`, `y`, `scale` (number or `[sx, sy]`), `rotation` (degrees, clockwise),
 `opacity` (0..1), `pivot`, `blend` (multiply, screen, overlay, linear-dodge, …),
-`parent` (label or id), `effects`, `animate`.
+`parent` (label or id), `effects`, `animate`, `in`, `out`, `presets`,
+`shadow` `{color, size, opacity, offset}`, `border` `{color, size, direction:
+inside|outside|centered}`.
+
+**Transitions**: `"in": "pop"` and `"out": "fade"` (or `{ "type", "duration",
+"distance", "ease" }`) on any layer: fade, slide-up, slide-down, slide-left,
+slide-right, pop, zoom, grow, spin, bounce, elastic, blur, wipe-right,
+wipe-left, wipe-up, wipe-down, typewriter (text), draw (outlines). They are
+built from effects, so they combine with any `animate` motion.
+
+**App presets**: `"presets": ["Vibrate Horizontal"]` copies one of the app's
+own 208 presets (transitions, glitches, color looks, 3D, text animations) onto
+the layer. Search them with `am_presets` / `amx presets <words>`.
 
 `fill`: a color, `"none"`, or `{ "gradient": { "type": "linear|radial|sweep",
 "from": color, "to": color, "start": [0,0], "end": [1,1] } }` (0..1 across the layer).
@@ -86,7 +107,7 @@ Parameter values may be keyframes. Dropdown parameters accept the choice label.
    `text`, `drawing`, `embedScene`, `audio`, `camera`, `nullobj`.
 3. Each layer: unique integer `id`, `label`, `startTime` and `endTime` in ms,
    then children in this order: `transform`, `fillColor`, `gradient`, `effect`*,
-   `path-stroke`, `property`*, `path`, `content`.
+   `border`, `path-stroke`, `shadow`, `property`*, `path`, `content`.
 4. `<transform>` children: `location` (`x,y,0` in canvas px), `pivot`, `scale`,
    `skew`, `rotation` (degrees), `opacity` (0..1). Omit defaults.
 5. Template shape: `s=".rect"` etc. plus `<property name="size" type="vec2"
@@ -100,7 +121,12 @@ Parameter values may be keyframes. Dropdown parameters accept the choice label.
 9. Text: `<text … fillType="color" size="72.0" font="googlefonts?name=Roboto&amp;weight=400"
    wrapWidth="900" align="center">` … `<content>Hello</content></text>`.
 10. Effect: `<effect id="<full id>" locallyApplied="true"><property name type value/></effect>`.
-11. **Keyframes**: replace `value` with `<kf t v e/>` children. `t` is the
+11. Shadow: `<shadow direction="outside"><color value/><size value/><opacity value/><offset value="0,12"/></shadow>`;
+    border: `<border direction="inside" id="1"><color value/><size value/></border>`.
+12. Media fills reference `<media uri="amproj:<file name>" filename title type sig>`
+    (sig = SHA-1, upper-case hex); the package zip holds the XML, the files and
+    `manifest.txt` with `SIG:file name` lines.
+13. **Keyframes**: replace `value` with `<kf t v e/>` children. `t` is the
     fraction of the layer's duration (0 = its start, 1 = its end), **not
     seconds**. `e="cubicBezier 0.42 0.0 0.58 1.0"` eases into that keyframe;
     omit `e` for linear.
@@ -113,9 +139,11 @@ Parameter values may be keyframes. Dropdown parameters accept the choice label.
 - Stagger entrances (start times 0.2 to 0.4 s apart) and ease them out.
 - Members-only effects need an Alight Motion subscription to export without
   a watermark; prefer free ones unless asked.
-- The preview draws geometry, fills, images, text, strokes, keyframes and
-  blur. Other effects only show in the app, so choose their values from the
-  parameter ranges.
+- The preview draws geometry, fills, images, text, strokes, shadows, borders,
+  blend modes, masks, keyframes and about 40 common effects (blur, glow,
+  oscillate, swing, shake, fade, wipe, tile, color effects, RGB split).
+  Others only show in the app, so choose their values from the parameter
+  ranges.
 
 ## Example XML
 

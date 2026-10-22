@@ -6,7 +6,9 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
-import { loadCatalog, newScene, openXml, writeProject, ROOT, renderOut, mediaInfoFromFile, mediaHrefFor, chrome } from "../src/node.mjs";
+import { loadCatalog, newScene, openXml, writeProject, ROOT, renderOut, mediaInfoFromFile, mediaHrefFor, chrome, inlineSvgFiles } from "../src/node.mjs";
+import { toSpec } from "../src/decompile.mjs";
+import { TRANSITIONS, searchPresets } from "../src/presets.mjs";
 import { buildFromSpec } from "../src/builder.mjs";
 import { validate, outline } from "../src/validate.mjs";
 import { renderSVG } from "../src/render.mjs";
@@ -30,8 +32,11 @@ const summary = (id, scene, extra = "") => {
 };
 
 const LAYER_SPEC = `Layer spec fields (scene px, origin top-left; times in seconds):
-  common: type (text|shape|image|path|drawing|null|group), label, start, end, x, y, scale, rotation, opacity, pivot, blend, parent,
-          effects: [{effect: <id or name>, params: {...}}], animate: {position|scale|rotation|opacity|fill|<shape param>: keyframes}
+  common: type (text|shape|image|path|svg|drawing|null|group), label, start, end, x, y, scale, rotation, opacity, pivot, blend, parent,
+          effects: [{effect: <id or name>, params: {...}}], animate: {position|scale|rotation|opacity|fill|<shape param>: keyframes},
+          in / out: entrance and exit (fade, slide-up/down/left/right, pop, zoom, grow, spin, bounce, elastic, blur,
+                    wipe-right/left/up/down, typewriter, draw) or {type, duration, distance, ease},
+          presets: ["<app preset name>"] (see am_presets)
   text: text, font (Google font name), weight, size, color, align (left|center|right), wrapWidth, stroke {color,width}
   shape: shape (rect|roundrect|circle|star|poly|triangle|arrow|line|wideline|plus|multifoil|pie|arc|moon|teardrop|quad|penta|callout|stamp),
          width, height (full size), radius, cornerRadius, points, sides, innerRadius, params {raw template params},
@@ -41,6 +46,8 @@ const LAYER_SPEC = `Layer spec fields (scene px, origin top-left; times in secon
   path: d (any SVG path, in scene coordinates), fill, stroke
   drawing: strokes [{points [[x,y,pressure]...], color, width}] (local coordinates; experimental)
   group: width, height, layers [...] (a nested scene)
+  svg: src (local .svg file) or svg (SVG text), box {x, y, width, height}, stagger (s), itemIn (transition per piece):
+       vector art as a group of path layers with fills, strokes and gradients
 Keyframes: [{"at": seconds from layer start, "v": value, "ease": "linear|easeIn|easeOut|easeInOut|easeOutStrong|hold|[x1,y1,x2,y2]"}]`;
 
 const TOOLS = [
@@ -53,12 +60,15 @@ const TOOLS = [
     name: "am_new", description: "Start an empty project.",
     inputSchema: { type: "object", properties: { title: { type: "string" }, width: { type: "number" }, height: { type: "number" }, duration: { type: "number", description: "seconds" }, fps: { type: "number" }, background: { type: "string" } } },
   },
-  { name: "am_open", description: "Open an existing Alight Motion .xml project (images next to it are linked by file name).", inputSchema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] } },
+  { name: "am_open", description: "Open an existing Alight Motion project: .xml (images next to it are linked by file name) or a shared package .zip.", inputSchema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] } },
   { name: "am_open_text", description: "Open a project from XML text.", inputSchema: { type: "object", properties: { xml: { type: "string" } }, required: ["xml"] } },
   {
     name: "am_edit", description: `Apply edit operations to an open project.\n${OPS_HELP}\n${LAYER_SPEC}`,
-    inputSchema: { type: "object", properties: { project_id: { type: "string" }, ops: { type: "array", items: { type: "object" } } }, required: ["project_id", "ops"] },
+    inputSchema: { type: "object", properties: { project_id: { type: "string" }, ops: { type: "array", items: { type: "object" } }, base_dir: { type: "string", description: "folder that relative image/svg paths resolve against" } }, required: ["project_id", "ops"] },
   },
+  { name: "am_spec", description: "The project as an editable design spec (seconds, pixels, full sizes, effect params by name). Edit it and pass it to am_build to rebuild; unknown parts are kept verbatim.", inputSchema: { type: "object", properties: { project_id: { type: "string" } }, required: ["project_id"] } },
+  { name: "am_transitions", description: "Entrance/exit animations usable as in/out on any layer.", inputSchema: { type: "object", properties: {} } },
+  { name: "am_presets", description: "Search Alight Motion's own animation and look presets (208, extracted from the app): transitions, glitches, color grades, 3D, text animations.", inputSchema: { type: "object", properties: { query: { type: "string" } } } },
   { name: "am_inspect", description: "Readable outline of a project: layers, timing, keyframes, effects, plus import checks.", inputSchema: { type: "object", properties: { project_id: { type: "string" } }, required: ["project_id"] } },
   { name: "am_xml", description: "The project's XML text.", inputSchema: { type: "object", properties: { project_id: { type: "string" } }, required: ["project_id"] } },
   {
@@ -81,6 +91,7 @@ async function call(name, a) {
     case "am_guide": return text(readFileSync(join(ROOT, "prompt/SYSTEM_PROMPT.md"), "utf8"));
     case "am_build": {
       const base = a.base_dir ?? process.cwd();
+      inlineSvgFiles(a.spec.layers, base);
       const scene = buildFromSpec(a.spec, { mediaResolver: (src) => mediaInfoFromFile(src, base) });
       const id = keep(scene);
       return text(summary(id, scene));
@@ -95,11 +106,18 @@ async function call(name, a) {
     }
     case "am_edit": {
       const s = get(a.project_id);
+      for (const op of [a.ops].flat()) if (op?.op === "add") inlineSvgFiles([op.layer], a.base_dir ?? process.cwd());
       const log = applyOps(s, a.ops);
       return text(summary(a.project_id, s, log.join("\n") + "\n\n"));
     }
     case "am_inspect": return text(summary(a.project_id, get(a.project_id)));
     case "am_xml": return text(get(a.project_id).toXML());
+    case "am_spec": return text(JSON.stringify(toSpec(get(a.project_id).node), null, 1));
+    case "am_transitions": return text(Object.entries(TRANSITIONS).map(([k, v]) => `${k}: ${v.about}${v.only ? ` (${v.only.join("/")} only)` : ""}`).join("\n") + '\n\nLayer spec: "in": "pop", "out": {"type": "fade", "duration": 0.4}. Edit op: {"op":"transition","layer":"Title","in":"slide-up"}');
+    case "am_presets": {
+      const list = searchPresets(a.query ?? "", 60);
+      return text(list.map((p) => `${p.name} | timing ${p.timing} | ${p.group} | effects: ${p.effects.map((e) => e.attrs.id.split(".").pop()).join(", ")}`).join("\n") + '\n\nApply: layer spec "presets": ["<name>"], or edit op {"op":"preset","layer":..,"preset":"<name>"}. Timing: start/end keep the preset\'s own duration at the layer start/end, stretch scales it to the layer, split does both halves.');
+    }
     case "am_render": {
       const s = get(a.project_id);
       const times = a.times ?? [0.15, 0.5, 0.85].map((k) => +(s.duration * k).toFixed(2));

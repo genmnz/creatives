@@ -16,12 +16,27 @@ export const EASING = {
   easeOutStrong: "cubicBezier 0.0 0.0 0.3377031 0.9916667",
   easeInOutStrong: "cubicBezier 0.56145656 0.0 0.4665546 0.9888888",
   hold: "cubicBezier 1.0 0.0 1.0 0.0",
+  // Most common curves in modern app exports.
+  snap: "cubicBezier 0.0 0.0 0.0 1.0",
+  easeInHard: "cubicBezier 1.0 0.0 1.0 1.0",
+  smooth: "cubicBezier 0.8 0.0 0.27 1.0",
+  anticipate: "cubicBezier 0.25 -0.42 0.75 -0.44",
+  // Overshoot (back) curves: y outside 0..1 is valid, the app writes such curves too.
+  backOut: "cubicBezier 0.34 1.56 0.64 1.0",
+  backIn: "cubicBezier 0.36 0.0 0.66 -0.56",
+  // Non-bezier easings the app writes (parameters as seen in its exports).
+  elastic: "elastic 0.5 1.0 0.0 1.0",
+  elasticIn: "reverse elastic 0.5 1.0 0.0 1.0",
+  bounce: "bounce 0.31921425 0.81",
 };
+
+/** Easing families found in app exports; anything else is passed through untouched. */
+export const EASING_FORMS = /^(local )?(cubicBezier( -?[\d.eE-]+){4}|(reverse )?elastic( -?[\d.eE-]+){4}|bounce( -?[\d.eE-]+){2}|step( -?[\d.eE-]+){2}|elasticStep( -?[\d.eE-]+){2}|random( -?[\d.eE-]+){6}|cyclic( -?[\d.eE-]+){5})$/;
 
 export function easingString(e) {
   if (e === undefined || e === null || e === "linear") return undefined;
   if (Array.isArray(e)) return `cubicBezier ${e.map((n) => (Number.isInteger(+n) ? (+n).toFixed(1) : String(+n))).join(" ")}`;
-  if (typeof e === "string" && e.startsWith("cubicBezier")) return e;
+  if (typeof e === "string" && EASING_FORMS.test(e)) return e;
   if (typeof e === "string" && e in EASING) return EASING[e] ?? undefined;
   throw new Error(`unknown easing "${e}" (use ${Object.keys(EASING).join(", ")} or [x1,y1,x2,y2])`);
 }
@@ -109,10 +124,34 @@ export function cubicBezier(x1, y1, x2, y2, x) {
   return by(t);
 }
 
+// Preview approximations of the app's easing families (bezier is exact).
 function ease(e, x) {
   if (!e) return x;
-  const m = /cubicBezier\s+([-\d.eE]+)\s+([-\d.eE]+)\s+([-\d.eE]+)\s+([-\d.eE]+)/.exec(e);
-  return m ? cubicBezier(+m[1], +m[2], +m[3], +m[4], x) : x;
+  const parts = e.replace(/^local /, "").split(/\s+/);
+  const kind = parts[0] === "reverse" ? "reverse " + parts[1] : parts[0];
+  const n = parts.slice(kind.includes(" ") ? 2 : 1).map(Number);
+  switch (kind) {
+    case "cubicBezier": return cubicBezier(n[0], n[1], n[2], n[3], x);
+    case "elastic": case "elasticStep": {
+      // decaying overshoot that settles on the target
+      const p = 0.3 + 0.4 * (n[0] ?? 0.5);
+      return x >= 1 ? 1 : 1 - Math.pow(2, -10 * x) * Math.cos((x * 2 * Math.PI) / p);
+    }
+    case "reverse elastic": {
+      const p = 0.3 + 0.4 * (n[0] ?? 0.5), y = 1 - x;
+      return x <= 0 ? 0 : Math.pow(2, -10 * y) * Math.cos((y * 2 * Math.PI) / p);
+    }
+    case "bounce": {
+      let t = x, v;
+      if (t < 1 / 2.75) v = 7.5625 * t * t;
+      else if (t < 2 / 2.75) v = 7.5625 * (t -= 1.5 / 2.75) * t + 0.75;
+      else if (t < 2.5 / 2.75) v = 7.5625 * (t -= 2.25 / 2.75) * t + 0.9375;
+      else v = 7.5625 * (t -= 2.625 / 2.75) * t + 0.984375;
+      return v;
+    }
+    case "step": return x < (n[0] ?? 0.5) ? 0 : 1;
+    default: return x; // random, cyclic: shown as linear
+  }
 }
 
 function lerp(a, b, k) {

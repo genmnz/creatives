@@ -1,0 +1,19 @@
+{
+  "scene": { "title": "08 Transitions", "width": 1080, "height": 1920, "duration": 4, "background": "#14121C" },
+  "layers": [
+    { "type": "shape", "shape": "rect", "width": 1080, "height": 1920, "label": "Backdrop",
+      "fill": { "gradient": { "from": "#2A1F4A", "to": "#14121C", "start": [0.5, 0], "end": [0.5, 1] } } },
+    { "type": "text", "text": "IN & OUT", "font": "Archivo Black", "size": 150, "y": 420, "color": "#FFFFFF", "label": "Title",
+      "in": "slide-up", "out": "fade" },
+    { "type": "text", "text": "every layer gets an entrance and an exit", "font": "IBM Plex Sans", "size": 46, "y": 560,
+      "color": "#C9C2E6", "start": 0.3, "in": { "type": "typewriter", "duration": 1.4 }, "out": "fade" },
+    { "type": "shape", "shape": "star", "width": 260, "height": 260, "x": 270, "y": 960, "color": "#F2B445", "label": "Pop star",
+      "in": "pop", "out": "spin" },
+    { "type": "shape", "shape": "roundrect", "width": 300, "height": 300, "cornerRadius": 40, "x": 810, "y": 960, "color": "#4FB0FF",
+      "label": "Wipe card", "in": "wipe-right", "out": { "type": "blur", "duration": 0.8 } },
+    { "type": "shape", "shape": "circle", "width": 280, "height": 280, "x": 540, "y": 1380, "fill": "none",
+      "stroke": { "color": "#FF4F9E", "width": 14 }, "label": "Drawn ring", "in": { "type": "draw", "duration": 1.2 }, "out": "grow" },
+    { "type": "text", "text": "Vibrate Horizontal (app preset)", "font": "IBM Plex Sans", "size": 44, "y": 1700, "color": "#FFFFFF",
+      "start": 1, "presets": ["Vibrate Horizontal"], "label": "Preset demo" }
+  ]
+}

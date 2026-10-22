@@ -4,6 +4,8 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { resolve, dirname, basename, extname, join } from "node:path";
 import { loadCatalog, buildSpecFile, openXml, newScene, writeProject, ROOT, renderOut, mediaHrefFor } from "../src/node.mjs";
+import { toSpec } from "../src/decompile.mjs";
+import { TRANSITIONS, searchPresets } from "../src/presets.mjs";
 import { validate, outline } from "../src/validate.mjs";
 import { searchEffects, findEffect, describeEffect, catalog } from "../src/catalog.mjs";
 import { normalizePath } from "../src/svgpath.mjs";
@@ -17,7 +19,13 @@ const HELP = `amx: AI toolkit for Alight Motion XML projects
   amx new <out.xml> [--width 1080 --height 1920 --duration 5 --fps 30 --bg #000000 --title T]
   amx apply <project.xml> <ops.json | 'inline json'> [-o out.xml]
                                    edit a project with operations (see: amx ops)
-  amx inspect <project.xml>         readable outline: layers, timing, keyframes, effects
+  amx inspect <project.xml|.zip>    readable outline: layers, timing, keyframes, effects
+  amx decompile <project.xml|.zip> [-o spec.json]
+                                   project -> editable design spec (seconds, pixels); rebuild with amx build
+  amx import-svg <art.svg> <project.xml> [-o out.xml] [--box x,y,w,h] [--in draw] [--stagger 0.1]
+                                   add vector art as a group of path layers (new project if missing)
+  amx transitions                   in/out animations for "in"/"out" in specs and ops
+  amx presets [words]               the app's own presets (from the APK) usable as "presets"
   amx validate <project.xml>...     check against the import format
   amx render <project.xml> [--t 1.5] [-o frame.svg|frame.png] [--width 540]
   amx preview <project.xml> [-o preview.html]   self-contained animated preview
@@ -94,6 +102,42 @@ try {
       break;
     }
     case "inspect": console.log(outline(openXml(args[0]).node)); break;
+    case "decompile": {
+      const file = args.shift();
+      const out = flag("-o");
+      const json = JSON.stringify(toSpec(openXml(file).node), null, 1);
+      if (out) { writeFileSync(out, json); console.log("wrote", out); } else console.log(json);
+      break;
+    }
+    case "import-svg": {
+      const svg = args.shift(), file = args.shift();
+      if (!svg || !file) throw new Error("usage: amx import-svg <art.svg> <project.xml> [-o out.xml]");
+      const out = flag("-o", file);
+      const box = flag("--box")?.split(",").map(Number);
+      const layer = { type: "svg", svg: readFileSync(svg, "utf8"), label: basename(svg, extname(svg)) };
+      if (box) layer.box = { x: box[0], y: box[1], width: box[2], height: box[3] };
+      const itemIn = flag("--in"), stagger = flag("--stagger");
+      if (itemIn) layer.itemIn = itemIn;
+      if (stagger) layer.stagger = +stagger;
+      const scene = existsSync(file) ? openXml(file) : newScene({ title: basename(file, ".xml"), width: 1080, height: 1080, duration: 5, background: "#FFFFFF" });
+      const g = scene.add(layer);
+      console.log(`added group "${g.attrs.label}" with ${g.children.find((c) => c.tag === "scene").children.filter((c) => c.tag).length} layers`);
+      const files = writeProject(scene, out);
+      report(out, validate(scene.node));
+      console.log("wrote", files.join(", "));
+      break;
+    }
+    case "transitions": {
+      for (const [k, v] of Object.entries(TRANSITIONS)) console.log(`${k.padEnd(12)} ${v.about}${v.only ? ` (${v.only.join("/")} only)` : ""}`);
+      console.log('\nUse in a layer spec: "in": "pop", "out": {"type": "fade", "duration": 0.4}');
+      break;
+    }
+    case "presets": {
+      const list = searchPresets(args.join(" "), args.length ? 60 : 300);
+      for (const p of list) console.log(`${p.name.padEnd(34)} ${(p.code ?? "").padEnd(7)} t:${p.timing.padEnd(8)} ${p.group}  [${p.effects.map((e) => e.attrs.id.split(".").pop()).join(", ")}]`);
+      console.log(`\n${list.length} preset(s). Use in a layer spec: "presets": ["Ghost Pop"]`);
+      break;
+    }
     case "validate": {
       let failed = false;
       for (const f of args) {

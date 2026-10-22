@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8' ?>
 <!-- Created for Alight Motion with alight-motion-ai -->
-<scene title="06 Keyframes" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#FFEEF0F5" totalTime="4000" fps="30" modifiedTime="1792666888412" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+<scene title="06 Keyframes" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#FFEEF0F5" totalTime="4000" fps="30" modifiedTime="1792674907442" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
   <shape id="1" label="Sliding bar" startTime="0" endTime="4000" fillType="color" s=".roundrect">
     <transform>
       <location>

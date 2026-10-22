@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff4f9e"/>
+      <stop offset="1" stop-color="#f2b445"/>
+    </linearGradient>
+    <style>.ray { stroke: #ffffff; stroke-width: 6; stroke-linecap: round; fill: none }</style>
+  </defs>
+  <circle cx="100" cy="100" r="90" fill="url(#sky)"/>
+  <g transform="translate(100 100)">
+    <line class="ray" x1="0" y1="-70" x2="0" y2="-50"/>
+    <line class="ray" x1="0" y1="-70" x2="0" y2="-50" transform="rotate(45)"/>
+    <line class="ray" x1="0" y1="-70" x2="0" y2="-50" transform="rotate(-45)"/>
+    <line class="ray" x1="0" y1="-70" x2="0" y2="-50" transform="rotate(90)"/>
+    <line class="ray" x1="0" y1="-70" x2="0" y2="-50" transform="rotate(-90)"/>
+  </g>
+  <path d="M40 130 Q100 60 160 130 Z" fill="#ffffff"/>
+  <rect x="30" y="128" width="140" height="14" rx="7" fill="#1a1530"/>
+  <polygon points="100,150 112,170 88,170" fill="#1a1530" opacity="0.6"/>
+</svg>

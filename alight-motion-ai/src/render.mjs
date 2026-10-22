@@ -1,6 +1,7 @@
 // Render one frame of a scene to SVG. A preview, not a pixel match: geometry,
-// fills, gradients, strokes, images, text, transforms, parenting, nesting and
-// keyframes are drawn; of the effects only blur is approximated.
+// fills, gradients, strokes, borders, shadows, images, text, transforms,
+// parenting, nesting, blending, masks and keyframes are drawn; the common
+// effects are approximated in fxpreview.mjs.
 
 import { kid, kids, textOf } from "./xml.mjs";
 import { readKeyable, valueAt, cssColor, parseColor } from "./anim.mjs";
@@ -8,6 +9,7 @@ import { templatePath } from "./shapes.mjs";
 import { findShape, paramDefault } from "./catalog.mjs";
 import { parsePath, pathBounds } from "./svgpath.mjs";
 import { escapeAttr, escapeText } from "./xml.mjs";
+import { effectPlan, decorationFilter } from "./fxpreview.mjs";
 
 const ELEMENTS = new Set(["shape", "text", "drawing", "embedScene", "audio", "camera", "nullobj"]);
 const CSS_BLEND = {
@@ -15,6 +17,10 @@ const CSS_BLEND = {
   "color-dodge": "color-dodge", "color-burn": "color-burn", "hard-light": "hard-light", "soft-light": "soft-light",
   diff: "difference", difference: "difference", exclusion: "exclusion", hue: "hue", saturation: "saturation",
   color: "color", luminance: "luminosity", "linear-dodge": "plus-lighter",
+  // Alight Motion modes without a CSS twin get the closest one.
+  exclude: "exclusion", subtract: "difference", "soft-overlay": "soft-light", "linear-burn": "color-burn",
+  "lighter-color": "lighten", "darker-color": "darken", "vivid-light": "hard-light", "linear-light": "hard-light",
+  "pin-light": "hard-light", divide: "color-dodge",
 };
 
 const n3 = (x) => +Number(x).toFixed(3);
@@ -30,20 +36,22 @@ function layerU(node, tMs) {
   return Math.min(1, Math.max(0, (tMs - s) / Math.max(1, e - s)));
 }
 
-function transformOf(node, u) {
+function transformOf(node, u, fx) {
   const tr = kid(node, "transform");
   const get = (tag, d) => valueAt(readKeyable(kid(tr, tag)), u, d);
   const loc = get("location", [0, 0, 0]);
   const pivot = get("pivot", [0, 0]);
   const scale = get("scale", [1, 1]);
   const skew = get("skew", [0, 0]);
-  const rot = get("rotation", 0);
-  const opacity = get("opacity", 1);
-  let t = `translate(${n3(loc[0])} ${n3(loc[1])})`;
+  const rot = get("rotation", 0) + (fx?.rotate ?? 0);
+  const opacity = get("opacity", 1) * (fx?.opacity ?? 1);
+  const sx = scale[0] * (fx?.scale[0] ?? 1), sy = scale[1] * (fx?.scale[1] ?? 1);
+  let t = `translate(${n3(loc[0] + (fx?.move[0] ?? 0))} ${n3(loc[1] + (fx?.move[1] ?? 0))})`;
   if (rot) t += ` rotate(${n3(rot)})`;
+  for (const st of fx?.stretches ?? []) if (st.scale !== 1) t += ` rotate(${n3(st.angle)}) scale(${n3(st.scale)} 1) rotate(${n3(-st.angle)})`;
   if (skew[0]) t += ` skewX(${n3(skew[0])})`;
   if (skew[1]) t += ` skewY(${n3(skew[1])})`;
-  if (scale[0] !== 1 || scale[1] !== 1) t += ` scale(${n3(scale[0])} ${n3(scale[1])})`;
+  if (sx !== 1 || sy !== 1) t += ` scale(${n3(sx)} ${n3(sy)})`;
   if (pivot[0] || pivot[1]) t += ` translate(${n3(-pivot[0])} ${n3(-pivot[1])})`;
   return { t, opacity };
 }
@@ -79,6 +87,7 @@ function renderScene(scene, tMs, ctx, isRoot) {
   }
   const els = scene.children.filter((c) => c.tag && ELEMENTS.has(c.tag));
   const byId = new Map(els.map((e) => [e.attrs.id, e]));
+  let layers = "";
   for (const node of els) {
     if (node.attrs.hidden === "true") continue;
     const s = Number(node.attrs.startTime), e = Number(node.attrs.endTime);
@@ -91,9 +100,16 @@ function renderScene(scene, tMs, ctx, isRoot) {
       g = `<g transform="${transformOf(p, layerU(p, tMs)).t}">${g}</g>`;
       p = byId.get(p.attrs.parent);
     }
-    out += g;
+    // Mask blending: this layer's alpha cuts out everything below it in the same scene.
+    if (node.attrs.blending === "mask") {
+      const id = `m${ctx.uid++}`;
+      ctx.defs.push(`<mask id="${id}" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">${g}</mask>`);
+      layers = `<g mask="url(#${id})">${layers}</g>`;
+      continue;
+    }
+    layers += g;
   }
-  return out;
+  return out + layers;
 }
 
 function fillFor(node, u, ctx, d) {
@@ -130,31 +146,55 @@ function fillFor(node, u, ctx, d) {
 }
 
 function strokeFor(node, u) {
-  const ps = kid(node, "path-stroke") ?? kid(node, "border");
+  const ps = kid(node, "path-stroke");
   if (!ps || ps.attrs.enabled === "false") return "";
   const c = valueAt(readKeyable(kid(ps, "color")), u, null) ?? (ps.attrs.color ? parseColor(ps.attrs.color) : [255, 255, 255, 1]);
   const w = valueAt(readKeyable(kid(ps, "size")), u, null) ?? Number(ps.attrs.size ?? 4);
   return ` stroke="rgba(${c.slice(0, 3).map(Math.round).join(",")},${n3(c[3])})" stroke-width="${n3(w)}" stroke-linejoin="round" stroke-linecap="round"`;
 }
 
-function effectsFilter(node, u, ctx) {
-  let out = "";
-  for (const fx of kids(node, "effect")) {
-    if (fx.attrs.hidden === "true") continue;
-    const id = fx.attrs.id;
-    const prop = (name, d) => {
-      const p = kids(fx, "property").find((x) => x.attrs.name === name);
-      return p ? valueAt(readKeyable(p), u, d) : d;
-    };
-    if (/gaussianblur|boxblur|\.blur$|fastblur/.test(id)) {
-      const s = Number(prop("strength", prop("radius", 0.15))) * 40;
-      if (s > 0.1) out += `<feGaussianBlur stdDeviation="${n3(s)}"/>`;
+// <border direction="inside|outside|centered"> drawn around the shape outline.
+function borders(node, u, d, ctx) {
+  let under = "", over = "";
+  for (const b of kids(node, "border")) {
+    if (b.attrs.enabled === "false") continue;
+    const c = valueAt(readKeyable(kid(b, "color")), u, null) ?? (b.attrs.color ? parseColor(b.attrs.color) : [0, 0, 0, 1]);
+    const w = Number(valueAt(readKeyable(kid(b, "size")), u, null) ?? b.attrs.size ?? 4);
+    const paint = `fill="none" stroke="rgba(${c.slice(0, 3).map(Math.round).join(",")},${n3(c[3])})" stroke-linejoin="round"`;
+    if (b.attrs.direction === "outside") under += `<path d="${escapeAttr(d)}" ${paint} stroke-width="${n3(2 * w)}"/>`;
+    else if (b.attrs.direction === "centered") over += `<path d="${escapeAttr(d)}" ${paint} stroke-width="${n3(w)}"/>`;
+    else {
+      const clip = `c${ctx.uid++}`;
+      ctx.defs.push(`<clipPath id="${clip}"><path d="${escapeAttr(d)}"/></clipPath>`);
+      over += `<path d="${escapeAttr(d)}" ${paint} stroke-width="${n3(2 * w)}" clip-path="url(#${clip})"/>`;
     }
   }
-  if (!out) return "";
-  const fid = `f${ctx.uid++}`;
-  ctx.defs.push(`<filter id="${fid}" x="-50%" y="-50%" width="200%" height="200%">${out}</filter>`);
-  return ` filter="url(#${fid})"`;
+  return { under, over };
+}
+
+// Wipe effects as a gradient mask in the layer's bounding box.
+function wipeMask(wipes, ctx) {
+  let attr = "";
+  for (const w of wipes) {
+    const lo = Math.min(w.start, w.end), hi = Math.max(w.start, w.end), f = Math.max(0.001, w.feather);
+    const g = `w${ctx.uid++}`, m = `m${ctx.uid++}`;
+    ctx.defs.push(`<linearGradient id="${g}" gradientTransform="rotate(${n3(w.angle)} .5 .5)"><stop offset="${n3(lo - f)}" stop-color="#000"/><stop offset="${n3(lo)}" stop-color="#fff"/><stop offset="${n3(hi)}" stop-color="#fff"/><stop offset="${n3(hi + f)}" stop-color="#000"/></linearGradient>`);
+    ctx.defs.push(`<mask id="${m}" maskContentUnits="objectBoundingBox"><rect width="1" height="1" fill="url(#${g})"/></mask>`);
+    attr = m;
+  }
+  return attr;
+}
+
+function tiled(inner, d, tile) {
+  if (!d) return inner;
+  const b = pathBounds(parsePath(d));
+  const w = b.w * (tile.scale || 1), h = b.h * (tile.scale || 1);
+  let out = "";
+  for (let i = -2; i <= 2; i++) for (let j = -2; j <= 2; j++) {
+    const flip = tile.mirror ? ` scale(${i % 2 ? -1 : 1} ${j % 2 ? -1 : 1})` : "";
+    out += `<g transform="translate(${n3(i * w)} ${n3(j * h)})${flip}">${inner}</g>`;
+  }
+  return out;
 }
 
 function fxParam(node, idTail, name, u, d) {
@@ -178,13 +218,23 @@ function wrapLines(text, size, wrap) {
 }
 
 function renderElement(node, tMs, ctx) {
+  if (node.tag === "camera" || node.tag === "nullobj" || node.tag === "audio") return "";
   const u = layerU(node, tMs);
-  const { t, opacity } = transformOf(node, u);
+  const start = Number(node.attrs.startTime), end = Number(node.attrs.endTime);
+  const uid = `x${ctx.uid++}`;
+  const fx = effectPlan(node, u, (tMs - start) / 1000, (end - start) / 1000, uid);
+  const { t, opacity } = transformOf(node, u, fx);
   const blend = CSS_BLEND[node.attrs.blending];
   const style = blend ? ` style="mix-blend-mode:${blend}"` : "";
-  const filter = effectsFilter(node, u, ctx);
+  const deco = decorationFilter(node, u, uid, fx.filterOut);
+  let filter = "";
+  if (fx.filter || deco.filter) {
+    const fid = `f${uid}`;
+    ctx.defs.push(`<filter id="${fid}" x="-100%" y="-100%" width="300%" height="300%" filterUnits="objectBoundingBox" color-interpolation-filters="sRGB">${fx.filter}${deco.filter}</filter>`);
+    filter = ` filter="url(#${fid})"`;
+  }
   const fxList = kids(node, "effect").map((f) => f.attrs.id.split(".").pop()).join(" ");
-  const meta = ` data-id="${escapeAttr(node.attrs.id)}" data-label="${escapeAttr(node.attrs.label ?? "")}"${fxList ? ` data-fx="${escapeAttr(fxList)}"` : ""}`;
+  const meta = ` data-id="${escapeAttr(node.attrs.id)}" data-label="${escapeAttr(node.attrs.label ?? "")}"${fxList ? ` data-fx="${escapeAttr(fxList)}"` : ""}${fx.skipped.length ? ` data-unpreviewed="${escapeAttr(fx.skipped.join(" "))}"` : ""}`;
   let inner = "";
   switch (node.tag) {
     case "shape": {
@@ -194,7 +244,9 @@ function renderElement(node, tMs, ctx) {
       // Drawing Progress trims the outline: draw it with a dash over a 0..100 path length.
       const ds = fxParam(node, "drawing.progress", "start", u, 0), de = fxParam(node, "drawing.progress", "end", u, 100);
       const dash = ds === undefined ? "" : ` pathLength="100" stroke-dasharray="0 ${n3(ds)} ${n3(Math.max(0, de - ds))} 200"`;
-      inner = (f.media ?? "") + `<path d="${escapeAttr(d)}" fill="${f.fill}"${strokeFor(node, u)}${dash}/>`;
+      const bd = borders(node, u, d, ctx);
+      inner = bd.under + (f.media ?? "") + `<path d="${escapeAttr(d)}" fill="${f.fill}"${strokeFor(node, u)}${dash}/>` + bd.over;
+      if (fx.tile) inner = tiled(inner, d, fx.tile);
       break;
     }
     case "text": {
@@ -231,12 +283,17 @@ function renderElement(node, tMs, ctx) {
       const w = Number(sc.attrs.width), h = Number(sc.attrs.height);
       const clip = `c${ctx.uid++}`;
       ctx.defs.push(`<clipPath id="${clip}"><rect width="${w}" height="${h}"/></clipPath>`);
-      inner = `<g transform="translate(${-w / 2} ${-h / 2})" clip-path="url(#${clip})">${renderScene(sc, tMs - Number(node.attrs.startTime), ctx, false)}</g>`;
+      const local = (tMs - start) * Number(node.attrs.speed ?? 1) + Number(node.attrs.inTime ?? 0);
+      inner = `<g transform="translate(${-w / 2} ${-h / 2})" clip-path="url(#${clip})">${renderScene(sc, local, ctx, false)}</g>`;
       break;
     }
     default:
       return "";
   }
+  const mask = fx.wipes.length ? wipeMask(fx.wipes, ctx) : "";
+  if (mask) inner = `<g mask="url(#${mask})">${inner}</g>`;
   const op = opacity < 1 ? ` opacity="${n3(Math.max(0, opacity))}"` : "";
-  return `<g${meta} transform="${t}"${op}${style}${filter}>${inner}</g>`;
+  // The filter sits outside the layer transform so blur and shadow sizes are canvas pixels.
+  const body = `<g transform="${t}">${inner}</g>`;
+  return `<g${meta}${op}${style}${filter}>${body}</g>`;
 }

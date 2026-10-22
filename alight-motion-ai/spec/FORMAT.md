@@ -5,9 +5,12 @@ AI models can read and write files the app imports.
 
 Every rule below is tagged with how sure we are:
 
-- **[app]** seen in XML written by Alight Motion itself. The app ships 13 of its
-  own exported projects inside the APK (`assets/effects/presets/*.xml`, used for
-  the built-in presets), so the app's reader is known to accept this form.
+- **[app]** seen in XML written by Alight Motion itself. The evidence is 41
+  genuine exports: the 13 projects the app ships inside its APK
+  (`assets/effects/presets/*.xml`, its built-in presets, so the app's reader
+  is known to accept them) and 28 projects users exported and published in
+  public repositories (app versions 3.6 to 5.0.275, Android and iOS).
+  `tools/fetch-corpus.sh` collects them again.
 - **[decomp]** from the community decompile of v5.0.273
   ([kuchingneko28/alight-motion-docs](https://github.com/kuchingneko28/alight-motion-docs)).
 - **[guess]** inferred; not yet confirmed by importing into the app.
@@ -51,9 +54,18 @@ Common attributes, in the order the app writes them [app] [decomp]:
 
 `id` (unique positive integer) · `label` · `hidden="true"` · `startTime`, `endTime`
 (integer ms on the scene timeline) · `clippingMask` · `fillType`
-(`color`, `gradient`, `media`, `none`) · `blending` (blend mode id, omitted when
-normal) · `fillImage` / `fillVideo` (media uri) · `inTime`, `outTime` · `speed` ·
-`mediaFillMode` · `parent` (id of the parent layer)
+(`color`, `gradient`, `media`, `none`; `intrinsic` on groups and drawings) ·
+`blending` (blend mode id, omitted when normal) · `fillImage` / `fillVideo`
+(media uri) · `inTime`, `outTime` (trim inside the source, ms) · `speed` ·
+`mediaFillMode` (`fill`, `fit`, `stretch`; modern exports write it on most
+layers) · `parent` (id of the parent layer) · `tag` (timeline color label:
+`+ruby`, `+purple`, `+gray`, `+black`, `+green`, `+darkblue`, `+orange`,
+`+yellow`) · `presetId` [app]
+
+Blend modes seen in exports: `mask`, `screen`, `linear-dodge`, `exclude`,
+`multiply`, `lighten`, `soft-overlay`, `subtract`, `overlay`. `mask` makes the
+layer cut out everything below it in the same scene (or group). [app] (ids) /
+[guess] (exact compositing)
 
 Child elements, in this order [app] [decomp]:
 
@@ -157,7 +169,23 @@ layer's bounds. [app]
 ## 5. Images and other media
 
 Each file is declared once with `<media>` before the layers, then used as a
-fill. An imported photo is a shape with a rectangle path and a media fill [app]:
+fill. An imported photo is a shape with a rectangle path (or a `.rect`
+template) and a media fill. The uri says where the bytes live [app]:
+
+| uri | where | seen in |
+| --- | --- | --- |
+| `amproj:<file name>` | inside a shared project package | user exports shared as packages |
+| `content://media/...` | the phone's gallery; not portable | most user exports |
+| `am-internal:///<SIG>.<ext>` | the app's own storage | the APK presets |
+| `sample:<name>?w=..&h=..` | the app's sample media | a few exports |
+
+A shared package (what the app produces for sharing a project with its media)
+holds `<uuid>.xml`, the media files under their own names, and `manifest.txt`
+with one `SIG:file name` line per file. `sig` is the SHA-1 of the file in
+upper-case hex: checked against the real files in two published packages.
+This toolkit writes exactly that layout. [app]
+
+An APK preset's photo, for reference [app]:
 
 ```xml
 <media uri="am-internal:///4073A9A25F28C7DEC1123EE4C83CFA9764359693.jpg"
@@ -175,16 +203,14 @@ fill. An imported photo is a shape with a rectangle path and a media fill [app]:
   fitted rectangle. [app]
 - Any shape (template or path) can take a media fill, which clips the picture
   to the shape. [app]
-- `sig` is 40 hex digits; this toolkit uses the SHA-1 of the file, upper
-  case. Packaged media is stored under `<sig>.<ext>` and referenced as
-  `am-internal:///<sig>.<ext>`. [app] (form) / [guess] (that sig is SHA-1)
 - `mediaFillMode` is `fill` (cover) by default; `fit` and `stretch` also
-  appear in the decompile. [decomp]
-- Audio is an `<audio>` layer with `src="<uri>"`. [decomp]
+  appear. [app]
+- Audio is an `<audio>` layer with `src="<uri>"`, `inTime`/`outTime` and an
+  optional keyable `<gain>` (volume, 0..1). [app]
 - **Getting the files onto the phone**: a bare `.xml` imports with media
-  marked missing, which the app lets you replace. This toolkit also writes a
-  `.zip` with the XML and media named `<sig>.<ext>`, mirroring the app's
-  "Share Zipped XML" option; that this exact zip layout imports is [guess].
+  marked missing, which the app lets you replace. The package `.zip` carries
+  the media; that the app opens a package that arrives as a plain zip file
+  (rather than through its share link) is [guess].
 
 ## 6. Text
 
@@ -231,17 +257,27 @@ children (animated) [app]:
 ```
 
 - **`t` is a fraction of the layer's duration**: 0 is the layer's
-  `startTime`, 1 its `endTime`. It is not seconds. All 615 keyframes in the app's own
-  exports have `t` within -0.017..1.003. A key at
-  1.2 s on a layer that runs 0.5 s to 4.5 s has `t = 1.2 / 4 = 0.3`. [app]
+  `startTime`, 1 its `endTime`. It is not seconds. A key at 1.2 s on a layer
+  that runs 0.5 s to 4.5 s has `t = 1.2 / 4 = 0.3`. [app]
+- Keyframes may lie far outside 0..1. Splitting a clip keeps every keyframe
+  on both pieces, rescaled to each piece's length. Proof that `t` is a
+  fraction: the pieces of one split clip give the same absolute time
+  (`startTime + t × duration`, e.g. 8207 ms) for the same keyframe, which no
+  other reading does. [app]
 - `v` uses the same format as the static value (`x,y,z`, `#AARRGGBB`, …). [app]
 - `e` is the easing **into** this keyframe from the previous one; omitted
   means linear. `cubicBezier x1 y1 x2 y2` uses CSS conventions. [app] (the
   form) / [guess] (incoming segment; the first keyframe never carries one in
   app exports, which fits)
 - Common curves from the app: ease in-out `0.42 0.0 0.58 1.0`, ease in
-  `0.42 0.0 1.0 1.0`, ease out `0.0 0.0 0.58 1.0`, hold `1.0 0.0 1.0 0.0`.
-  A `cyclic …` form also exists (5 numbers). [app]
+  `0.42 0.0 1.0 1.0`, ease out `0.0 0.0 0.58 1.0`, hold `1.0 0.0 1.0 0.0`,
+  snap `0.0 0.0 0.0 1.0`, `0.8 0.0 0.27 1.0`, and overshooting curves with y
+  outside 0..1 such as `0.25 -0.42 0.75 -0.44`. [app]
+- Other easing families the app writes [app]: `elastic a b c d` (seen:
+  `elastic 0.5 1.0 0.0 1.0`), `reverse elastic …`, `bounce a b`
+  (`bounce 0.31921425 0.81`), `step a b`, `elasticStep a b`, `random`
+  (6 numbers), `cyclic` (5 numbers), each optionally prefixed `local `. Their
+  exact curves are [guess]; the previewer approximates them.
 - Keyframes may appear out of time order in app exports; sort by `t` when
   reading. [app]
 - Animatable: every transform child, `fillColor`, `path-stroke` color/size,
@@ -263,24 +299,62 @@ children (animated) [app]:
 - `catalog/catalog.json` lists all 282 effects (196 current) with parameter
   ids, types, defaults, ranges and dropdown choices, extracted from the APK
   assets. Effects marked `membersOnly` need a subscription to export.
-- The layer's own outline/shadow/glow decorations (`<border>`, `<shadow>`,
-  `<glow>`) are not effects; their exact form is [decomp] only. For glows
-  and shadows prefer the Glow (`com.alightcreative.glow`) and Long Shadow
-  effects, which are certain.
+- `locallyApplied="false"` also appears in exports (effects that came with
+  a preset). [app]
+- The layer's own decorations are not effects. Modern exports write them with
+  keyable children [app]:
+
+```xml
+<border direction="inside" id="1"><color value="#FFFF4F9E"/><size value="10.000000"/></border>
+<path-stroke direction="centered" cap="square" end-size="1.500000"><size value="3.500000"/></path-stroke>
+<shadow direction="outside">
+  <color value="#FF000000"/><size value="40.000000"/><opacity value="0.550000"/>
+  <offset value="0.000000,24.000000"/><hardness value="0.400000"/>
+</shadow>
+```
+
+  `direction` is `inside`, `outside` or `centered`; `enabled="false"` turns
+  one off; children left out take defaults (which defaults is [guess]). The
+  attribute form in the community docs was not seen in any export.
 
 ## 10. Nested scenes, parents, nulls
 
 - `<embedScene>` holds a complete `<scene>` after its transform; the nested
   scene is drawn centered on the layer's location. [decomp]
 - `parent="<id>"` attaches a layer to another layer's transform; a
-  `<nullobj>` is an invisible parent. [decomp]
+  `<nullobj>` (written with `type="perspective"`) is an invisible parent. The
+  child's location is relative to the parent: a child with no location sits
+  on the parent's origin. The parent may come later in the file. [app]
+- `<embedScene>` is written with `fillType="intrinsic"`, an optional `link`,
+  and a nested `<scene type="element">`. [app]
+- `<camera type="perspective">` holds `<fov value>`,
+  `<focus-blur enabled><strength/><depth-of-field/><distance/></focus-blur>`
+  and `<fog enabled><near-z/><far-z/></fog>`; layers then use the z of
+  `location`. [app] (form) The toolkit reads and keeps cameras but does not
+  build them.
 
-## 11. What a minimal file needs
+## 11. Scene extras
+
+`<bookmark t="ms"/>` timeline markers; scene attributes
+`precompose="dynamicResolution"`, `retime="off|freeze"`,
+`retimeAdaptFPS="false"`; `<transform lockAspectRatio="false">`. [app]
+
+## 12. The app's presets
+
+The APK's preset projects label each preset layer
+`Name; t:<timing>, c:<code>`, e.g. `Transition In: Right; t:start, c:WIR`.
+`t` says how the preset's keyframes map onto a layer of a different length:
+`start` and `end` keep the preset's own duration at that end of the layer,
+`stretch` scales with the layer, `split` does both halves, `extend` runs on.
+`catalog/presets.json` holds all 208 (effects plus keyframes), extracted by
+`tools/extract-presets.mjs`. [app] (labels) / [guess] (mapping)
+
+## 13. What a minimal file needs
 
 1. `<scene>` with width, height, exportWidth, exportHeight, bgcolor, totalTime, fps
    (plus modifiedTime, amver, ffver, am, amplatform to look like the app).
 2. Unique integer ids and `startTime < endTime` on every layer.
 3. A `<transform>` with at least `location` on every visual layer.
-4. Full effect ids; keyframe `t` within 0..1.
+4. Full effect ids; keyframe `t` within 0..1 for new animation.
 
-`amx validate` checks all of these; the app's own 13 exports pass it.
+`amx validate` checks all of these; all 41 real exports pass it.

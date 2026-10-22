@@ -1,0 +1,140 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!-- Created for Alight Motion with alight-motion-ai -->
+<scene title="08 Transitions" width="1080" height="1920" exportWidth="1080" exportHeight="1920" bgcolor="#FF14121C" totalTime="4000" fps="30" modifiedTime="1792674909684" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+  <shape id="1" label="Backdrop" startTime="0" endTime="4000" fillType="gradient" s=".rect">
+    <transform>
+      <location value="540.000000,960.000000,0.000000"/>
+    </transform>
+    <gradient type="linear" startColor="#FF2A1F4A" endColor="#FF14121C" start="0.500000,0.000000" end="0.500000,1.000000"/>
+    <property name="size" type="vec2" value="540.000000,960.000000"/>
+  </shape>
+  <text id="2" label="Title" startTime="0" endTime="4000" fillType="color" size="150.000000" font="googlefonts?name=Archivo Black&amp;weight=400" wrapWidth="972" align="center">
+    <transform>
+      <location value="540.000000,420.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFFFFFFF"/>
+    <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+      <property name="offset" type="vec2">
+        <kf t="0.000000" v="0.000000,240.000000"/>
+        <kf t="0.150000" v="0.000000,0.000000" e="cubicBezier 0.0 0.0 0.3377031 0.9916667"/>
+      </property>
+      <property name="alpha" type="float">
+        <kf t="0.000000" v="0.000000"/>
+        <kf t="0.150000" v="1.000000" e="cubicBezier 0.0 0.0 0.3377031 0.9916667"/>
+      </property>
+    </effect>
+    <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+      <property name="alpha" type="float">
+        <kf t="0.850000" v="1.000000"/>
+        <kf t="1.000000" v="0.000000" e="cubicBezier 0.42 0.0 1.0 1.0"/>
+      </property>
+    </effect>
+    <content>IN &amp; OUT</content>
+  </text>
+  <text id="3" label="Text 1" startTime="300" endTime="4000" fillType="color" size="46.000000" font="googlefonts?name=IBM Plex Sans&amp;weight=400" wrapWidth="972" align="center">
+    <transform>
+      <location value="540.000000,560.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFC9C2E6"/>
+    <effect id="com.alightcreative.effects.textprogress" locallyApplied="true">
+      <property name="end" type="float">
+        <kf t="0.000000" v="0.000000"/>
+        <kf t="0.378378" v="1.000000"/>
+      </property>
+    </effect>
+    <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+      <property name="alpha" type="float">
+        <kf t="0.837838" v="1.000000"/>
+        <kf t="1.000000" v="0.000000" e="cubicBezier 0.42 0.0 1.0 1.0"/>
+      </property>
+    </effect>
+    <content>every layer gets an entrance and an exit</content>
+  </text>
+  <shape id="4" label="Pop star" startTime="0" endTime="4000" fillType="color" s=".star">
+    <transform>
+      <location value="270.000000,960.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFF2B445"/>
+    <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+      <property name="scale" type="float">
+        <kf t="0.000000" v="0.000000"/>
+        <kf t="0.150000" v="1.000000" e="cubicBezier 0.34 1.56 0.64 1.0"/>
+      </property>
+    </effect>
+    <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+      <property name="angle" type="float">
+        <kf t="0.850000" v="0.000000"/>
+        <kf t="1.000000" v="360.000000" e="cubicBezier 0.42 0.0 1.0 1.0"/>
+      </property>
+      <property name="scale" type="float">
+        <kf t="0.850000" v="1.000000"/>
+        <kf t="1.000000" v="0.000000" e="cubicBezier 0.42 0.0 1.0 1.0"/>
+      </property>
+    </effect>
+  </shape>
+  <shape id="5" label="Wipe card" startTime="0" endTime="4000" fillType="color" s=".roundrect">
+    <transform>
+      <location value="810.000000,960.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FF4FB0FF"/>
+    <effect id="com.alightcreative.effects.wipe2" locallyApplied="true">
+      <property name="end" type="float">
+        <kf t="0.000000" v="-0.003000"/>
+        <kf t="0.150000" v="1.000000" e="cubicBezier 0.0 0.0 0.3377031 0.9916667"/>
+      </property>
+      <property name="angle" type="float" value="0.000000"/>
+    </effect>
+    <effect id="com.alightcreative.effects.gaussianblur" locallyApplied="true">
+      <property name="strength" type="float">
+        <kf t="0.800000" v="0.000000"/>
+        <kf t="1.000000" v="1.200000" e="cubicBezier 0.42 0.0 1.0 1.0"/>
+      </property>
+    </effect>
+    <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+      <property name="alpha" type="float">
+        <kf t="0.800000" v="1.000000"/>
+        <kf t="1.000000" v="0.000000" e="cubicBezier 0.42 0.0 1.0 1.0"/>
+      </property>
+    </effect>
+    <property name="size" type="vec2" value="150.000000,150.000000"/>
+    <property name="cornerRadius" type="float" value="40.000000"/>
+  </shape>
+  <shape id="6" label="Drawn ring" startTime="0" endTime="4000" fillType="none" s=".circle">
+    <transform>
+      <location value="540.000000,1380.000000,0.000000"/>
+    </transform>
+    <effect id="com.alightcreative.effects.drawing.progress" locallyApplied="true">
+      <property name="end" type="float">
+        <kf t="0.000000" v="0.000000"/>
+        <kf t="0.300000" v="100.000000" e="cubicBezier 0.42 0.0 0.58 1.0"/>
+      </property>
+    </effect>
+    <effect id="com.alightcreative.effects.transform" locallyApplied="true">
+      <property name="scale" type="float">
+        <kf t="0.850000" v="1.000000"/>
+        <kf t="1.000000" v="0.300000" e="cubicBezier 0.42 0.0 1.0 1.0"/>
+      </property>
+      <property name="alpha" type="float">
+        <kf t="0.850000" v="1.000000"/>
+        <kf t="1.000000" v="0.000000" e="cubicBezier 0.42 0.0 1.0 1.0"/>
+      </property>
+    </effect>
+    <path-stroke direction="centered">
+      <color value="#FFFF4F9E"/>
+      <size value="14.000000"/>
+    </path-stroke>
+    <property name="size" type="vec2" value="140.000000,140.000000"/>
+  </shape>
+  <text id="7" label="Preset demo" startTime="1000" endTime="4000" fillType="color" size="44.000000" font="googlefonts?name=IBM Plex Sans&amp;weight=400" wrapWidth="972" align="center">
+    <transform>
+      <location value="540.000000,1700.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFFFFFFF"/>
+    <effect id="com.alightcreative.effects.oscillate3" locallyApplied="true">
+      <property name="angle" type="float" value="0.000000"/>
+      <property name="freq" type="float" value="8.000000"/>
+      <property name="mag" type="float" value="15.000000"/>
+    </effect>
+    <content>Vibrate Horizontal (app preset)</content>
+  </text>
+</scene>

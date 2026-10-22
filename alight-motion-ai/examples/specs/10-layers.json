@@ -1,0 +1,150 @@
+{
+  "scene": {
+    "title": "10 Layers",
+    "width": 1080,
+    "height": 1350,
+    "duration": 4,
+    "background": "#E9E4DA"
+  },
+  "layers": [
+    {
+      "type": "image",
+      "src": "../assets/dusk.jpg",
+      "fit": "cover",
+      "label": "Photo"
+    },
+    {
+      "type": "text",
+      "text": "MASKED",
+      "font": "Archivo Black",
+      "size": 260,
+      "y": 380,
+      "color": "#FFFFFF",
+      "blend": "mask",
+      "label": "Mask text",
+      "animate": {
+        "scale": [
+          {
+            "at": 0,
+            "v": 0.9
+          },
+          {
+            "at": 4,
+            "v": 1.05,
+            "ease": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "type": "null",
+      "label": "Rig",
+      "x": 540,
+      "y": 800,
+      "animate": {
+        "rotation": [
+          {
+            "at": 0,
+            "v": -8
+          },
+          {
+            "at": 2,
+            "v": 8,
+            "ease": "easeInOut"
+          },
+          {
+            "at": 4,
+            "v": -8,
+            "ease": "easeInOut"
+          }
+        ]
+      }
+    },
+    {
+      "type": "shape",
+      "shape": "roundrect",
+      "width": 520,
+      "height": 300,
+      "cornerRadius": 36,
+      "parent": "Rig",
+      "color": "#F6F1E8",
+      "label": "Card",
+      "shadow": {
+        "color": "#000000",
+        "size": 40,
+        "opacity": 0.55,
+        "offset": [
+          0,
+          24
+        ]
+      },
+      "border": {
+        "color": "#FF4F9E",
+        "size": 10,
+        "direction": "inside"
+      }
+    },
+    {
+      "type": "text",
+      "text": "shadow + border",
+      "font": "IBM Plex Sans",
+      "weight": 600,
+      "size": 52,
+      "parent": "Rig",
+      "color": "#1A1530",
+      "label": "Card text"
+    },
+    {
+      "type": "shape",
+      "shape": "circle",
+      "width": 300,
+      "height": 300,
+      "x": 300,
+      "y": 1150,
+      "color": "#FF4F9E",
+      "blend": "multiply",
+      "label": "Multiply A",
+      "effects": [
+        {
+          "effect": "Oscillate",
+          "params": {
+            "mag": 40,
+            "freq": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "type": "shape",
+      "shape": "circle",
+      "width": 300,
+      "height": 300,
+      "x": 460,
+      "y": 1150,
+      "color": "#4FB0FF",
+      "blend": "multiply",
+      "label": "Multiply B"
+    },
+    {
+      "type": "shape",
+      "shape": "circle",
+      "width": 300,
+      "height": 300,
+      "x": 780,
+      "y": 1150,
+      "color": "#4FB0FF",
+      "blend": "exclude",
+      "label": "Exclude",
+      "effects": [
+        {
+          "effect": "Swing",
+          "params": {
+            "a1": -20,
+            "a2": 20,
+            "freq": 0.5
+          }
+        }
+      ]
+    }
+  ]
+}

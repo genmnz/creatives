@@ -1,0 +1,87 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!-- Created for Alight Motion with alight-motion-ai -->
+<scene title="10 Layers" width="1080" height="1350" exportWidth="1080" exportHeight="1350" bgcolor="#FFE9E4DA" totalTime="4000" fps="30" modifiedTime="1792674911849" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+  <media uri="amproj:dusk.jpg" filename="dusk.jpg" title="dusk.jpg" type="image/jpeg" size="35175" sig="9D0CA354E282739AF1803987E61112DFC71BD6A3" orientation="0" infoUpdated="1792674911844" width="1200" height="800"/>
+  <shape id="1" label="Photo" startTime="0" endTime="4000" fillType="media" fillImage="amproj:dusk.jpg" mediaFillMode="fill">
+    <transform>
+      <location value="540.000000,675.000000,0.000000"/>
+    </transform>
+    <path d="M -1012.500 -675.000L 1012.500 -675.000L 1012.500 675.000L -1012.500 675.000L -1012.500 -675.000Z"/>
+  </shape>
+  <text id="2" label="Mask text" startTime="0" endTime="4000" fillType="color" blending="mask" size="260.000000" font="googlefonts?name=Archivo Black&amp;weight=400" wrapWidth="972" align="center">
+    <transform>
+      <location value="540.000000,380.000000,0.000000"/>
+      <scale>
+        <kf t="0.000000" v="0.900000,0.900000"/>
+        <kf t="1.000000" v="1.050000,1.050000" e="cubicBezier 0.42 0.0 0.58 1.0"/>
+      </scale>
+    </transform>
+    <fillColor value="#FFFFFFFF"/>
+    <content>MASKED</content>
+  </text>
+  <nullobj id="3" label="Rig" startTime="0" endTime="4000">
+    <transform>
+      <location value="540.000000,800.000000,0.000000"/>
+      <rotation>
+        <kf t="0.000000" v="-8.000000"/>
+        <kf t="0.500000" v="8.000000" e="cubicBezier 0.42 0.0 0.58 1.0"/>
+        <kf t="1.000000" v="-8.000000" e="cubicBezier 0.42 0.0 0.58 1.0"/>
+      </rotation>
+    </transform>
+  </nullobj>
+  <shape id="4" label="Card" startTime="0" endTime="4000" fillType="color" parent="3" s=".roundrect">
+    <transform>
+      <location value="0.000000,0.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFF6F1E8"/>
+    <border direction="inside" id="1">
+      <color value="#FFFF4F9E"/>
+      <size value="10.000000"/>
+    </border>
+    <shadow direction="outside">
+      <color value="#FF000000"/>
+      <size value="40.000000"/>
+      <opacity value="0.550000"/>
+      <offset value="0.000000,24.000000"/>
+    </shadow>
+    <property name="size" type="vec2" value="260.000000,150.000000"/>
+    <property name="cornerRadius" type="float" value="36.000000"/>
+  </shape>
+  <text id="5" label="Card text" startTime="0" endTime="4000" fillType="color" parent="3" size="52.000000" font="googlefonts?name=IBM Plex Sans&amp;weight=600" wrapWidth="972" align="center">
+    <transform>
+      <location value="0.000000,0.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FF1A1530"/>
+    <content>shadow + border</content>
+  </text>
+  <shape id="6" label="Multiply A" startTime="0" endTime="4000" fillType="color" blending="multiply" s=".circle">
+    <transform>
+      <location value="300.000000,1150.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFFF4F9E"/>
+    <effect id="com.alightcreative.effects.oscillate3" locallyApplied="true">
+      <property name="mag" type="float" value="40.000000"/>
+      <property name="freq" type="float" value="0.500000"/>
+    </effect>
+    <property name="size" type="vec2" value="150.000000,150.000000"/>
+  </shape>
+  <shape id="7" label="Multiply B" startTime="0" endTime="4000" fillType="color" blending="multiply" s=".circle">
+    <transform>
+      <location value="460.000000,1150.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FF4FB0FF"/>
+    <property name="size" type="vec2" value="150.000000,150.000000"/>
+  </shape>
+  <shape id="8" label="Exclude" startTime="0" endTime="4000" fillType="color" blending="exclude" s=".circle">
+    <transform>
+      <location value="780.000000,1150.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FF4FB0FF"/>
+    <effect id="com.alightcreative.effects.swing2" locallyApplied="true">
+      <property name="a1" type="float" value="-20.000000"/>
+      <property name="a2" type="float" value="20.000000"/>
+      <property name="freq" type="float" value="0.500000"/>
+    </effect>
+    <property name="size" type="vec2" value="150.000000,150.000000"/>
+  </shape>
+</scene>
