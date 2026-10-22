@@ -70,8 +70,11 @@ export function renderSVG(sceneNode, tSec, opts = {}) {
   const W = Number(sceneNode.attrs.width), H = Number(sceneNode.attrs.height);
   const body = renderScene(sceneNode, tSec * 1000, ctx, true);
   const size = opts.width ? ` width="${opts.width}" height="${Math.round((opts.width * H) / W)}"` : "";
-  return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}"${size}>` +
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${W} ${H}"${size}>` +
     `<defs>${ctx.defs.join("")}</defs>${body}</svg>`;
+  // Several frames inlined in one HTML page need distinct ids.
+  const p = opts.idPrefix;
+  return p ? svg.replace(/\bid="([^"]+)"/g, `id="${p}$1"`).replace(/url\(#([^)]+)\)/g, `url(#${p}$1)`) : svg;
 }
 
 function renderScene(scene, tMs, ctx, isRoot) {
