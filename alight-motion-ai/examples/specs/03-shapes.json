@@ -1,0 +1,14 @@
+{
+  "scene": { "title": "03 Shapes", "width": 1080, "height": 1080, "duration": 4, "background": "#EEF0F5" },
+  "layers": [
+    { "type": "shape", "shape": "rect", "width": 280, "height": 180, "x": 220, "y": 200, "fill": "#C8106A" },
+    { "type": "shape", "shape": "roundrect", "width": 280, "height": 180, "cornerRadius": 40, "x": 540, "y": 200, "fill": { "gradient": { "type": "linear", "from": "#FF4F9E", "to": "#5B2BE0" } } },
+    { "type": "shape", "shape": "circle", "radius": 100, "x": 860, "y": 200, "fill": "none", "stroke": { "color": "#161924", "width": 14 } },
+    { "type": "shape", "shape": "star", "radius": 130, "innerRadius": 55, "points": 5, "x": 220, "y": 540, "fill": "#F2B445" },
+    { "type": "shape", "shape": "poly", "sides": 6, "radius": 120, "x": 540, "y": 540, "fill": "#18794E" },
+    { "type": "shape", "shape": "triangle", "params": { "p1": [-120, 100], "p2": [0, -110], "p3": [120, 100] }, "x": 860, "y": 540, "fill": "#2A6CF0" },
+    { "type": "shape", "shape": "arrow", "params": { "start": [-180, 0], "end": [180, 0], "lineWidth": 22, "headWidth": 60, "headLength": 80 }, "x": 220, "y": 860, "fill": "#161924" },
+    { "type": "shape", "shape": "plus", "width": 220, "height": 220, "params": { "stemSize": 70 }, "x": 540, "y": 860, "fill": "#C22B2B" },
+    { "type": "shape", "shape": "multifoil", "radius": 120, "innerRadius": 80, "points": 6, "x": 860, "y": 860, "fill": { "gradient": { "type": "radial", "from": "#FFFFFF", "to": "#FF4F9E", "start": [0.5, 0.5], "end": [1, 1] } } }
+  ]
+}

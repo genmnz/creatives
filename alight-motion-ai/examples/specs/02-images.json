@@ -1,0 +1,9 @@
+{
+  "scene": { "title": "02 Images", "width": 1080, "height": 1080, "duration": 4, "background": "#000000" },
+  "layers": [
+    { "type": "image", "label": "Dusk photo", "src": "../assets/dusk.jpg", "fit": "cover" },
+    { "type": "image", "label": "Badge", "src": "../assets/badge.png", "width": 360, "x": 540, "y": 420 },
+    { "type": "shape", "label": "Photo in a circle", "shape": "circle", "radius": 150, "x": 820, "y": 860, "image": "../assets/dusk.jpg",
+      "stroke": { "color": "#FFFFFF", "width": 10 } }
+  ]
+}

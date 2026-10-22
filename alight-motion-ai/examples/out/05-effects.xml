@@ -1,0 +1,53 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!-- Created for Alight Motion with alight-motion-ai -->
+<scene title="05 Effects" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#FF14161F" totalTime="4000" fps="30" modifiedTime="1792666887198" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+  <media uri="am-internal:///9D0CA354E282739AF1803987E61112DFC71BD6A3.jpg" filename="9D0CA354E282739AF1803987E61112DFC71BD6A3.jpg" title="dusk.jpg" type="image/jpeg" size="35175" sig="9D0CA354E282739AF1803987E61112DFC71BD6A3" orientation="0" infoUpdated="1792666887188" width="1200" height="800"/>
+  <shape id="1" label="Photo, blurred" startTime="0" endTime="4000" fillType="media" fillImage="am-internal:///9D0CA354E282739AF1803987E61112DFC71BD6A3.jpg" mediaFillMode="fill">
+    <transform>
+      <location value="540.000000,540.000000,0.000000"/>
+    </transform>
+    <effect id="com.alightcreative.effects.gaussianblur" locallyApplied="true">
+      <property name="strength" type="float" value="0.350000"/>
+    </effect>
+    <effect id="com.alightcreative.effects.vignette" locallyApplied="true">
+      <property name="strength" type="float" value="0.900000"/>
+    </effect>
+    <path d="M -810.000 -540.000L 810.000 -540.000L 810.000 540.000L -810.000 540.000L -810.000 -540.000Z"/>
+  </shape>
+  <text id="2" label="Glowing title" startTime="0" endTime="4000" fillType="color" size="200.000000" font="googlefonts?name=Archivo Black&amp;weight=400" wrapWidth="972" align="center">
+    <transform>
+      <location value="540.000000,380.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFFFFFFF"/>
+    <effect id="com.alightcreative.glow" locallyApplied="true">
+      <property name="radius" type="float" value="60.000000"/>
+      <property name="color" type="color" value="#FFFF4F9E"/>
+      <property name="alpha" type="float" value="0.900000"/>
+    </effect>
+    <content>GLOW</content>
+  </text>
+  <shape id="3" label="Long-shadow star" startTime="0" endTime="4000" fillType="color" s=".star">
+    <transform>
+      <location value="300.000000,760.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFF2B445"/>
+    <effect id="com.alightcreative.effects.longshadow2" locallyApplied="true">
+      <property name="size" type="float" value="0.300000"/>
+      <property name="angle" type="float" value="135.000000"/>
+      <property name="alpha" type="float" value="0.500000"/>
+    </effect>
+    <property name="outerRadius" type="float" value="140.000000"/>
+    <property name="innerRadius" type="float" value="70.000000"/>
+  </shape>
+  <shape id="4" label="Radial repeat dot" startTime="0" endTime="4000" fillType="color" s=".circle">
+    <transform>
+      <location value="780.000000,760.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FF52C08A"/>
+    <effect id="com.alightcreative.effects.repeat.radial" locallyApplied="true">
+      <property name="count" type="float" value="12.000000"/>
+      <property name="radius" type="float" value="150.000000"/>
+    </effect>
+    <property name="size" type="vec2" value="22.000000,22.000000"/>
+  </shape>
+</scene>

@@ -1,0 +1,128 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!-- Created for Alight Motion with alight-motion-ai -->
+<scene title="07 Showcase" width="1080" height="1920" exportWidth="1080" exportHeight="1920" bgcolor="#FF0E0F16" totalTime="6000" fps="30" modifiedTime="1792666889534" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+  <media uri="am-internal:///9D0CA354E282739AF1803987E61112DFC71BD6A3.jpg" filename="9D0CA354E282739AF1803987E61112DFC71BD6A3.jpg" title="dusk.jpg" type="image/jpeg" size="35175" sig="9D0CA354E282739AF1803987E61112DFC71BD6A3" orientation="0" infoUpdated="1792666889522" width="1200" height="800"/>
+  <media uri="am-internal:///D59055C4C59F2D23A01E93E5490EA7907B533615.png" filename="D59055C4C59F2D23A01E93E5490EA7907B533615.png" title="badge.png" type="image/png" size="7766" sig="D59055C4C59F2D23A01E93E5490EA7907B533615" orientation="0" infoUpdated="1792666889530" width="600" height="600"/>
+  <shape id="1" label="Backdrop" startTime="0" endTime="6000" fillType="media" fillImage="am-internal:///9D0CA354E282739AF1803987E61112DFC71BD6A3.jpg" mediaFillMode="fill">
+    <transform>
+      <location value="540.000000,960.000000,0.000000"/>
+      <scale>
+        <kf t="0.000000" v="1.000000,1.000000"/>
+        <kf t="1.000000" v="1.120000,1.120000"/>
+      </scale>
+    </transform>
+    <effect id="com.alightcreative.effects.vignette" locallyApplied="true">
+      <property name="strength" type="float" value="0.850000"/>
+    </effect>
+    <path d="M -1440.000 -960.000L 1440.000 -960.000L 1440.000 960.000L -1440.000 960.000L -1440.000 -960.000Z"/>
+  </shape>
+  <shape id="2" label="Card" startTime="0" endTime="6000" fillType="color" s=".roundrect">
+    <transform>
+      <location>
+        <kf t="0.000000" v="540.000000,2400.000000,0.000000"/>
+        <kf t="0.150000" v="540.000000,1000.000000,0.000000" e="cubicBezier 0.0 0.0 0.3377031 0.9916667"/>
+      </location>
+    </transform>
+    <fillColor value="#CC0E0F16"/>
+    <path-stroke direction="centered">
+      <color value="#55FF4F9E"/>
+      <size value="3.000000"/>
+    </path-stroke>
+    <property name="size" type="vec2" value="440.000000,520.000000"/>
+    <property name="cornerRadius" type="float" value="48.000000"/>
+  </shape>
+  <shape id="3" label="Badge" startTime="600" endTime="6000" fillType="media" fillImage="am-internal:///D59055C4C59F2D23A01E93E5490EA7907B533615.png" mediaFillMode="fill">
+    <transform>
+      <location value="540.000000,700.000000,0.000000"/>
+      <scale>
+        <kf t="0.000000" v="0.000000,0.000000"/>
+        <kf t="0.092593" v="1.100000,1.100000" e="cubicBezier 0.0 0.0 0.58 1.0"/>
+        <kf t="0.129630" v="1.000000,1.000000"/>
+      </scale>
+      <rotation>
+        <kf t="0.000000" v="-90.000000"/>
+        <kf t="0.111111" v="0.000000" e="cubicBezier 0.0 0.0 0.58 1.0"/>
+      </rotation>
+    </transform>
+    <effect id="com.alightcreative.glow" locallyApplied="true">
+      <property name="radius" type="float" value="50.000000"/>
+      <property name="color" type="color" value="#FFFF4F9E"/>
+      <property name="alpha" type="float" value="0.600000"/>
+    </effect>
+    <path d="M -130.000 -130.000L 130.000 -130.000L 130.000 130.000L -130.000 130.000L -130.000 -130.000Z"/>
+  </shape>
+  <text id="4" label="Title" startTime="1000" endTime="6000" fillType="color" size="110.000000" font="googlefonts?name=Archivo Black&amp;weight=400" wrapWidth="972" align="center">
+    <transform>
+      <location value="540.000000,950.000000,0.000000"/>
+      <opacity>
+        <kf t="0.000000" v="0.000000"/>
+        <kf t="0.100000" v="1.000000"/>
+      </opacity>
+    </transform>
+    <fillColor value="#FFFFFFFF"/>
+    <effect id="com.alightcreative.effects.textprogress" locallyApplied="true">
+      <property name="end" type="float">
+        <kf t="0.000000" v="0.000000"/>
+        <kf t="0.180000" v="1.000000"/>
+      </property>
+      <property name="cursor" type="int" value="1"/>
+    </effect>
+    <content>NIGHT SHIFT</content>
+  </text>
+  <text id="5" label="Date" startTime="1600" endTime="6000" fillType="color" size="44.000000" font="googlefonts?name=IBM Plex Mono&amp;weight=500" wrapWidth="972" align="center">
+    <transform>
+      <location value="540.000000,1060.000000,0.000000"/>
+      <opacity>
+        <kf t="0.000000" v="0.000000"/>
+        <kf t="0.090909" v="1.000000"/>
+      </opacity>
+    </transform>
+    <fillColor value="#FFFF4F9E"/>
+    <content>FRI 31 OCT · 22:00</content>
+  </text>
+  <shape id="6" label="Underline" startTime="2000" endTime="6000" fillType="none">
+    <transform>
+      <location value="540.000000,1130.000000,0.000000"/>
+    </transform>
+    <effect id="com.alightcreative.effects.drawing.progress" locallyApplied="true">
+      <property name="end" type="float">
+        <kf t="0.000000" v="0.000000"/>
+        <kf t="0.200000" v="100.000000" e="cubicBezier 0.42 0.0 0.58 1.0"/>
+      </property>
+    </effect>
+    <path-stroke direction="centered">
+      <color value="#FFF2B445"/>
+      <size value="10.000000"/>
+    </path-stroke>
+    <path d="M -240.0 0.0C -120.0 -30.0, 120.0 30.0, 240.0 0.0"/>
+  </shape>
+  <shape id="7" label="Spark" startTime="1200" endTime="6000" fillType="color" s=".star">
+    <transform>
+      <location value="860.000000,560.000000,0.000000"/>
+      <rotation>
+        <kf t="0.000000" v="0.000000"/>
+        <kf t="1.000000" v="180.000000"/>
+      </rotation>
+    </transform>
+    <fillColor value="#FFF2B445"/>
+    <effect id="com.alightcreative.effects.pulsate2" locallyApplied="true">
+      <property name="freq" type="float" value="1.500000"/>
+      <property name="minsize" type="float" value="0.700000"/>
+      <property name="maxsize" type="float" value="1.200000"/>
+    </effect>
+    <property name="outerRadius" type="float" value="40.000000"/>
+    <property name="innerRadius" type="float" value="12.000000"/>
+    <property name="pointCount" type="float" value="4.000000"/>
+  </shape>
+  <text id="8" label="Footer" startTime="2400" endTime="6000" fillType="color" size="30.000000" font="googlefonts?name=IBM Plex Sans&amp;weight=400" wrapWidth="972" align="center">
+    <transform>
+      <location value="540.000000,1420.000000,0.000000"/>
+      <opacity>
+        <kf t="0.000000" v="0.000000"/>
+        <kf t="0.166667" v="1.000000"/>
+      </opacity>
+    </transform>
+    <fillColor value="#FF9AA1B4"/>
+    <content>made from a JSON spec by alight-motion-ai</content>
+  </text>
+</scene>

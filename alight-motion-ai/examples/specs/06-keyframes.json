@@ -1,0 +1,24 @@
+{
+  "scene": { "title": "06 Keyframes", "width": 1080, "height": 1080, "duration": 4, "background": "#EEF0F5" },
+  "layers": [
+    { "type": "shape", "label": "Sliding bar", "shape": "roundrect", "width": 300, "height": 60, "cornerRadius": 30, "fill": "#C8106A",
+      "animate": {
+        "position": [ { "at": 0, "v": [200, 180] }, { "at": 1.5, "v": [880, 180], "ease": "easeInOut" }, { "at": 3, "v": [200, 180], "ease": "easeInOut" } ]
+      } },
+    { "type": "shape", "label": "Spinning star", "shape": "star", "radius": 140, "x": 540, "y": 520,
+      "animate": {
+        "rotation": [ { "at": 0, "v": 0 }, { "at": 4, "v": 360 } ],
+        "scale": [ { "at": 0, "v": 0 }, { "at": 0.6, "v": 1.15, "ease": "easeOut" }, { "at": 0.9, "v": 1, "ease": "easeInOut" } ],
+        "fill": [ { "at": 0, "v": "#F2B445" }, { "at": 2, "v": "#FF4F9E" }, { "at": 4, "v": "#2A6CF0" } ],
+        "pointCount": [ { "at": 0, "v": 5 }, { "at": 4, "v": 12 } ]
+      } },
+    { "type": "text", "label": "Fade-in caption", "text": "keyframes: position · scale · rotation · color · opacity", "font": "IBM Plex Sans", "weight": 600, "size": 34, "color": "#161924", "y": 900, "start": 0.5,
+      "animate": {
+        "opacity": [ { "at": 0, "v": 0 }, { "at": 0.8, "v": 1, "ease": "easeOut" } ],
+        "position": [ { "at": 0, "v": [540, 950] }, { "at": 0.8, "v": [540, 900], "ease": "easeOut" } ]
+      } },
+    { "type": "shape", "label": "Draw-on circle", "shape": "circle", "radius": 70, "x": 900, "y": 760, "fill": "none",
+      "stroke": { "color": "#18794E", "width": 12 },
+      "effects": [ { "effect": "Drawing Progress", "params": { "end": [ { "at": 0, "v": 0 }, { "at": 2, "v": 100, "ease": "easeInOut" } ] } } ] }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "scene": { "title": "04 Drawn paths", "width": 1080, "height": 1080, "duration": 4, "background": "#11131A" },
+  "layers": [
+    { "type": "path", "label": "Heart", "d": "M540 380 C540 300 440 250 380 300 C310 360 340 450 540 600 C740 450 770 360 700 300 C640 250 540 300 540 380 Z", "fill": "#FF4F9E" },
+    { "type": "path", "label": "Squiggle", "d": "M120 800 q 60 -90 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0 t 120 0", "fill": "none", "stroke": { "color": "#F2B445", "width": 18 } },
+    { "type": "path", "label": "Lightning", "d": "M860 120 L760 300 L840 300 L740 480 L900 260 L815 260 L900 120 Z", "fill": "#FFFFFF", "stroke": { "color": "#2A6CF0", "width": 6 } },
+    { "type": "path", "label": "Arc with H/V/A commands", "d": "M150 150 h 160 v 60 a 80 80 0 0 1 -160 0 Z", "fill": "#52C08A" },
+    { "type": "drawing", "label": "Freehand (experimental)", "strokes": [
+      { "color": "#9AA1B4", "width": 8, "points": [[-300, 0, 1], [-200, -60, 1], [-100, 20, 1], [0, -40, 1], [100, 30, 1], [200, -50, 1], [300, 0, 1]] }
+    ], "x": 540, "y": 960 }
+  ]
+}

@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!-- Created for Alight Motion with alight-motion-ai -->
+<scene title="06 Keyframes" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#FFEEF0F5" totalTime="4000" fps="30" modifiedTime="1792666888412" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+  <shape id="1" label="Sliding bar" startTime="0" endTime="4000" fillType="color" s=".roundrect">
+    <transform>
+      <location>
+        <kf t="0.000000" v="200.000000,180.000000,0.000000"/>
+        <kf t="0.375000" v="880.000000,180.000000,0.000000" e="cubicBezier 0.42 0.0 0.58 1.0"/>
+        <kf t="0.750000" v="200.000000,180.000000,0.000000" e="cubicBezier 0.42 0.0 0.58 1.0"/>
+      </location>
+    </transform>
+    <fillColor value="#FFC8106A"/>
+    <property name="size" type="vec2" value="150.000000,30.000000"/>
+    <property name="cornerRadius" type="float" value="30.000000"/>
+  </shape>
+  <shape id="2" label="Spinning star" startTime="0" endTime="4000" fillType="color" s=".star">
+    <transform>
+      <location value="540.000000,520.000000,0.000000"/>
+      <scale>
+        <kf t="0.000000" v="0.000000,0.000000"/>
+        <kf t="0.150000" v="1.150000,1.150000" e="cubicBezier 0.0 0.0 0.58 1.0"/>
+        <kf t="0.225000" v="1.000000,1.000000" e="cubicBezier 0.42 0.0 0.58 1.0"/>
+      </scale>
+      <rotation>
+        <kf t="0.000000" v="0.000000"/>
+        <kf t="1.000000" v="360.000000"/>
+      </rotation>
+    </transform>
+    <fillColor>
+      <kf t="0.000000" v="#FFF2B445"/>
+      <kf t="0.500000" v="#FFFF4F9E"/>
+      <kf t="1.000000" v="#FF2A6CF0"/>
+    </fillColor>
+    <property name="outerRadius" type="float" value="140.000000"/>
+    <property name="innerRadius" type="float" value="70.000000"/>
+    <property name="pointCount" type="float">
+      <kf t="0.000000" v="5.000000"/>
+      <kf t="1.000000" v="12.000000"/>
+    </property>
+  </shape>
+  <text id="3" label="Fade-in caption" startTime="500" endTime="4000" fillType="color" size="34.000000" font="googlefonts?name=IBM Plex Sans&amp;weight=600" wrapWidth="972" align="center">
+    <transform>
+      <location>
+        <kf t="0.000000" v="540.000000,950.000000,0.000000"/>
+        <kf t="0.228571" v="540.000000,900.000000,0.000000" e="cubicBezier 0.0 0.0 0.58 1.0"/>
+      </location>
+      <opacity>
+        <kf t="0.000000" v="0.000000"/>
+        <kf t="0.228571" v="1.000000" e="cubicBezier 0.0 0.0 0.58 1.0"/>
+      </opacity>
+    </transform>
+    <fillColor value="#FF161924"/>
+    <content>keyframes: position · scale · rotation · color · opacity</content>
+  </text>
+  <shape id="4" label="Draw-on circle" startTime="0" endTime="4000" fillType="none" s=".circle">
+    <transform>
+      <location value="900.000000,760.000000,0.000000"/>
+    </transform>
+    <effect id="com.alightcreative.effects.drawing.progress" locallyApplied="true">
+      <property name="end" type="float">
+        <kf t="0.000000" v="0.000000"/>
+        <kf t="0.500000" v="100.000000" e="cubicBezier 0.42 0.0 0.58 1.0"/>
+      </property>
+    </effect>
+    <path-stroke direction="centered">
+      <color value="#FF18794E"/>
+      <size value="12.000000"/>
+    </path-stroke>
+    <property name="size" type="vec2" value="70.000000,70.000000"/>
+  </shape>
+</scene>

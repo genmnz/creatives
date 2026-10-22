@@ -1,0 +1,8 @@
+{
+  "scene": { "title": "01 Text", "width": 1080, "height": 1080, "duration": 4, "background": "#14161F" },
+  "layers": [
+    { "type": "text", "label": "Headline", "text": "Hello, Alight", "font": "Archivo Black", "size": 120, "color": "#FFFFFF", "y": 470 },
+    { "type": "text", "label": "Subtitle", "text": "written by an AI, opened in the app", "font": "IBM Plex Mono", "size": 40, "color": "#FF4F9E", "y": 600 },
+    { "type": "text", "label": "Left aligned", "text": "LEFT ALIGNED\nTWO LINES", "font": "Roboto", "weight": 700, "size": 36, "align": "left", "wrapWidth": 600, "color": "#9AA1B4", "x": 400, "y": 860 }
+  ]
+}

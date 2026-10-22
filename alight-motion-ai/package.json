@@ -1,0 +1,15 @@
+{
+  "name": "alight-motion-ai",
+  "version": "0.1.0",
+  "description": "Read, preview, validate and write Alight Motion XML projects; CLI + MCP server for AI models.",
+  "type": "module",
+  "license": "MIT",
+  "bin": { "amx": "bin/amx.mjs", "alight-motion-mcp": "mcp/server.mjs" },
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "examples": "for f in examples/specs/*.json; do node bin/amx.mjs build $f -o examples/out/$(basename $f .json).xml --png --preview; done",
+    "prompt": "node tools/gen-prompt.mjs",
+    "site": "node tools/build-site.mjs"
+  }
+}

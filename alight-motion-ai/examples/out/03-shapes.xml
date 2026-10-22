@@ -1,0 +1,83 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!-- Created for Alight Motion with alight-motion-ai -->
+<scene title="03 Shapes" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#FFEEF0F5" totalTime="4000" fps="30" modifiedTime="1792666884988" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+  <shape id="1" label="Rectangle 1" startTime="0" endTime="4000" fillType="color" s=".rect">
+    <transform>
+      <location value="220.000000,200.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFC8106A"/>
+    <property name="size" type="vec2" value="140.000000,90.000000"/>
+  </shape>
+  <shape id="2" label="Rounded Rectangle 1" startTime="0" endTime="4000" fillType="gradient" s=".roundrect">
+    <transform>
+      <location value="540.000000,200.000000,0.000000"/>
+    </transform>
+    <gradient type="linear" startColor="#FFFF4F9E" endColor="#FF5B2BE0" start="0.000000,0.000000" end="1.000000,1.000000"/>
+    <property name="size" type="vec2" value="140.000000,90.000000"/>
+    <property name="cornerRadius" type="float" value="40.000000"/>
+  </shape>
+  <shape id="3" label="Circle 1" startTime="0" endTime="4000" fillType="none" s=".circle">
+    <transform>
+      <location value="860.000000,200.000000,0.000000"/>
+    </transform>
+    <path-stroke direction="centered">
+      <color value="#FF161924"/>
+      <size value="14.000000"/>
+    </path-stroke>
+    <property name="size" type="vec2" value="100.000000,100.000000"/>
+  </shape>
+  <shape id="4" label="Star 1" startTime="0" endTime="4000" fillType="color" s=".star">
+    <transform>
+      <location value="220.000000,540.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFF2B445"/>
+    <property name="outerRadius" type="float" value="130.000000"/>
+    <property name="innerRadius" type="float" value="55.000000"/>
+    <property name="pointCount" type="float" value="5.000000"/>
+  </shape>
+  <shape id="5" label="Polygon 1" startTime="0" endTime="4000" fillType="color" s=".poly">
+    <transform>
+      <location value="540.000000,540.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FF18794E"/>
+    <property name="radius" type="float" value="120.000000"/>
+    <property name="sideCount" type="float" value="6.000000"/>
+  </shape>
+  <shape id="6" label="Triangle 1" startTime="0" endTime="4000" fillType="color" s=".triangle">
+    <transform>
+      <location value="860.000000,540.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FF2A6CF0"/>
+    <property name="p1" type="vec2" value="-120.000000,100.000000"/>
+    <property name="p2" type="vec2" value="0.000000,-110.000000"/>
+    <property name="p3" type="vec2" value="120.000000,100.000000"/>
+  </shape>
+  <shape id="7" label="Arrow 1" startTime="0" endTime="4000" fillType="color" s=".arrow">
+    <transform>
+      <location value="220.000000,860.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FF161924"/>
+    <property name="start" type="vec2" value="-180.000000,0.000000"/>
+    <property name="end" type="vec2" value="180.000000,0.000000"/>
+    <property name="lineWidth" type="float" value="22.000000"/>
+    <property name="headWidth" type="float" value="60.000000"/>
+    <property name="headLength" type="float" value="80.000000"/>
+  </shape>
+  <shape id="8" label="Plus 1" startTime="0" endTime="4000" fillType="color" s=".plus">
+    <transform>
+      <location value="540.000000,860.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFC22B2B"/>
+    <property name="stemSize" type="float" value="70.000000"/>
+    <property name="size" type="vec2" value="110.000000,110.000000"/>
+  </shape>
+  <shape id="9" label="Multifoil 1" startTime="0" endTime="4000" fillType="gradient" s=".multifoil">
+    <transform>
+      <location value="860.000000,860.000000,0.000000"/>
+    </transform>
+    <gradient type="radial" startColor="#FFFFFFFF" endColor="#FFFF4F9E" start="0.500000,0.500000" end="1.000000,1.000000"/>
+    <property name="outerRadius" type="float" value="120.000000"/>
+    <property name="innerRadius" type="float" value="80.000000"/>
+    <property name="pointCount" type="float" value="6.000000"/>
+  </shape>
+</scene>

@@ -1,0 +1,13 @@
+{
+  "scene": { "title": "05 Effects", "width": 1080, "height": 1080, "duration": 4, "background": "#14161F" },
+  "layers": [
+    { "type": "image", "label": "Photo, blurred", "src": "../assets/dusk.jpg", "fit": "cover",
+      "effects": [ { "effect": "Gaussian Blur", "params": { "strength": 0.35 } }, { "effect": "Vignette", "params": { "strength": 0.9 } } ] },
+    { "type": "text", "label": "Glowing title", "text": "GLOW", "font": "Archivo Black", "size": 200, "color": "#FFFFFF", "y": 380,
+      "effects": [ { "effect": "com.alightcreative.glow", "params": { "radius": 60, "color": "#FFFF4F9E", "alpha": 0.9 } } ] },
+    { "type": "shape", "label": "Long-shadow star", "shape": "star", "radius": 140, "x": 300, "y": 760, "fill": "#F2B445",
+      "effects": [ { "effect": "Long Shadow", "params": { "size": 0.3, "angle": 135, "alpha": 0.5 } } ] },
+    { "type": "shape", "label": "Radial repeat dot", "shape": "circle", "radius": 22, "x": 780, "y": 760, "fill": "#52C08A",
+      "effects": [ { "effect": "Radial Repeat", "params": { "count": 12, "radius": 150 } } ] }
+  ]
+}

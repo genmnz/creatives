@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!-- Created for Alight Motion with alight-motion-ai -->
+<scene title="04 Drawn paths" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#FF11131A" totalTime="4000" fps="30" modifiedTime="1792666886131" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+  <shape id="1" label="Heart" startTime="0" endTime="4000" fillType="color">
+    <transform>
+      <location value="540.000000,425.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFFF4F9E"/>
+    <path d="M 0.0 -45.0C 0.0 -125.0, -100.0 -175.0, -160.0 -125.0C -230.0 -65.0, -200.0 25.0, 0.0 175.0C 200.0 25.0, 230.0 -65.0, 160.0 -125.0C 100.0 -175.0, 0.0 -125.0, 0.0 -45.0Z"/>
+  </shape>
+  <shape id="2" label="Squiggle" startTime="0" endTime="4000" fillType="none">
+    <transform>
+      <location value="540.000000,800.000000,0.000000"/>
+    </transform>
+    <path-stroke direction="centered">
+      <color value="#FFF2B445"/>
+      <size value="18.000000"/>
+    </path-stroke>
+    <path d="M -420.0 0.0C -380.0 -60.0, -340.0 -60.0, -300.0 0.0C -260.0 60.0, -220.0 60.0, -180.0 0.0C -140.0 -60.0, -100.0 -60.0, -60.0 0.0C -20.0 60.0, 20.0 60.0, 60.0 0.0C 100.0 -60.0, 140.0 -60.0, 180.0 0.0C 220.0 60.0, 260.0 60.0, 300.0 0.0C 340.0 -60.0, 380.0 -60.0, 420.0 0.0"/>
+  </shape>
+  <shape id="3" label="Lightning" startTime="0" endTime="4000" fillType="color">
+    <transform>
+      <location value="820.000000,300.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFFFFFFF"/>
+    <path-stroke direction="centered">
+      <color value="#FF2A6CF0"/>
+      <size value="6.000000"/>
+    </path-stroke>
+    <path d="M 40.0 -180.0L -60.0 0.0L 20.0 0.0L -80.0 180.0L 80.0 -40.0L -5.0 -40.0L 80.0 -180.0Z"/>
+  </shape>
+  <shape id="4" label="Arc with H/V/A commands" startTime="0" endTime="4000" fillType="color">
+    <transform>
+      <location value="230.000000,220.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FF52C08A"/>
+    <path d="M -80.0 -70.0L 80.0 -70.0L 80.0 -10.0C 80.0 34.183, 44.183 70.0, 0.0 70.0C -44.183 70.0, -80.0 34.183, -80.0 -10.0Z"/>
+  </shape>
+  <drawing id="5" label="Freehand (experimental)" startTime="0" endTime="4000" fillType="none">
+    <transform>
+      <location value="540.000000,960.000000,0.000000"/>
+    </transform>
+    <stroke color="#FF9AA1B4" width="8.000000" type="pen" points="-300.000000,0.000000,1.000000;-200.000000,-60.000000,1.000000;-100.000000,20.000000,1.000000;0.000000,-40.000000,1.000000;100.000000,30.000000,1.000000;200.000000,-50.000000,1.000000;300.000000,0.000000,1.000000"/>
+  </drawing>
+</scene>

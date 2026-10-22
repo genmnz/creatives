@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<!-- Created for Alight Motion with alight-motion-ai -->
+<scene title="01 Text" width="1080" height="1080" exportWidth="1080" exportHeight="1080" bgcolor="#FF14161F" totalTime="4000" fps="30" modifiedTime="1792666882191" amver="1028425" ffver="106" am="com.alightcreative.motion/5.0.273.1028425" amplatform="android">
+  <text id="1" label="Headline" startTime="0" endTime="4000" fillType="color" size="120.000000" font="googlefonts?name=Archivo Black&amp;weight=400" wrapWidth="972" align="center">
+    <transform>
+      <location value="540.000000,470.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFFFFFFF"/>
+    <content>Hello, Alight</content>
+  </text>
+  <text id="2" label="Subtitle" startTime="0" endTime="4000" fillType="color" size="40.000000" font="googlefonts?name=IBM Plex Mono&amp;weight=400" wrapWidth="972" align="center">
+    <transform>
+      <location value="540.000000,600.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FFFF4F9E"/>
+    <content>written by an AI, opened in the app</content>
+  </text>
+  <text id="3" label="Left aligned" startTime="0" endTime="4000" fillType="color" size="36.000000" font="googlefonts?name=Roboto&amp;weight=700" wrapWidth="600" align="left">
+    <transform>
+      <location value="400.000000,860.000000,0.000000"/>
+    </transform>
+    <fillColor value="#FF9AA1B4"/>
+    <content>LEFT ALIGNED
+TWO LINES</content>
+  </text>
+</scene>

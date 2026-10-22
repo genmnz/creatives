@@ -1,0 +1,262 @@
+<title>__TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an editor-like stage + timeline on top, reference sheets below; one column on phones. */
+:root {
+  --bg: #eef0f5; --panel: #ffffff; --line: #d5d9e3; --fg: #161924; --muted: #5d6476;
+  --accent: #c8106a; --key: #b97800; --ok: #18794e; --warn: #9a6200; --err: #c22b2b;
+  --stage: #1b1e28; --code-bg: #f6f7fa;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11131a; --panel: #191c25; --line: #2c313f; --fg: #e8eaf1; --muted: #9aa1b4;
+  --accent: #ff4f9e; --key: #f2b445; --ok: #52c08a; --warn: #e3a64a; --err: #ff7272;
+  --stage: #07080c; --code-bg: #141720; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #11131a; --panel: #191c25; --line: #2c313f; --fg: #e8eaf1; --muted: #9aa1b4;
+  --accent: #ff4f9e; --key: #f2b445; --ok: #52c08a; --warn: #e3a64a; --err: #ff7272;
+  --stage: #07080c; --code-bg: #141720; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--body); margin: 0; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 40px; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(30px, 4.4vw, 46px); font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: 26px; font-weight: 700; }
+h3 { font-size: 17px; font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+a { color: var(--accent); }
+code, pre, .mono { font-family: var(--mono); font-size: 13px; }
+.eyebrow { font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.lede { color: var(--muted); font-size: 17px; }
+header.top { display: grid; gap: 12px; }
+button, select, label.btn { font: 500 14px var(--body); color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+button:hover, label.btn:hover { border-color: var(--accent); }
+button:focus-visible, select:focus-visible, label.btn:focus-within, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* editor */
+.editor { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+@media (max-width: 900px) { .editor { grid-template-columns: minmax(0, 1fr); } }
+.picker { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.picker .chip { border-radius: 999px; padding: 5px 12px; font-size: 13px; }
+.picker .chip[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.stagecol { display: grid; gap: 10px; min-width: 0; }
+.stage { background: var(--stage); border-radius: 12px; display: grid; place-items: center; padding: 16px; min-height: 320px; position: relative; }
+.stage svg { display: block; max-width: 100%; max-height: 62vh; width: auto; height: auto; box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+.stage.drag { outline: 3px dashed var(--accent); outline-offset: -8px; }
+.transport { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.transport input[type=range] { flex: 1 1 200px; accent-color: var(--accent); min-width: 0; }
+.tc { font: 500 14px var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+.timeline { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; display: grid; gap: 4px; max-height: 240px; overflow: auto; position: relative; }
+.tl-row { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px; align-items: center; font-size: 12px; }
+.tl-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-family: var(--mono); }
+.tl-track { position: relative; height: 18px; }
+.tl-bar { position: absolute; top: 3px; height: 12px; border-radius: 3px; background: color-mix(in srgb, var(--accent) 22%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); }
+.tl-kf { position: absolute; top: 5px; width: 8px; height: 8px; background: var(--key); transform: translateX(-4px) rotate(45deg); }
+.tl-head { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent); pointer-events: none; }
+.side { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: 760px; min-width: 0; }
+.tabs { display: flex; border-bottom: 1px solid var(--line); }
+.tabs button { flex: 1; border: 0; border-radius: 0; background: none; padding: 10px; color: var(--muted); border-bottom: 2px solid transparent; }
+.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.pane { overflow: auto; padding: 12px 14px; min-width: 0; }
+.pane pre { margin: 0; white-space: pre; font-size: 12px; line-height: 1.5; }
+.layer { border-bottom: 1px solid var(--line); padding: 8px 0; display: grid; gap: 3px; }
+.layer:last-child { border-bottom: 0; }
+.layer .kind { font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.layer .nm { font-weight: 600; }
+.pill { display: inline-block; font: 500 11px var(--mono); padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); margin: 2px 4px 0 0; color: var(--muted); }
+.pill.fx { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); color: var(--accent); }
+.pill.kf { border-color: color-mix(in srgb, var(--key) 60%, var(--line)); color: var(--key); }
+.issue { font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.issue b { font: 600 11px var(--mono); text-transform: uppercase; margin-right: 6px; }
+.issue.error b { color: var(--err); } .issue.warn b { color: var(--warn); }
+.status-ok { color: var(--ok); font-weight: 600; }
+.hint { font-size: 13px; color: var(--muted); }
+.mediarow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+__EXTRA_CSS__
+</style>
+
+<div class="wrap">
+__HEADER__
+<section class="editor" aria-label="Project viewer">
+  <div class="stagecol">
+    <div class="picker" id="picker"></div>
+    <div class="stage" id="stage" aria-live="off"></div>
+    <div class="transport">
+      <button id="play" class="primary" aria-label="Play">Play</button>
+      <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Time">
+      <span class="tc" id="tc">00:00.00</span>
+    </div>
+    <div class="timeline" id="timeline" aria-label="Timeline"></div>
+    <div class="mediarow">
+      <label class="btn">Open XML…<input id="openXml" type="file" accept=".xml,text/xml,application/xml"></label>
+      <label class="btn">Link images…<input id="openMedia" type="file" accept="image/*" multiple></label>
+      <span class="hint">Or drop an Alight Motion .xml and its images on the stage. Files stay in your browser.</span>
+    </div>
+  </div>
+  <aside class="side">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="layers" id="tab-layers">Layers</button>
+      <button role="tab" aria-selected="false" data-tab="xml" id="tab-xml">XML</button>
+      <button role="tab" aria-selected="false" data-tab="checks" id="tab-checks">Checks</button>
+    </div>
+    <div class="pane" id="pane"></div>
+  </aside>
+</section>
+__DOCS__
+</div>
+
+<script>__BUNDLE__</script>
+<script>
+const CATALOG = __CATALOG__;
+const PROJECTS = __PROJECTS__;
+AMX.setCatalog(CATALOG);
+const $ = (id) => document.getElementById(id);
+const state = { i: 0, scene: null, xml: "", media: {}, t: 0, playing: false, tab: "layers", last: 0 };
+const fonts = new Set();
+
+function loadFonts(scene) {
+  for (const l of scene.allLayers()) {
+    if (l.tag !== "text") continue;
+    const { family, weight } = AMX.fontFamily(l.attrs.font);
+    const key = family + ":" + weight;
+    if (fonts.has(key)) continue;
+    fonts.add(key);
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g, "+")}:wght@${weight}&display=swap`;
+    link.onload = () => draw();
+    document.head.appendChild(link);
+  }
+}
+
+function open(xml, media = {}, name) {
+  try {
+    state.scene = AMX.Scene.parse(xml);
+  } catch (e) {
+    $("stage").innerHTML = `<p style="color:#fff">Could not read this file: ${e.message}</p>`;
+    return;
+  }
+  state.xml = xml; state.media = { ...media }; state.t = 0;
+  loadFonts(state.scene);
+  buildTimeline(); showTab(state.tab); draw();
+}
+
+function mediaHref(uri, info) {
+  if (state.media[uri]) return state.media[uri];
+  for (const k of [info?.filename, info?.title]) if (k && state.media["file:" + k]) return state.media["file:" + k];
+  return null;
+}
+
+function draw() {
+  const sc = state.scene;
+  if (!sc) return;
+  $("stage").innerHTML = AMX.renderSVG(sc.node, state.t, { mediaHref });
+  const d = sc.duration;
+  $("scrub").value = Math.round((state.t / d) * 1000);
+  const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${(s % 60).toFixed(2).padStart(5, "0")}`;
+  $("tc").textContent = `${fmt(state.t)} / ${fmt(d)}`;
+  const head = document.querySelector(".tl-head-wrap");
+  document.querySelectorAll(".tl-head").forEach((h) => (h.style.left = `${(state.t / d) * 100}%`));
+}
+
+function keyTimes(node) {
+  const out = new Set();
+  const walk = (n) => { for (const c of n.children ?? []) { if (c.tag === "kf") out.add(+c.attrs.t); else if (c.tag && c.tag !== "scene") walk(c); } };
+  walk(node);
+  return [...out];
+}
+
+function buildTimeline() {
+  const sc = state.scene, d = sc.duration * 1000;
+  const rows = sc.layers().slice().reverse().map((l) => {
+    const s = +l.attrs.startTime, e = +l.attrs.endTime;
+    const kfs = keyTimes(l).map((t) => `<span class="tl-kf" style="left:${((s + t * (e - s)) / d) * 100}%"></span>`).join("");
+    return `<div class="tl-row"><span class="tl-name" title="${esc(l.attrs.label ?? l.tag)}">${esc(l.attrs.label ?? l.tag)}</span><div class="tl-track"><span class="tl-bar" style="left:${(s / d) * 100}%;width:${((e - s) / d) * 100}%"></span>${kfs}<span class="tl-head"></span></div></div>`;
+  });
+  $("timeline").innerHTML = rows.join("") || '<span class="hint">No layers yet.</span>';
+}
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function showTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === tab));
+  const sc = state.scene;
+  if (!sc) return;
+  if (tab === "xml") {
+    $("pane").innerHTML = `<p style="margin-bottom:10px"><button id="copyXml">Copy XML</button> <span class="hint" id="copyNote"></span></p><pre id="xmlText">${esc(state.xml)}</pre>`;
+    $("copyXml").onclick = () => {
+      navigator.clipboard.writeText(state.xml).then(() => ($("copyNote").textContent = "Copied. Save it as a .xml file."), () => {
+        const r = document.createRange(); r.selectNodeContents($("xmlText"));
+        const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+        $("copyNote").textContent = "Selected. Copy it with your keyboard.";
+      });
+    };
+  } else if (tab === "checks") {
+    const r = AMX.validate(sc.node);
+    $("pane").innerHTML = (r.ok ? `<p class="status-ok">Passes the import checks${r.issues.length ? " with notes" : ""}.</p>` : `<p style="color:var(--err);font-weight:600">Has errors the app may reject.</p>`) +
+      r.issues.map((i) => `<div class="issue ${i.level}"><b>${i.level}</b>${esc(i.where)}: ${esc(i.msg)}</div>`).join("");
+  } else {
+    $("pane").innerHTML = sc.layers().slice().reverse().map((l) => {
+      const fx = l.children.filter((c) => c.tag === "effect").map((f) => { const def = AMX.findEffect(f.attrs.id); return `<span class="pill fx">${esc(def?.name ?? f.attrs.id)}</span>`; }).join("");
+      const kf = keyTimes(l).length ? `<span class="pill kf">${keyTimes(l).length} keyframe times</span>` : "";
+      const kind = l.tag === "shape" ? (l.attrs.fillType === "media" ? "image" : l.attrs.s ? "shape " + l.attrs.s : "path") : l.tag;
+      const extra = l.tag === "text" ? `<span class="hint">“${esc(AMX.textOf(l.children.find((c) => c.tag === "content")))}”</span>` : "";
+      return `<div class="layer"><span class="kind">${esc(kind)} · #${l.attrs.id} · ${+l.attrs.startTime / 1000}–${+l.attrs.endTime / 1000}s</span><span class="nm">${esc(l.attrs.label ?? "")}</span>${extra}<div>${fx}${kf}</div></div>`;
+    }).join("");
+  }
+}
+
+function pick(i) {
+  state.i = i;
+  document.querySelectorAll("#picker .chip").forEach((b, j) => b.setAttribute("aria-pressed", j === i));
+  open(PROJECTS[i].xml, PROJECTS[i].media, PROJECTS[i].name);
+}
+
+function tick(now) {
+  if (!state.playing) return;
+  const dt = (now - state.last) / 1000;
+  state.last = now;
+  state.t = (state.t + dt) % state.scene.duration;
+  draw();
+  requestAnimationFrame(tick);
+}
+
+$("play").onclick = () => {
+  state.playing = !state.playing;
+  $("play").textContent = state.playing ? "Pause" : "Play";
+  $("play").setAttribute("aria-label", state.playing ? "Pause" : "Play");
+  state.last = performance.now();
+  if (state.playing) requestAnimationFrame(tick);
+};
+$("scrub").oninput = (e) => { state.t = (e.target.value / 1000) * state.scene.duration; draw(); };
+document.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
+
+async function readFiles(files) {
+  let xml = null;
+  for (const f of files) {
+    if (/\.xml$/i.test(f.name) || f.type.includes("xml")) xml = await f.text();
+    else if (f.type.startsWith("image/")) state.media["file:" + f.name] = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
+  }
+  if (xml) { open(xml, state.media); document.querySelectorAll("#picker .chip").forEach((b) => b.setAttribute("aria-pressed", false)); }
+  else draw();
+}
+$("openXml").onchange = (e) => readFiles([...e.target.files]);
+$("openMedia").onchange = (e) => readFiles([...e.target.files]);
+const st = $("stage");
+st.addEventListener("dragover", (e) => { e.preventDefault(); st.classList.add("drag"); });
+st.addEventListener("dragleave", () => st.classList.remove("drag"));
+st.addEventListener("drop", (e) => { e.preventDefault(); st.classList.remove("drag"); readFiles([...e.dataTransfer.files]); });
+
+$("picker").innerHTML = PROJECTS.length > 1 ? PROJECTS.map((p, i) => `<button class="chip" aria-pressed="false" data-i="${i}">${esc(p.name)}</button>`).join("") : "";
+document.querySelectorAll("#picker .chip").forEach((b) => (b.onclick = () => pick(+b.dataset.i)));
+pick(0);
+state.t = Math.min(state.scene.duration * 0.5, 1.5); draw();
+__EXTRA_JS__
+</script>

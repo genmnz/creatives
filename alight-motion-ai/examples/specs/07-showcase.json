@@ -1,0 +1,27 @@
+{
+  "scene": { "title": "07 Showcase", "width": 1080, "height": 1920, "duration": 6, "background": "#0E0F16" },
+  "layers": [
+    { "type": "image", "label": "Backdrop", "src": "../assets/dusk.jpg", "fit": "cover",
+      "animate": { "scale": [ { "at": 0, "v": 1 }, { "at": 6, "v": 1.12 } ] },
+      "effects": [ { "effect": "Vignette", "params": { "strength": 0.85 } } ] },
+    { "type": "shape", "label": "Card", "shape": "roundrect", "width": 880, "height": 1040, "cornerRadius": 48, "y": 1000,
+      "fill": "#CC0E0F16", "stroke": { "color": "#55FF4F9E", "width": 3 },
+      "animate": { "position": [ { "at": 0, "v": [540, 2400] }, { "at": 0.9, "v": [540, 1000], "ease": "easeOutStrong" } ] } },
+    { "type": "image", "label": "Badge", "src": "../assets/badge.png", "width": 260, "x": 540, "y": 700, "start": 0.6,
+      "animate": { "scale": [ { "at": 0, "v": 0 }, { "at": 0.5, "v": 1.1, "ease": "easeOut" }, { "at": 0.7, "v": 1 } ],
+                   "rotation": [ { "at": 0, "v": -90 }, { "at": 0.6, "v": 0, "ease": "easeOut" } ] },
+      "effects": [ { "effect": "com.alightcreative.glow", "params": { "radius": 50, "color": "#FFFF4F9E", "alpha": 0.6 } } ] },
+    { "type": "text", "label": "Title", "text": "NIGHT SHIFT", "font": "Archivo Black", "size": 110, "y": 950, "start": 1,
+      "animate": { "opacity": [ { "at": 0, "v": 0 }, { "at": 0.5, "v": 1 } ] },
+      "effects": [ { "effect": "Text Progress", "params": { "end": [ { "at": 0, "v": 0 }, { "at": 0.9, "v": 1 } ], "cursor": "_" } } ] },
+    { "type": "text", "label": "Date", "text": "FRI 31 OCT · 22:00", "font": "IBM Plex Mono", "weight": 500, "size": 44, "color": "#FF4F9E", "y": 1060, "start": 1.6,
+      "animate": { "opacity": [ { "at": 0, "v": 0 }, { "at": 0.4, "v": 1 } ] } },
+    { "type": "path", "label": "Underline", "d": "M300 1130 C420 1100 660 1160 780 1130", "fill": "none", "stroke": { "color": "#F2B445", "width": 10 }, "start": 2,
+      "effects": [ { "effect": "Drawing Progress", "params": { "end": [ { "at": 0, "v": 0 }, { "at": 0.8, "v": 100, "ease": "easeInOut" } ] } } ] },
+    { "type": "shape", "label": "Spark", "shape": "star", "radius": 40, "innerRadius": 12, "points": 4, "x": 860, "y": 560, "fill": "#F2B445", "start": 1.2,
+      "animate": { "rotation": [ { "at": 0, "v": 0 }, { "at": 4.8, "v": 180 } ] },
+      "effects": [ { "effect": "Pulse Size", "params": { "freq": 1.5, "minsize": 0.7, "maxsize": 1.2 } } ] },
+    { "type": "text", "label": "Footer", "text": "made from a JSON spec by alight-motion-ai", "font": "IBM Plex Sans", "size": 30, "color": "#9AA1B4", "y": 1420, "start": 2.4,
+      "animate": { "opacity": [ { "at": 0, "v": 0 }, { "at": 0.6, "v": 1 } ] } }
+  ]
+}
