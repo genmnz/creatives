@@ -153,6 +153,26 @@ final class Earbuds {
         }
     }
 
+    /** Samsung Galaxy Buds' own control service (real buds always offer it over Classic). */
+    static final String SAMSUNG_BUDS_SPP = "2e73a4ad-332d-41fc-90e2-16bef06523f2";
+
+    /**
+     * Spots look-alikes: a big-brand name without that brand's own control service.
+     * Returns a plain explanation, or null if nothing looks off.
+     */
+    static String lookalike(String name, List<String> uuids) {
+        if (name == null) return null;
+        String n = name.toLowerCase(Locale.ROOT);
+        boolean samsungSvc = false;
+        for (String u : uuids) if (u.equalsIgnoreCase(SAMSUNG_BUDS_SPP)) samsungSvc = true;
+        if (n.contains("galaxy buds") && !samsungSvc)
+            return "Named like Samsung Galaxy Buds, but it lacks Samsung's own control service: it's a look-alike. "
+                    + "That's why Samsung Wearable doesn't recognise it.";
+        if ((n.contains("airpods") || n.contains("air pods")) && !uuids.isEmpty())
+            return "Named like AirPods, which phones other than iPhones can't control: most likely a look-alike.";
+        return null;
+    }
+
     /** Best single guess from everything seen. */
     static String chipVerdict(List<String> clues) {
         for (String c : clues) if (c.contains("JieLi")) return "JieLi";

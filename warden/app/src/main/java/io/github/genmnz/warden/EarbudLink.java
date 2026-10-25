@@ -63,11 +63,12 @@ final class EarbudLink {
         void raw(String charUuid, byte[] value);
         void log(String line);
         void classic(ClassicReport r);
+        void noControls(String why);
     }
 
     /** Everything Classic Bluetooth tells us — available the moment the buds play music, no LE needed. */
     static final class ClassicReport {
-        String name = "", mac = "", type = "", claims = "", vendor = "", verdict = "";
+        String name = "", mac = "", type = "", claims = "", vendor = "", verdict = "", lookalike;
         boolean playing;
         int hfpBattery = -1;
         final List<String[]> services = new ArrayList<>(); // {name, uuid}
@@ -289,6 +290,9 @@ final class EarbudLink {
             }
             String oui = Earbuds.ouiVendor(mac);
             if (oui != null) { r.vendor = oui; clues.add(oui); }
+            List<String> all = new ArrayList<>();
+            if (us != null) for (android.os.ParcelUuid u : us) all.add(u.toString());
+            r.lookalike = Earbuds.lookalike(r.name, all);
             String v = Earbuds.chipVerdict(clues);
             r.verdict = v == null ? "" : v;
         } catch (RuntimeException ignored) {
@@ -432,7 +436,15 @@ final class EarbudLink {
             targetName = "";
         }
         emitClassic(mac);
-        History.seen(ctx, mac, targetName, classicReport(mac).verdict);
+        ClassicReport cr = classicReport(mac);
+        History.seen(ctx, mac, targetName, cr.verdict);
+        boolean taughtClassic = rule != null && rule.usable() && rule.chr.startsWith("classic:");
+        if (!cr.vendorChannels.isEmpty() && !taughtClassic) {
+            String pick = cr.vendorChannels.get(0);
+            for (String v : cr.vendorChannels) if (v.startsWith("00001101")) pick = v; // the serial port clones use
+            final String ch = pick;
+            main.postDelayed(() -> { if (mac.equals(targetMac) && !authed) probeSerial(ch); }, 800);
+        }
         if (rule != null && rule.usable() && rule.chr.startsWith("classic:")) {
             final String ch = rule.chr.substring(8);
             main.postDelayed(() -> { if (mac.equals(targetMac)) openChannel(ch); }, 1500); // your taught Classic rule
@@ -466,6 +478,7 @@ final class EarbudLink {
 
     /** No LE link (yet): say so plainly, keep everything Classic gave us, and keep watching the scan. */
     private void leGaveUp(String why) {
+        if (authed) { log("LE control link: " + why + " (not needed, serial channel works)"); return; }
         waitingForLe = leTries < 3; // a matching advertiser may still appear (open the case)
         status("Recognised over Classic Bluetooth · " + why + ". Battery shows if the buds report it; "
                 + "try the Lab's Classic channel for controls.");
@@ -474,6 +487,7 @@ final class EarbudLink {
 
     void disconnect() {
         waitingForLe = false;
+        if (jlOverSpp) { jlOverSpp = false; closeChannel(); }
         main.removeCallbacks(leTimeout);
         if (gatt != null && targetMac != null && connectedSince > 0) {
             History.addConnectedTime(ctx, targetMac, SystemClock.elapsedRealtime() - connectedSince);
@@ -656,14 +670,65 @@ final class EarbudLink {
     private void startHandshake() {
         byte[] rnd = new byte[16];
         new java.security.SecureRandom().nextBytes(rnd);
-        rawWrite(jlWrite, Earbuds.concat(new byte[]{0x00}, rnd));
+        jlSend(Earbuds.concat(new byte[]{0x00}, rnd));
+    }
+
+    // JieLi over the Classic serial channel (clones that have no LE link)
+    private volatile boolean jlOverSpp, jlReplied;
+    private byte[] sppAuthBuf = new byte[0];
+
+    private void jlSend(byte[] d) {
+        if (jlOverSpp) channelWrite(d);
+        else if (jlWrite != null) rawWrite(jlWrite, d);
+    }
+
+    /** Serial data arrives in arbitrary chunks; re-split the raw 17/5-byte auth replies. */
+    private void sppJieli(byte[] chunk) {
+        if (authed) { handleJieli(chunk); return; }
+        sppAuthBuf = Earbuds.concat(sppAuthBuf, chunk);
+        while (sppAuthBuf.length > 0) {
+            int need = sppAuthBuf[0] == 0x02 ? 5 : 17;
+            if (sppAuthBuf[0] != 0x00 && sppAuthBuf[0] != 0x01 && sppAuthBuf[0] != 0x02) { sppAuthBuf = new byte[0]; return; }
+            if (sppAuthBuf.length < need) return;
+            byte[] one = java.util.Arrays.copyOf(sppAuthBuf, need);
+            sppAuthBuf = java.util.Arrays.copyOfRange(sppAuthBuf, need, sppAuthBuf.length);
+            handleJieli(one);
+            if (authed && sppAuthBuf.length > 0) { byte[] rest = sppAuthBuf; sppAuthBuf = new byte[0]; handleJieli(rest); return; }
+        }
+    }
+
+    /**
+     * Automatic detector for Classic-only clones: open their serial channel and say "hello"
+     * the JieLi way (a harmless authentication challenge). A JieLi chip answers within a
+     * second and then gets full controls; anything else stays quiet and we report that.
+     */
+    private void probeSerial(String uuid) {
+        jlOverSpp = true;
+        jlReplied = false;
+        authed = false;
+        sppAuthBuf = new byte[0];
+        reader.feed(new byte[0]);
+        log("Asking the chip over its serial channel which protocol it speaks…");
+        openChannel(uuid);
+        main.postDelayed(() -> { if (channelOpen() && jlOverSpp && !authed) startHandshake(); }, 1200);
+        main.postDelayed(() -> {
+            if (!jlOverSpp || authed) return;
+            jlOverSpp = false;
+            closeChannel();
+            String why = jlReplied ? "the chip started to answer but didn't finish the handshake"
+                    : "the chip didn't answer any known control protocol";
+            log("Serial probe: " + why);
+            status("Recognised · no game-mode control: " + why + ". Battery shows above when the buds report it.");
+            post(() -> { if (listener != null) listener.noControls(why); });
+        }, 4500);
     }
 
     private void handleJieli(byte[] value) {
         if (!authed) {
-            if (value[0] == 0x01 && value.length == 17) { rawWrite(jlWrite, Earbuds.AUTH_PASS); return; }
+            if (value[0] == 0x01 && value.length == 17) { jlReplied = true; jlSend(Earbuds.AUTH_PASS); return; }
             if (value[0] == 0x00 && value.length == 17) {
-                rawWrite(jlWrite, Earbuds.concat(new byte[]{0x01}, JlAuth.encrypt(java.util.Arrays.copyOfRange(value, 1, 17))));
+                jlReplied = true;
+                jlSend(Earbuds.concat(new byte[]{0x01}, JlAuth.encrypt(java.util.Arrays.copyOfRange(value, 1, 17))));
                 return;
             }
             if (value.length >= 5 && value[0] == 0x02 && value[1] == 'p') {
@@ -731,9 +796,9 @@ final class EarbudLink {
     }
 
     private void command(byte[] frame) {
-        if (jlWrite == null) return;
+        if (jlWrite == null && !jlOverSpp) return;
         cmdSentAt = SystemClock.elapsedRealtime();
-        rawWrite(jlWrite, frame);
+        jlSend(frame);
     }
 
     // ----------------------------------------------------- the Lab (raw access, teaching rules)
@@ -819,6 +884,7 @@ final class EarbudLink {
                 byte[] buf = new byte[1024];
                 for (int n; (n = in.read(buf)) > 0; ) {
                     final byte[] got = java.util.Arrays.copyOf(buf, n);
+                    if (jlOverSpp) post(() -> sppJieli(got));
                     Earbuds.CustomRule rr = rule;
                     if (rr != null && rr.usable() && ("classic:" + uuid).equalsIgnoreCase(rr.chr)) {
                         Earbuds.Battery bt = rr.apply(got);

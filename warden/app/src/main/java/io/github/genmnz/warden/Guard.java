@@ -25,14 +25,14 @@ import java.util.Map;
 final class Guard {
     /** Keys worth locking, shown in the UI with their current value. */
     static final String[][] SUGGESTED = {
-            {"global:auto_time", "Automatic date & time (1 = network sets it)"},
+            {"global:auto_time", "Automatic date & time"},
             {"global:auto_time_zone", "Automatic time zone"},
-            {"system:time_12_24", "12/24-hour clock"},
-            {"system:date_format", "Date format (Samsung)"},
+            {"system:time_12_24", "Clock format"},
+            {"system:date_format", "Date format"},
             {"global:data_roaming", "Data roaming"},
-            {"global:wifi_scan_always_enabled", "Wi-Fi scanning for location (0 = off)"},
-            {"global:ble_scan_always_enabled", "Bluetooth scanning for location (0 = off)"},
-            {"global:assisted_gps_enabled", "Assisted GPS (0 = off, no SUPL lookups)"},
+            {"global:wifi_scan_always_enabled", "Wi-Fi scanning (for location)"},
+            {"global:ble_scan_always_enabled", "Bluetooth scanning (for location)"},
+            {"global:assisted_gps_enabled", "Assisted GPS"},
             {"global:mobile_data_always_on", "Mobile data always active"},
             {"global:network_recommendations_enabled", "Network recommendations"},
     };

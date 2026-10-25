@@ -20,6 +20,7 @@ final class Spoofer implements Runnable {
     private static final long PERIOD_MS = 3000;
 
     private final LocationManager lm;
+    private final Context ctx;
     private final Handler handler;
     private double lat, lon;
     private boolean on;
@@ -28,6 +29,7 @@ final class Spoofer implements Runnable {
 
     Spoofer(Context c, Handler handler) {
         this.lm = (LocationManager) c.getSystemService(Context.LOCATION_SERVICE);
+        this.ctx = c;
         this.handler = handler;
     }
 
@@ -39,6 +41,7 @@ final class Spoofer implements Runnable {
         this.lat = lat;
         this.lon = lon;
         error = "";
+        ensureLocationOn();
         if (!on) {
             for (String p : PROVIDERS) {
                 try {
@@ -68,10 +71,47 @@ final class Spoofer implements Runnable {
 
     void stop() {
         handler.removeCallbacks(this);
+        restoreLocation();
         if (!on) return;
         on = false;
         for (String p : PROVIDERS) {
             try { lm.removeTestProvider(p); } catch (RuntimeException ignored) { }
+        }
+    }
+
+    /**
+     * Apps only receive a position while Android's Location switch is on, and they can see
+     * when it's off. So while faking, Melad turns it on itself (needs the adb grant) — every
+     * source behind it (GPS, network) is replaced by your spot — and turns it back off after.
+     */
+    private void ensureLocationOn() {
+        try {
+            if (lm.isLocationEnabled()) return;
+        } catch (RuntimeException ignored) {
+        }
+        if (setLocation(true)) Store.prefs(ctx).edit().putBoolean("loc_we_enabled", true).apply();
+        else error = "Turn Location on (quick settings). Your real position stays hidden while this is on.";
+    }
+
+    private void restoreLocation() {
+        if (!Store.prefs(ctx).getBoolean("loc_we_enabled", false)) return;
+        Store.prefs(ctx).edit().remove("loc_we_enabled").apply();
+        setLocation(false);
+    }
+
+    private boolean setLocation(boolean enable) {
+        try { // system API, allowed with WRITE_SECURE_SETTINGS on many builds
+            LocationManager.class.getMethod("setLocationEnabledForUser", boolean.class, android.os.UserHandle.class)
+                    .invoke(lm, enable, android.os.Process.myUserHandle());
+            if (lm.isLocationEnabled() == enable) return true;
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+        }
+        try { // the settings value Android reads (3 = on, high accuracy; 0 = off)
+            android.provider.Settings.Secure.putInt(ctx.getContentResolver(), "location_mode", enable ? 3 : 0);
+            Thread.sleep(150);
+            return lm.isLocationEnabled() == enable;
+        } catch (SecurityException | InterruptedException e) {
+            return false;
         }
     }
 

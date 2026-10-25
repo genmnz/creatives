@@ -19,6 +19,7 @@ import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -36,7 +37,10 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
     private EarbudLink link;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private LinearLayout root, devices, controls, history;
-    private TextView statusLine, batteryLine, chipLine, diagLine, devInfoLine, classicLine, logView;
+    private Ui u;
+    private TextView[] banner;
+    private TextView batteryLine, chipLine, diagLine, devInfoLine, classicLine, lookalikeLine, logView;
+    private String noControlsWhy;
     private boolean autoPicked;
     private final StringBuilder logBuf = new StringBuilder();
     private Earbuds.JieliInfo info;
@@ -51,17 +55,11 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
         CrashLog.install(this);
-        setTitle("My earbuds");
+        if (getActionBar() != null) getActionBar().hide();
         link = new EarbudLink(this);
         link.setListener(this);
-        root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        int pad = dp(16);
-        root.setPadding(pad, pad, pad, dp(48));
-        ScrollView sv = new ScrollView(this);
-        sv.setFitsSystemWindows(true);
-        sv.addView(root);
-        setContentView(sv);
+        u = new Ui(this);
+        root = u.page(this);
         build();
         CrashLog.offer(this);
     }
@@ -77,56 +75,59 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
 
     private void build() {
         root.removeAllViews();
-        root.addView(small("Works with any earbuds — recognised or not. Battery shows from a quick scan (case open); "
-                + "connect for live battery, diagnostics and controls. Unknown chip? Open the Lab to read it and teach a rule."));
-
+        u.title(root, "My earbuds", "Any buds, recognised or not · battery · controls · Lab");
         if (!link.ready()) {
-            root.addView(big("Bluetooth is off", 18));
-            root.addView(small("Turn Bluetooth on, then come back."));
+            banner = u.banner(root);
+            u.setBanner(banner, "Bluetooth is off", "Turn Bluetooth on, then come back.", Ui.State.WARN);
             return;
         }
+        banner = u.banner(root);
+        u.setBanner(banner, "Looking for your earbuds…", "", Ui.State.OFF);
 
-        statusLine = card("Scanning for earbuds nearby…");
-        root.addView(statusLine);
-        batteryLine = big("—", 30);
-        batteryLine.setPadding(0, dp(8), 0, 0);
-        root.addView(batteryLine);
-        chipLine = small("");
-        root.addView(chipLine);
-        diagLine = small("");
-        root.addView(diagLine);
-        devInfoLine = small("");
-        root.addView(devInfoLine);
-        classicLine = card("");
-        classicLine.setVisibility(View.GONE);
-        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(-1, -2);
-        clp.topMargin = dp(8);
-        root.addView(classicLine, clp);
+        u.section(root, "Battery");
+        LinearLayout bc = u.card(root);
+        batteryLine = u.tv("—", 30, u.text, true);
+        batteryLine.setPadding(0, dp(12), 0, 0);
+        bc.addView(batteryLine);
+        chipLine = u.tv("Open the case or start playing to read it", 13, u.sub, false);
+        bc.addView(chipLine);
+        diagLine = u.tv("", 13, u.sub, false);
+        diagLine.setPadding(0, dp(4), 0, 0);
+        bc.addView(diagLine);
+        devInfoLine = u.tv("", 13, u.sub, false);
+        devInfoLine.setPadding(0, dp(2), 0, dp(12));
+        bc.addView(devInfoLine);
+
+        u.section(root, "What these buds are");
+        LinearLayout rc = u.card(root);
+        classicLine = u.tv("Tap your earbuds below.", 14, u.text, false);
+        classicLine.setPadding(0, dp(12), 0, dp(12));
+        rc.addView(classicLine);
+        lookalikeLine = u.notice(root, Ui.State.WARN);
 
         controls = new LinearLayout(this);
         controls.setOrientation(LinearLayout.VERTICAL);
         root.addView(controls);
 
-        header("Paired earbuds");
-        root.addView(small("Tap to connect. JieLi buds get full control; any bud shows what it can."));
-        devices = new LinearLayout(this);
-        devices.setOrientation(LinearLayout.VERTICAL);
-        root.addView(devices);
-        row(button("Refresh", v -> { listDevices(); listHistory(); }),
-                button("Inspector", v -> showInspector()));
-        row(button("Lab (advanced)", v -> openLab()),
-                button("Rename / forget", v -> renameOrForget()));
+        u.section(root, "Paired devices");
+        devices = u.card(root);
+        LinearLayout tools = u.card(root);
+        LinearLayout.LayoutParams tlp = (LinearLayout.LayoutParams) tools.getLayoutParams();
+        tlp.topMargin = dp(10);
+        u.buttons(tools, "Refresh", (View.OnClickListener) v -> { listDevices(); listHistory(); },
+                "Inspector", (View.OnClickListener) v -> showInspector());
+        u.buttons(tools, "Lab", (View.OnClickListener) v -> openLab(),
+                "Rename / forget", (View.OnClickListener) v -> renameOrForget());
 
-        header("History");
-        history = new LinearLayout(this);
-        history.setOrientation(LinearLayout.VERTICAL);
-        root.addView(history);
+        u.section(root, "History");
+        history = u.card(root);
 
-        header("Activity");
-        logView = small("");
+        u.section(root, "Activity");
+        LinearLayout lc = u.card(root);
+        logView = u.tv("", 11, u.sub, false);
         logView.setTypeface(Typeface.MONOSPACE);
-        logView.setTextSize(11);
-        root.addView(logView);
+        logView.setPadding(0, dp(10), 0, dp(10));
+        lc.addView(logView);
 
         listDevices();
         listHistory();
@@ -157,7 +158,7 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
     }
 
     private void start() {
-        if (statusLine == null) build();
+        if (batteryLine == null) build();
         link.open();
         link.startScan();
         listDevices();
@@ -189,15 +190,17 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
         devices.removeAllViews();
         List<String[]> paired = link.paired();
         if (paired.isEmpty()) {
-            devices.addView(small("No paired devices. Pair your earbuds in Settings → Bluetooth first."));
+            u.row(devices, "No paired devices", "Melad can't see any. Allow \"Nearby devices\" for Melad, "
+                    + "and pair your earbuds in Settings → Bluetooth.", null);
             return;
         }
         for (String[] d : paired) {
             final String name = d[0], mac = d[1];
-            String tag = "playing".equals(d[2]) ? "▶ playing now" : "audio".equals(d[2]) ? "audio" : "other device";
-            Button b = button(name + "\n" + mac + "  ·  " + tag, v -> connect(mac, name));
-            if ("playing".equals(d[2])) { b.setTextColor(0xFF2E7D32); b.setTypeface(Typeface.DEFAULT_BOLD); }
-            devices.addView(b);
+            boolean playing = "playing".equals(d[2]);
+            String tag = playing ? "▶ playing now" : "audio".equals(d[2]) ? "audio device" : "other device";
+            boolean selected = mac.equals(connectedMac);
+            TextView sub = u.link(devices, (selected ? "● " : "") + name, mac + "  ·  " + tag, v -> connect(mac, name));
+            if (playing) sub.setTextColor(u.accent);
         }
     }
 
@@ -205,20 +208,16 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
         if (history == null) return;
         history.removeAllViews();
         List<Earbuds.BudRecord> all = History.all(this);
-        if (all.isEmpty()) { history.addView(small("Devices you connect to will be remembered here.")); return; }
+        if (all.isEmpty()) { u.row(history, "Nothing yet", "Devices you open here are remembered.", null); return; }
         for (Earbuds.BudRecord r : all) {
             StringBuilder sb = new StringBuilder();
-            sb.append(r.name.isEmpty() ? r.mac : r.name);
-            if (!r.chip.isEmpty()) sb.append("  ·  ").append(r.chip);
-            sb.append('\n');
-            if (!r.lastBattery.isEmpty() && !r.lastBattery.equals("unknown")) sb.append(r.lastBattery).append("   ");
-            if (r.connectedMs > 0) sb.append("connected ").append(Earbuds.uptime(r.connectedMs)).append(" total");
-            if (r.rule != null && r.rule.usable()) sb.append("   · taught");
-            TextView t = small(sb.toString());
-            t.setPadding(dp(4), dp(4), dp(4), dp(4));
+            if (!r.chip.isEmpty()) sb.append(r.chip).append(" chip · ");
+            if (!r.lastBattery.isEmpty() && !r.lastBattery.equals("unknown")) sb.append("last ").append(r.lastBattery).append(" · ");
+            if (r.connectedMs > 0) sb.append("connected ").append(Earbuds.uptime(r.connectedMs)).append(" in total · ");
+            if (r.rule != null && r.rule.usable()) sb.append("taught rule · ");
+            sb.append("seen ").append(android.text.format.DateUtils.getRelativeTimeSpanString(r.lastSeen));
             final String mac = r.mac, name = r.name.isEmpty() ? r.mac : r.name;
-            t.setOnClickListener(v -> connect(mac, name));
-            history.addView(t);
+            u.link(history, name, sb.toString(), v -> connect(mac, name));
         }
     }
 
@@ -227,32 +226,46 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
         connectedName = name;
         info = null;
         rebuildControls();
+        noControlsWhy = null;
         log("Connecting to " + name);
         link.connect(mac);
+        listDevices();
+        ui.postDelayed(this::listHistory, 600);
     }
 
     private void rebuildControls() {
         if (controls == null) return;
         controls.removeAllViews();
-        if (info == null || !link.isAuthed()) return;
-        TextView h = big("Controls", 18);
-        h.setPadding(0, dp(24), 0, dp(6));
-        controls.addView(h);
-        if (info.workMode > 0) {
-            controls.addView(label("Game mode (low latency)"));
-            controls.addView(segmented(new String[]{"Normal", "Gaming"}, info.workMode == 2 ? 1 : 0, i -> link.setGameMode(i == 1)));
+        if (info != null && link.isAuthed()) {
+            u.section(controls, "Controls");
+            LinearLayout c = u.card(controls);
+            if (info.workMode > 0) {
+                Switch game = u.toggle(info.workMode == 2);
+                game.setOnCheckedChangeListener((v, on) -> link.setGameMode(on));
+                u.row(c, "Game mode", info.workMode == 2 ? "On · lowest latency for games and video"
+                        : "Off · normal latency, best sound and battery", game);
+            }
+            if (link.ancAvailable()) {
+                u.row(c, "Noise control", "Choose below", null);
+                c.addView(segmented(ANC, -1, link::setAnc));
+            }
+            if (info.micChannel > 0) {
+                u.row(c, "Microphone", "Now: " + name(MIC, info.micChannel), null);
+                c.addView(segmented(new String[]{"Auto", "Left", "Right"}, info.micChannel - 1, i -> link.setMicChannel(i + 1)));
+            }
+            if (info.workMode <= 0 && !link.ancAvailable() && info.micChannel <= 0)
+                u.row(c, "No adjustable modes", "This firmware reports battery but nothing to switch.", null);
+            u.buttons(c, "Disconnect", (View.OnClickListener) v -> { link.disconnect(); info = null; rebuildControls(); listHistory(); });
+        } else if (noControlsWhy != null) {
+            u.section(controls, "Controls");
+            LinearLayout c = u.card(controls);
+            u.row(c, "No game-mode switch for these buds",
+                    "Melad asked the chip in every way it knows, and " + noControlsWhy + ". "
+                            + "So there's nothing it can switch remotely yet. On most clones, game mode is toggled on the "
+                            + "buds themselves (often 3 taps, or a long hold on both): you'll hear a tone or voice prompt.", null);
+            u.row(c, "Help Melad learn them", "Open Lab → Classic channel and watch for bytes when you tap the buds, "
+                    + "then send me what Activity shows.", null);
         }
-        if (link.ancAvailable()) {
-            controls.addView(label("Noise control"));
-            controls.addView(segmented(ANC, -1, link::setAnc));
-        }
-        if (info.micChannel > 0) {
-            controls.addView(label("Microphone: " + name(MIC, info.micChannel)));
-            controls.addView(segmented(new String[]{"Auto", "Left", "Right"}, info.micChannel - 1, i -> link.setMicChannel(i + 1)));
-        }
-        if (info.workMode <= 0 && !link.ancAvailable() && info.micChannel <= 0)
-            controls.addView(small("This firmware reports battery but no adjustable modes."));
-        controls.addView(button("Disconnect", v -> { link.disconnect(); info = null; rebuildControls(); listHistory(); }));
     }
 
     // ------------------------------------------------------------------ inspector + rename
@@ -404,7 +417,19 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
 
     // ------------------------------------------------------------------ listener callbacks (main thread)
 
-    @Override public void status(String text) { if (statusLine != null) statusLine.setText(text); }
+    @Override public void status(String text) {
+        if (banner == null) return;
+        Ui.State st = link.isAuthed() ? Ui.State.ON
+                : text.startsWith("Scan failed") || text.contains("refused") ? Ui.State.WARN : Ui.State.OFF;
+        String head = link.isAuthed() ? "Connected · full control"
+                : connectedName != null ? connectedName : "Earbuds";
+        u.setBanner(banner, head, text, st);
+    }
+
+    @Override public void noControls(String why) {
+        noControlsWhy = why;
+        rebuildControls();
+    }
 
     @Override public void battery(Earbuds.Battery b) {
         if (batteryLine == null) return;
@@ -438,7 +463,8 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
         if (classicLine == null) return;
         StringBuilder sb = new StringBuilder();
         sb.append(r.name).append(r.playing ? "  ·  ▶ playing audio now" : "  ·  not connected for audio").append('\n');
-        sb.append("Chip: ").append(r.verdict.isEmpty() ? "maker not in any list (yet)" : r.verdict);
+        sb.append("Chip: ").append(r.verdict.isEmpty()
+                ? (link.isAuthed() ? "JieLi (it answered the JieLi protocol)" : "not identified from its services (checking…)") : r.verdict);
         if (!r.vendor.isEmpty() && !r.vendor.equals(r.verdict)) sb.append("  ·  radio by ").append(r.vendor);
         sb.append('\n');
         if (!r.claims.isEmpty()) sb.append("Says it is: ").append(r.claims).append('\n');
@@ -450,10 +476,11 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
             sb.append('\n');
         }
         sb.append(r.vendorChannels.isEmpty()
-                ? "No vendor control channel over Classic."
-                : r.vendorChannels.size() + " control channel(s) found → open the Lab to talk to it.");
+                ? "No control channel over Classic Bluetooth."
+                : "Has a control channel · Melad is asking it which protocol it speaks.");
         classicLine.setText(sb);
-        classicLine.setVisibility(View.VISIBLE);
+        lookalikeLine.setText(r.lookalike == null ? "" : r.lookalike);
+        lookalikeLine.setVisibility(r.lookalike == null ? View.GONE : View.VISIBLE);
         if (!r.verdict.isEmpty() && chipLine.getText().length() == 0) chipLine.setText(r.verdict + " chip");
     }
 

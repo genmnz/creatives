@@ -42,8 +42,12 @@ public final class MainActivity extends Activity {
     private SharedPreferences prefs;
     private LinearLayout root;
     private final Handler ui = new Handler(Looper.getMainLooper());
-    private TextView status, guardStatus, spoofStatus, permStatus, statusCard, listStatus;
-    private Switch dnsSwitch;
+    private Ui u;
+    private TextView[] banner;
+    private TextView chipBlock, chipLoc, chipLock, lockdownNotice, dnsWarn;
+    private TextView dnsSub, listsSub, spoofSub, permSub, lockSub;
+    private TextView pillAlways, pillLockdown, pillBattery, pillAdmin, upstreamSub;
+    private Switch dnsSwitch, spoofSwitch;
     private boolean quiet; // set while the UI mirrors saved state, so listeners don't fire actions
     private EditText lat, lon;
     private LinearLayout lockList;
@@ -60,14 +64,8 @@ public final class MainActivity extends Activity {
         CrashLog.install(this);
         if (getActionBar() != null) getActionBar().hide(); // the bold in-page title replaces it
         prefs = Store.prefs(this);
-        root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        int pad = dp(16);
-        root.setPadding(pad, pad, pad, dp(48));
-        ScrollView sv = new ScrollView(this);
-        sv.setFitsSystemWindows(true);
-        sv.addView(root);
-        setContentView(sv);
+        u = new Ui(this);
+        root = u.page(this);
         build();
         CrashLog.offer(this);
     }
@@ -86,24 +84,26 @@ public final class MainActivity extends Activity {
     // ------------------------------------------------------------------ layout
 
     private void build() {
-        TextView title = big("Melad", 28);
-        root.addView(title);
-        root.addView(small("Your privacy toolbox. Everything runs on this phone; no servers of ours exist."));
+        u.title(root, "Melad", "Your privacy toolbox · everything stays on this phone");
+        banner = u.banner(root);
+        LinearLayout chips = new LinearLayout(this);
+        chips.setPadding(0, dp(10), 0, 0);
+        chipBlock = u.pill("Blocking", Ui.State.OFF);
+        chipLoc = u.pill("Location", Ui.State.OFF);
+        chipLock = u.pill("Settings lock", Ui.State.OFF);
+        for (TextView t : new TextView[]{chipBlock, chipLoc, chipLock}) {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
+            lp.rightMargin = dp(8);
+            chips.addView(t, lp);
+        }
+        root.addView(chips);
+        lockdownNotice = u.notice(root, Ui.State.BAD);
+        lockdownNotice.setOnClickListener(v -> open(Settings.ACTION_VPN_SETTINGS));
 
-        // --- big active/inactive indicator
-        statusCard = new TextView(this);
-        statusCard.setTextSize(15);
-        statusCard.setPadding(dp(16), dp(14), dp(16), dp(14));
-        LinearLayout.LayoutParams scp = new LinearLayout.LayoutParams(-1, -2);
-        scp.topMargin = dp(10);
-        root.addView(statusCard, scp);
-
-        // --- protection
-        header("Blocking");
-        dnsSwitch = new Switch(this);
-        dnsSwitch.setText("Block ads, trackers & telemetry (local DNS filter)");
-        dnsSwitch.setTextSize(16);
-        dnsSwitch.setChecked(prefs.getBoolean("dns_on", false));
+        // --- blocking
+        u.section(root, "Blocking");
+        LinearLayout c = u.card(root);
+        dnsSwitch = u.toggle(prefs.getBoolean("dns_on", false));
         dnsSwitch.setOnCheckedChangeListener((v, on) -> {
             if (quiet) return;
             if (on) {
@@ -112,154 +112,192 @@ public final class MainActivity extends Activity {
             }
             prefs.edit().putBoolean("dns_on", on).apply();
             Engine.sync(this);
+            refreshStatus();
         });
-        root.addView(dnsSwitch);
-        status = small("");
-        root.addView(status);
+        dnsSub = u.row(c, "Block ads, trackers & telemetry", "Off", dnsSwitch);
+        Switch hard = u.toggle(prefs.getBoolean("catch_hardcoded", true));
+        hard.setOnCheckedChangeListener((v, on) -> { prefs.edit().putBoolean("catch_hardcoded", on).apply(); restartDns(); });
+        u.row(c, "Catch apps with their own DNS", "Stops apps skipping the filter through Google or Cloudflare DNS", hard);
+        u.buttons(c, "Recent lookups", (View.OnClickListener) v -> showLog(), "Upstream DNS", (View.OnClickListener) v -> editUpstream());
+        dnsWarn = u.notice(root, Ui.State.WARN);
 
-        for (Store.Source s : Store.SOURCES) {
-            CheckBox cb = check(s.label, Store.enabled(this, s));
-            cb.setOnCheckedChangeListener((v, on) -> {
-                prefs.edit().putBoolean("cat_" + s.id, on).apply();
-                if (on && s.asset == null && !Store.cacheFile(this, s).exists()) downloadThen(s);
+        // --- lists
+        u.section(root, "Block lists");
+        LinearLayout lists = u.card(root);
+        for (Store.Source src : Store.SOURCES) {
+            Switch sw = u.toggle(Store.enabled(this, src));
+            sw.setOnCheckedChangeListener((v, on) -> {
+                prefs.edit().putBoolean("cat_" + src.id, on).apply();
+                if (on && src.asset == null && !Store.cacheFile(this, src).exists()) downloadThen(src);
                 else recompile();
             });
-            root.addView(cb);
-            TextView d = small(s.desc);
-            d.setPadding(dp(32), 0, 0, dp(4));
-            root.addView(d);
+            u.row(lists, src.label, src.desc, sw);
         }
-        CheckBox hard = check("Catch apps that hardcode Google/Cloudflare/Quad9 DNS", prefs.getBoolean("catch_hardcoded", true));
-        hard.setOnCheckedChangeListener((v, on) -> { prefs.edit().putBoolean("catch_hardcoded", on).apply(); restartDns(); });
-        root.addView(hard);
-
-        listStatus = small("");
-        root.addView(listStatus);
-        CheckBox auto = check("Auto-update lists when I connect to Wi-Fi", prefs.getBoolean("auto_update", true));
+        Switch auto = u.toggle(prefs.getBoolean("auto_update", true));
         auto.setOnCheckedChangeListener((v, on) -> prefs.edit().putBoolean("auto_update", on).apply());
-        root.addView(auto);
-        row(button("Update lists now", v -> updateLists()),
-                button("Recent lookups", v -> showLog()));
-        row(button("Import list file", v -> pickImport()),
-                button("Edit my lists", v -> editLists()));
+        listsSub = u.row(lists, "Update automatically", "", auto);
+        u.buttons(lists, "Update now", (View.OnClickListener) v -> updateLists(),
+                "My lists", (View.OnClickListener) v -> editLists(),
+                "Import", (View.OnClickListener) v -> pickImport());
 
         // --- earbuds
-        header("My earbuds");
-        root.addView(small("Recognise cheap earbuds with no companion app: battery, game mode and noise control."));
-        root.addView(button("Open earbuds", v -> startActivity(new Intent(this, EarbudsActivity.class))));
+        u.section(root, "Earbuds");
+        LinearLayout buds = u.card(root);
+        u.link(buds, "My earbuds", "Recognise any buds · battery · game mode · Lab",
+                v -> startActivity(new Intent(this, EarbudsActivity.class)));
 
         // --- location
-        header("Location");
-        Switch spoof = new Switch(this);
-        spoof.setText("Report my marked spot as the phone's location");
-        spoof.setTextSize(16);
-        spoof.setChecked(prefs.getBoolean("spoof_on", false));
-        root.addView(spoof);
+        u.section(root, "Location");
+        LinearLayout loc = u.card(root);
+        spoofSwitch = u.toggle(prefs.getBoolean("spoof_on", false));
+        spoofSwitch.setOnCheckedChangeListener((v, on) -> {
+            if (quiet) return;
+            if (on && !saveSpot()) { quiet = true; v.setChecked(false); quiet = false; return; }
+            prefs.edit().putBoolean("spoof_on", on).apply();
+            Engine.sync(this);
+            refreshStatus();
+        });
+        spoofSub = u.row(loc, "Use my marked spot", "Off", spoofSwitch);
+        u.divider(loc);
         LinearLayout ll = new LinearLayout(this);
+        ll.setPadding(0, dp(6), 0, dp(6));
         lat = number(prefs.getString("lat", ""), "Latitude");
         lon = number(prefs.getString("lon", ""), "Longitude");
         ll.addView(lat, new LinearLayout.LayoutParams(0, -2, 1));
         ll.addView(lon, new LinearLayout.LayoutParams(0, -2, 1));
-        root.addView(ll);
-        spoof.setOnCheckedChangeListener((v, on) -> {
-            if (on && !saveSpot()) { v.setChecked(false); return; }
-            prefs.edit().putBoolean("spoof_on", on).apply();
-            Engine.sync(this);
-        });
-        row(button("Pick on map", v -> {
+        loc.addView(ll);
+        u.buttons(loc, "Pick on map", (View.OnClickListener) v -> {
                     Intent i = new Intent(this, MapActivity.class)
                             .putExtra(MapActivity.EXTRA_LAT, parse(lat, 0)).putExtra(MapActivity.EXTRA_LON, parse(lon, 0));
                     startActivityForResult(i, REQ_MAP);
-                }),
-                button("Mock app setting", v -> open(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)));
-        spoofStatus = small("");
-        root.addView(spoofStatus);
-        root.addView(small("One-time setup: Developer options → Select mock location app → Melad. "
-                + "Wi-Fi/Bluetooth scanning and A-GPS can be switched off below in Settings lock."));
+                },
+                "Mock-location setting", (View.OnClickListener) v -> open(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS));
+        TextView how = u.tv("While this is on, Melad switches Location on for you (apps can't get any position otherwise), "
+                + "replaces GPS, Wi-Fi and cell positioning with your spot, and switches Location back off when you stop.", 13, u.sub, false);
+        how.setPadding(dp(4), dp(10), dp(4), 0);
+        root.addView(how);
 
         // --- settings lock
-        header("Settings lock (SIM / carrier changes)");
-        root.addView(small("Tick a setting to keep its current value. When a SIM, eSIM or carrier update changes it, "
-                + "Melad puts it back right away. Set things the way you like in Settings first, then tick."));
-        permStatus = small("");
-        root.addView(permStatus);
+        u.section(root, "Settings lock");
+        LinearLayout lk = u.card(root);
+        permSub = u.row(lk, "Permission", "", null);
         lockList = new LinearLayout(this);
         lockList.setOrientation(LinearLayout.VERTICAL);
-        root.addView(lockList);
-        row(button("Lock other key", v -> addCustomLock()),
-                button("Allow system settings", v -> open(Settings.ACTION_MANAGE_WRITE_SETTINGS, true)));
-        guardStatus = small("");
-        root.addView(guardStatus);
+        u.divider(lk);
+        lk.addView(lockList);
+        lockSub = u.row(lk, "Changes undone", "None yet", null);
+        u.buttons(lk, "Lock another setting", (View.OnClickListener) v -> addCustomLock(),
+                "Allow system settings", (View.OnClickListener) v -> open(Settings.ACTION_MANAGE_WRITE_SETTINGS, true));
+        TextView lockHow = u.tv("Switch a setting on to keep its current value. If a SIM, eSIM or carrier update "
+                + "changes it, Melad puts it back straight away. Set it the way you like in Settings first.", 13, u.sub, false);
+        lockHow.setPadding(dp(4), dp(10), dp(4), 0);
+        root.addView(lockHow);
 
-        // --- staying alive
-        header("Keep running");
-        root.addView(small("For all-day protection: turn on Always-on VPN for Melad, and let it ignore battery "
-                + "optimisation (Samsung otherwise puts it to sleep). Device admin stops accidental removal."));
-        row(button("Always-on VPN", v -> open(Settings.ACTION_VPN_SETTINGS)),
-                button("Battery: unrestricted", v -> askBattery()));
-        row(button("Device admin", v -> toggleAdmin()),
-                button("Upstream DNS", v -> editUpstream()));
+        // --- always running
+        u.section(root, "Always running");
+        LinearLayout k = u.card(root);
+        pillAlways = u.pill("…", Ui.State.OFF);
+        u.row(k, "Always-on VPN", "Starts Melad at boot and keeps it on", pillAlways);
+        ((View) pillAlways.getParent()).setOnClickListener(v -> open(Settings.ACTION_VPN_SETTINGS));
+        pillLockdown = u.pill("…", Ui.State.OFF);
+        u.row(k, "Block connections without VPN", "Keep this OFF. Melad only carries DNS, so this would cut your internet", pillLockdown);
+        ((View) pillLockdown.getParent()).setOnClickListener(v -> open(Settings.ACTION_VPN_SETTINGS));
+        pillBattery = u.pill("…", Ui.State.OFF);
+        u.row(k, "Battery: unrestricted", "So Samsung never puts Melad to sleep", pillBattery);
+        ((View) pillBattery.getParent()).setOnClickListener(v -> askBattery());
+        pillAdmin = u.pill("…", Ui.State.OFF);
+        u.row(k, "Device admin", "Stops Melad being removed by accident", pillAdmin);
+        ((View) pillAdmin.getParent()).setOnClickListener(v -> toggleAdmin());
     }
 
     // ------------------------------------------------------------------ status
 
     private void refreshStatus() {
         Engine e = Engine.running;
-        StringBuilder s = new StringBuilder();
-        if (e != null && e.dnsRunning()) {
-            Blocklist l = e.list;
-            s.append(String.format(Locale.ROOT, "Active · %,d rules · DNS via %s\n%,d lookups, %,d blocked, %,d from cache",
-                    l == null ? 0 : l.block.length, e.upstreamText, e.queries.get(), e.blocked.get(), e.cached.get()));
-            if (!e.warning.isEmpty()) s.append("\n⚠ ").append(e.warning);
-        } else {
-            s.append(prefs.getBoolean("dns_on", false) ? "Starting…" : "Off");
-        }
-        status.setText(s);
-        boolean on = prefs.getBoolean("dns_on", false);
-        if (dnsSwitch.isChecked() != on) { quiet = true; dnsSwitch.setChecked(on); quiet = false; }
-
-        // big active/inactive indicator at the top
+        boolean dnsWanted = prefs.getBoolean("dns_on", false);
         boolean dnsActive = e != null && e.dnsRunning();
+        boolean spoofWanted = prefs.getBoolean("spoof_on", false);
         boolean spoofActive = e != null && e.spoofer.active();
-        boolean lockActive = e != null && !Guard.readLocks(this).isEmpty();
-        List<String> active = new java.util.ArrayList<>();
-        if (dnsActive) active.add("Blocking");
-        if (spoofActive) active.add("Location");
-        if (lockActive) active.add("Settings lock");
-        boolean anyWanted = on || prefs.getBoolean("spoof_on", false) || !Guard.readLocks(this).isEmpty();
-        if (!active.isEmpty()) {
-            statusCard.setText("● Protecting  ·  " + String.join(", ", active));
-            statusCard.setTextColor(0xFFFFFFFF);
-            statusCard.setBackground(rounded(0xFF1B5E20));
-        } else if (anyWanted) {
-            statusCard.setText("◌ Starting…");
-            statusCard.setTextColor(0xFFFFFFFF);
-            statusCard.setBackground(rounded(0xFFF9A825));
-        } else {
-            statusCard.setText("○ Off  ·  nothing is being blocked or changed");
-            statusCard.setTextColor(0xFFFFFFFF);
-            statusCard.setBackground(rounded(0xFF9E9E9E));
-        }
-        long when = Updater.lastUpdate(this);
-        listStatus.setText("Lists: " + (when == 0 ? "built in, never updated"
-                : "updated " + android.text.format.DateUtils.getRelativeTimeSpanString(when)));
+        int locks = Guard.readLocks(this).size();
+        boolean lockActive = e != null && locks > 0;
+        boolean lockdown = e != null && dnsActive && e.lockdown();
 
+        if (dnsSwitch.isChecked() != dnsWanted) { quiet = true; dnsSwitch.setChecked(dnsWanted); quiet = false; }
+        if (spoofSwitch.isChecked() != spoofWanted) { quiet = true; spoofSwitch.setChecked(spoofWanted); quiet = false; }
+
+        // banner + chips
+        List<String> active = new java.util.ArrayList<>();
+        if (dnsActive) active.add("blocking trackers");
+        if (spoofActive) active.add("faking location");
+        if (lockActive) active.add("locking " + locks + " setting" + (locks == 1 ? "" : "s"));
+        if (lockdown) {
+            u.setBanner(banner, "Internet is blocked", "\"Block connections without VPN\" is on. Turn it off below.", Ui.State.BAD);
+        } else if (!active.isEmpty()) {
+            u.setBanner(banner, "Protected", "Melad is " + String.join(", ", active) + ".", Ui.State.ON);
+        } else if (dnsWanted || spoofWanted || locks > 0) {
+            u.setBanner(banner, "Starting…", "", Ui.State.WARN);
+        } else {
+            u.setBanner(banner, "Off", "Nothing is being blocked or changed.", Ui.State.OFF);
+        }
+        u.setPill(chipBlock, dnsActive ? "● Blocking on" : "Blocking off", dnsActive ? Ui.State.ON : Ui.State.OFF);
+        u.setPill(chipLoc, spoofActive ? "● Location faked" : "Location real", spoofActive ? Ui.State.ON : Ui.State.OFF);
+        u.setPill(chipLock, lockActive ? "● " + locks + " locked" : "Nothing locked", lockActive ? Ui.State.ON : Ui.State.OFF);
+        lockdownNotice.setText("Your internet is cut because Android's \"Block connections without VPN\" is on. "
+                + "Melad only carries DNS (that's what keeps it light on battery), so Android blocks everything else. "
+                + "Always-on alone already keeps Melad running all day. Tap here → gear next to Melad → turn that option off.");
+        lockdownNotice.setVisibility(lockdown ? View.VISIBLE : View.GONE);
+
+        // blocking
+        if (dnsActive) {
+            Blocklist l = e.list;
+            dnsSub.setText(String.format(Locale.ROOT, "On · %,d domains blocked · DNS via %s",
+                    l == null ? 0 : l.block.length, e.upstreamText));
+        } else dnsSub.setText(dnsWanted ? "Starting…" : "Off");
+        String warn = e == null ? "" : e.warning;
+        dnsWarn.setText(warn);
+        dnsWarn.setVisibility(dnsActive && !warn.isEmpty() ? View.VISIBLE : View.GONE);
+
+        long when = Updater.lastUpdate(this);
+        listsSub.setText("Once a day on Wi-Fi · " + (when == 0 ? "using the copy built into the app"
+                : "last updated " + android.text.format.DateUtils.getRelativeTimeSpanString(when)));
+
+        // location
+        if (spoofActive) spoofSub.setText("On · apps see " + prefs.getString("lat", "") + ", " + prefs.getString("lon", ""));
+        else if (!Spoofer.error.isEmpty()) spoofSub.setText(Spoofer.error);
+        else spoofSub.setText(spoofWanted ? "Starting…" : "Off · apps see your real location");
+
+        // settings lock
         boolean secure = checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") == PackageManager.PERMISSION_GRANTED;
         boolean system = Settings.System.canWrite(this);
-        permStatus.setText((secure ? "✓ Can lock Global/Secure settings" :
-                "✗ Global/Secure locks need a one-time adb command (see README): adb shell pm grant "
-                        + getPackageName() + " android.permission.WRITE_SECURE_SETTINGS")
-                + "\n" + (system ? "✓ Can lock System settings" : "✗ System locks need 'Allow system settings'"));
+        permSub.setText((secure ? "✓ Can lock all settings" : "✗ Most settings need the one-time adb step (see README)")
+                + (system ? "" : "\n✗ Time/date settings need \"Allow system settings\""));
+        if (e != null && e.guard.reverts > 0) lockSub.setText(e.guard.reverts + " · last: " + e.guard.lastEvent);
+        else if (e != null && !e.guard.lastError.isEmpty()) lockSub.setText("Problem: " + e.guard.lastError);
+        else lockSub.setText(locks > 0 ? "None yet · watching" : "Nothing locked");
 
-        if (e != null) {
-            guardStatus.setText("Reverted " + e.guard.reverts + " change(s)"
-                    + (e.guard.lastEvent.isEmpty() ? "" : "\nLast: " + e.guard.lastEvent)
-                    + (e.guard.lastError.isEmpty() ? "" : "\nProblem: " + e.guard.lastError));
-            spoofStatus.setText(e.spoofer.active() ? "Reporting marked spot" : Spoofer.error);
+        // always running
+        if (dnsActive) {
+            boolean ao = e.alwaysOn();
+            u.setPill(pillAlways, ao ? "On" : "Off · tap", ao ? Ui.State.ON : Ui.State.WARN);
+            u.setPill(pillLockdown, lockdown ? "On · turn off" : "Off ✓", lockdown ? Ui.State.BAD : Ui.State.ON);
         } else {
-            guardStatus.setText(Guard.readLocks(this).isEmpty() ? "" : "Not running");
-            spoofStatus.setText(Spoofer.error);
+            u.setPill(pillAlways, "Turn on blocking first", Ui.State.OFF);
+            u.setPill(pillLockdown, "—", Ui.State.OFF);
         }
+        boolean batt = getSystemService(PowerManager.class).isIgnoringBatteryOptimizations(getPackageName());
+        u.setPill(pillBattery, batt ? "Unrestricted" : "Restricted · tap", batt ? Ui.State.ON : Ui.State.WARN);
+        boolean admin = getSystemService(DevicePolicyManager.class).isAdminActive(new ComponentName(this, Receivers.Admin.class));
+        u.setPill(pillAdmin, admin ? "On" : "Off", admin ? Ui.State.ON : Ui.State.OFF);
+    }
+
+    /** Settings values in words instead of raw 0/1. */
+    static String human(String id, String v) {
+        if (v == null) return "not set";
+        if (id.endsWith("time_12_24")) return "24".equals(v) ? "24-hour" : "12".equals(v) ? "12-hour" : v;
+        if (id.endsWith("date_format")) return v.isEmpty() ? "phone default" : v;
+        if ("1".equals(v)) return "On";
+        if ("0".equals(v)) return "Off";
+        return v;
     }
 
     private void rebuildLocks() {
@@ -267,28 +305,30 @@ public final class MainActivity extends Activity {
         Map<String, String> locks = Guard.readLocks(this);
         java.util.LinkedHashMap<String, String> all = new java.util.LinkedHashMap<>();
         for (String[] s : Guard.SUGGESTED) all.put(s[0], s[1]);
-        for (String k : locks.keySet()) if (!all.containsKey(k)) all.put(k, "custom");
+        for (String k : locks.keySet()) if (!all.containsKey(k)) all.put(k, k);
         for (Map.Entry<String, String> en : all.entrySet()) {
             final String id = en.getKey();
             String now = Guard.get(getContentResolver(), id);
             boolean isLocked = locks.containsKey(id);
-            String label = en.getValue() + "\n" + id + " = " + (isLocked ? locks.get(id) + " (locked)" : now);
-            CheckBox cb = check(label, isLocked);
-            cb.setTextSize(13);
-            cb.setOnCheckedChangeListener((v, on) -> {
+            Switch sw = u.toggle(isLocked);
+            String sub;
+            if (isLocked) sub = "Locked at " + human(id, locks.get(id)) + (now != null && !now.equals(locks.get(id)) ? " · now " + human(id, now) : "");
+            else if (now == null) { sub = "Not available on this phone"; sw.setEnabled(false); }
+            else sub = "Now " + human(id, now) + " · not locked";
+            sw.setOnCheckedChangeListener((v, on) -> {
                 Map<String, String> m = Guard.readLocks(this);
                 String cur = Guard.get(getContentResolver(), id);
                 if (on) {
-                    if (cur == null) { toast("That setting doesn't exist on this phone"); v.setChecked(false); return; }
+                    if (cur == null) { toast("That setting doesn't exist on this phone"); return; }
                     m.put(id, cur);
                 } else {
                     m.remove(id);
                 }
                 Guard.writeLocks(this, m);
                 Engine.sync(this);
-                rebuildLocks();
+                ui.post(this::rebuildLocks);
             });
-            lockList.addView(cb);
+            u.row(lockList, en.getValue(), sub, sw);
         }
     }
 

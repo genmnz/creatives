@@ -369,6 +369,12 @@ public final class Engine extends VpnService {
 
     boolean dnsRunning() { return tun != null; }
 
+    /** Android's "Always-on VPN" for Melad. Only meaningful while the filter runs. */
+    boolean alwaysOn() { try { return isAlwaysOn(); } catch (RuntimeException e) { return false; } }
+
+    /** Android's "Block connections without VPN". Melad routes only DNS, so this cuts all other traffic. */
+    boolean lockdown() { try { return isLockdownEnabled(); } catch (RuntimeException e) { return false; } }
+
     private void write(byte[] b, int len) {
         FileOutputStream o = tunOut;
         if (o == null) return;

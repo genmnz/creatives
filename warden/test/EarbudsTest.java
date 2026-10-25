@@ -107,6 +107,10 @@ public final class EarbudsTest {
         check(Earbuds.deviceClass(0x240418).equals("headphones"), "CoD headphones");
         check(Earbuds.deviceType(3).equals("Classic + LE"), "device type dual");
 
+        check(Earbuds.lookalike("Galaxy Buds2 Pro", Arrays.asList("00001101-0000-1000-8000-00805f9b34fb")) != null, "Galaxy Buds look-alike spotted");
+        check(Earbuds.lookalike("Galaxy Buds2 Pro", Arrays.asList(Earbuds.SAMSUNG_BUDS_SPP)) == null, "real Galaxy Buds not flagged");
+        check(Earbuds.lookalike("soundcore R50i NC", Arrays.asList("00001101-0000-1000-8000-00805f9b34fb")) == null, "other brands not flagged");
+
         // recognition
         check("Airoha".equals(Earbuds.ouiVendor("0c:fc:83:12:34:56")), "OUI lookup");
         check(Earbuds.company(0x05D6).startsWith("JieLi") && Earbuds.company(0x02B0).contains("BES"), "company IDs");
