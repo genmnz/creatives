@@ -196,7 +196,7 @@ public final class Engine extends VpnService {
         nm.createNotificationChannel(ch);
         PendingIntent open = PendingIntent.getActivity(this, 0, new Intent(this, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
         Notification n = new Notification.Builder(this, "w")
-                .setSmallIcon(R.drawable.ic_stat).setContentTitle("Warden is guarding")
+                .setSmallIcon(R.drawable.ic_stat).setContentTitle("Melad is guarding")
                 .setContentIntent(open).setOngoing(true).build();
         if (Build.VERSION.SDK_INT >= 34) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
         else startForeground(1, n);
@@ -240,6 +240,22 @@ public final class Engine extends VpnService {
         netLp = lp;
         setUpstream(lp);
         if (!upstreamText.equals(before)) guard.burst(); // new network/SIM: carrier settings may follow
+        maybeUpdateLists(best, cm);
+    }
+
+    private volatile boolean updating;
+
+    /** Refreshes blocklists about once a day, on unmetered (Wi-Fi) networks only, if the user allows it. */
+    private void maybeUpdateLists(Network best, ConnectivityManager cm) {
+        if (updating || best == null || !dnsRunning()) return;
+        if (!Store.prefs(this).getBoolean("auto_update", true) || !Updater.due(this)) return;
+        NetworkCapabilities nc = cm.getNetworkCapabilities(best);
+        if (nc == null || !nc.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+                || !nc.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) return;
+        updating = true;
+        new Thread(() -> {
+            try { Updater.updateAll(this, null); } catch (RuntimeException ignored) { } finally { updating = false; }
+        }, "melad-lists").start();
     }
 
     private void setUpstream(LinkProperties lp) {
@@ -265,7 +281,7 @@ public final class Engine extends VpnService {
         }
         warning = lp != null && lp.getPrivateDnsServerName() != null
                 ? "Private DNS is set to a hostname (" + lp.getPrivateDnsServerName() + "). Android sends DNS there "
-                + "directly, skipping Warden. Set Settings → Connections → More → Private DNS to Off."
+                + "directly, skipping Melad. Set Settings → Connections → More → Private DNS to Off."
                 : "";
     }
 
@@ -297,7 +313,7 @@ public final class Engine extends VpnService {
         reloadLists();
         boolean catchHardcoded = Store.prefs(this).getBoolean("catch_hardcoded", true);
         Builder b = new Builder()
-                .setSession("Warden DNS filter")
+                .setSession("Melad DNS filter")
                 .setMtu(MTU)
                 .setBlocking(true)
                 .addAddress(ADDR4, 32)
@@ -315,7 +331,7 @@ public final class Engine extends VpnService {
         try {
             tun = b.establish();
         } catch (RuntimeException e) {
-            warning = "Could not start VPN: " + e.getMessage();
+            warning = "Could not start the DNS filter: " + e.getMessage();
             return;
         }
         if (tun == null) return; // permission revoked

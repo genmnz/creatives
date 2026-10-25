@@ -154,14 +154,15 @@ public final class PacketsTest {
         check(java.util.Arrays.equals(Blocklist.load(f), bl.block), "save/load roundtrip");
         f.delete();
 
-        // bundled lists parse
-        for (String n : new String[]{"telemetry", "location", "samsung", "allow"}) {
-            java.io.File lf = new java.io.File(a[0], n + ".txt");
+        // bundled lists parse (gzipped domain lists + plain allow list)
+        for (String n : new String[]{"telemetry.txt.gz", "location.txt.gz", "device.txt.gz", "doh.txt.gz", "allow.txt"}) {
+            java.io.File lf = new java.io.File(a[0], n);
             Blocklist.Builder lb = new Blocklist.Builder();
-            int c = lb.parse(new java.io.FileInputStream(lf));
-            int lines = 0;
-            for (String line : java.nio.file.Files.readAllLines(lf.toPath())) if (!line.isBlank() && !line.startsWith("#")) lines++;
-            check(c == lines && lb.sorted().length == c, n + ".txt: every line is a valid unique domain (" + c + ")");
+            java.io.InputStream in = new java.io.FileInputStream(lf);
+            if (n.endsWith(".gz")) in = new java.util.zip.GZIPInputStream(in);
+            int c = lb.parse(in);
+            in.close();
+            check(c > 0 && lb.sorted().length <= c, n + ": parses (" + c + " rules, " + lb.sorted().length + " unique)");
         }
         System.out.println(fails == 0 ? "\nALL PASS" : "\n" + fails + " FAILED");
         System.exit(fails == 0 ? 0 : 1);

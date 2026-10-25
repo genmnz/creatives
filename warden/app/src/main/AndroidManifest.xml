@@ -12,13 +12,21 @@
     <!-- settings lock: System table via "Modify system settings", Global/Secure via one adb grant -->
     <uses-permission android:name="android.permission.WRITE_SETTINGS" tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" tools:ignore="ProtectedPermissions" />
-    <!-- lets Warden be chosen in Developer options → Select mock location app -->
+    <!-- lets Melad be chosen in Developer options → Select mock location app -->
     <uses-permission android:name="android.permission.ACCESS_MOCK_LOCATION" tools:ignore="MockLocation,ProtectedPermissions" />
+    <!-- earbuds: scan reads battery from the advertisement, connect reads live battery / controls -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" tools:targetApi="31" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" tools:targetApi="31" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
 
     <application
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
-        android:label="Warden"
+        android:label="Melad"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault.DayNight"
         tools:ignore="DataExtractionRules,MissingApplicationIcon">
@@ -32,6 +40,8 @@
 
         <activity android:name=".MapActivity" android:exported="false"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+
+        <activity android:name=".EarbudsActivity" android:exported="false" android:label="My earbuds" />
 
         <service
             android:name=".Engine"

@@ -20,7 +20,7 @@ public final class Receivers {
     /** Device admin: makes Warden harder to remove or force-stop by accident. */
     public static final class Admin extends DeviceAdminReceiver {
         @Override public CharSequence onDisableRequested(Context c, Intent i) {
-            return "Warden stops being protected from removal. Blocking keeps running until you turn it off.";
+            return "Melad stops being protected from removal. Blocking keeps running until you turn it off.";
         }
     }
 }

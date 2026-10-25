@@ -1,9 +1,16 @@
 # Never blocked, even if an imported list contains them: blocking these breaks the phone.
-connectivitycheck.gstatic.com
-clients3.google.com
-play.googleapis.com
-android.googleapis.com
-mtalk.google.com
-fcm.googleapis.com
 accounts.google.com
+android.googleapis.com
+apresolve.spotify.com
+clients.l.google.com
+clients3.google.com
+clients4.google.com
+connectivitycheck.gstatic.com
+dealer.spotify.com
+fcm.googleapis.com
+gvt1.com
+gvt2.com
+mtalk.google.com
+play.googleapis.com
+spclient.wg.spotify.com
 time.android.com

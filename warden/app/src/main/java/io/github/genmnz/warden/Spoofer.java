@@ -13,7 +13,7 @@ import android.os.SystemClock;
  * mock location API. While it runs, the real GPS/network providers are
  * replaced, so apps only ever see the marked spot.
  *
- * Needs: Developer options → Select mock location app → Warden.
+ * Needs: Developer options → Select mock location app → Melad.
  */
 final class Spoofer implements Runnable {
     private static final String[] PROVIDERS = {LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, "fused"};
@@ -54,7 +54,7 @@ final class Spoofer implements Runnable {
                     }
                     lm.setTestProviderEnabled(p, true);
                 } catch (SecurityException e) {
-                    error = "Pick Warden in Developer options → Select mock location app";
+                    error = "Pick Melad in Developer options → Select mock location app";
                     return;
                 } catch (RuntimeException e) {
                     // "fused" is not a test provider on every Android version; others are enough
@@ -91,7 +91,7 @@ final class Spoofer implements Runnable {
             try {
                 lm.setTestProviderLocation(p, l);
             } catch (SecurityException e) {
-                error = "Pick Warden in Developer options → Select mock location app";
+                error = "Pick Melad in Developer options → Select mock location app";
                 stop();
                 return;
             } catch (RuntimeException ignored) {

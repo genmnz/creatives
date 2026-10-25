@@ -241,7 +241,7 @@ public final class MapActivity extends Activity {
             HttpURLConnection con = null;
             try {
                 con = (HttpURLConnection) new URL("https://tile.openstreetmap.org/" + key + ".png").openConnection();
-                con.setRequestProperty("User-Agent", "Warden-privacy-app/1.0 (personal use)");
+                con.setRequestProperty("User-Agent", "Melad-privacy-app/2.0 (personal use)");
                 con.setConnectTimeout(8000);
                 con.setReadTimeout(8000);
                 if (con.getResponseCode() != 200) return null;

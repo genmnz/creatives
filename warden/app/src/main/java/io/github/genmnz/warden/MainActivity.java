@@ -42,7 +42,7 @@ public final class MainActivity extends Activity {
     private SharedPreferences prefs;
     private LinearLayout root;
     private final Handler ui = new Handler(Looper.getMainLooper());
-    private TextView status, guardStatus, spoofStatus, permStatus;
+    private TextView status, guardStatus, spoofStatus, permStatus, statusCard, listStatus;
     private Switch dnsSwitch;
     private boolean quiet; // set while the UI mirrors saved state, so listeners don't fire actions
     private EditText lat, lon;
@@ -83,12 +83,22 @@ public final class MainActivity extends Activity {
     // ------------------------------------------------------------------ layout
 
     private void build() {
-        root.addView(small("Telemetry & location blocker. Everything runs on this phone; no Warden servers exist."));
+        TextView title = big("Melad", 28);
+        root.addView(title);
+        root.addView(small("Your privacy toolbox. Everything runs on this phone; no servers of ours exist."));
+
+        // --- big active/inactive indicator
+        statusCard = new TextView(this);
+        statusCard.setTextSize(15);
+        statusCard.setPadding(dp(16), dp(14), dp(16), dp(14));
+        LinearLayout.LayoutParams scp = new LinearLayout.LayoutParams(-1, -2);
+        scp.topMargin = dp(10);
+        root.addView(statusCard, scp);
 
         // --- protection
         header("Blocking");
         dnsSwitch = new Switch(this);
-        dnsSwitch.setText("Block telemetry & trackers (local DNS filter)");
+        dnsSwitch.setText("Block ads, trackers & telemetry (local DNS filter)");
         dnsSwitch.setTextSize(16);
         dnsSwitch.setChecked(prefs.getBoolean("dns_on", false));
         dnsSwitch.setOnCheckedChangeListener((v, on) -> {
@@ -104,14 +114,15 @@ public final class MainActivity extends Activity {
         status = small("");
         root.addView(status);
 
-        for (String[] cat : Store.CATEGORIES) {
-            CheckBox cb = check(cat[1], prefs.getBoolean("cat_" + cat[0], true));
+        for (Store.Source s : Store.SOURCES) {
+            CheckBox cb = check(s.label, Store.enabled(this, s));
             cb.setOnCheckedChangeListener((v, on) -> {
-                prefs.edit().putBoolean("cat_" + cat[0], on).apply();
-                recompile();
+                prefs.edit().putBoolean("cat_" + s.id, on).apply();
+                if (on && s.asset == null && !Store.cacheFile(this, s).exists()) downloadThen(s);
+                else recompile();
             });
             root.addView(cb);
-            TextView d = small(cat[2]);
+            TextView d = small(s.desc);
             d.setPadding(dp(32), 0, 0, dp(4));
             root.addView(d);
         }
@@ -119,10 +130,20 @@ public final class MainActivity extends Activity {
         hard.setOnCheckedChangeListener((v, on) -> { prefs.edit().putBoolean("catch_hardcoded", on).apply(); restartDns(); });
         root.addView(hard);
 
-        row(button("Recent lookups", v -> showLog()),
-                button("Import list file", v -> pickImport()));
-        row(button("Edit my lists", v -> editLists()),
-                button("Clear imports", v -> clearImports()));
+        listStatus = small("");
+        root.addView(listStatus);
+        CheckBox auto = check("Auto-update lists when I connect to Wi-Fi", prefs.getBoolean("auto_update", true));
+        auto.setOnCheckedChangeListener((v, on) -> prefs.edit().putBoolean("auto_update", on).apply());
+        root.addView(auto);
+        row(button("Update lists now", v -> updateLists()),
+                button("Recent lookups", v -> showLog()));
+        row(button("Import list file", v -> pickImport()),
+                button("Edit my lists", v -> editLists()));
+
+        // --- earbuds
+        header("My earbuds");
+        root.addView(small("Recognise cheap earbuds with no companion app: battery, game mode and noise control."));
+        root.addView(button("Open earbuds", v -> startActivity(new Intent(this, EarbudsActivity.class))));
 
         // --- location
         header("Location");
@@ -150,13 +171,13 @@ public final class MainActivity extends Activity {
                 button("Mock app setting", v -> open(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS)));
         spoofStatus = small("");
         root.addView(spoofStatus);
-        root.addView(small("One-time setup: Developer options → Select mock location app → Warden. "
+        root.addView(small("One-time setup: Developer options → Select mock location app → Melad. "
                 + "Wi-Fi/Bluetooth scanning and A-GPS can be switched off below in Settings lock."));
 
         // --- settings lock
         header("Settings lock (SIM / carrier changes)");
         root.addView(small("Tick a setting to keep its current value. When a SIM, eSIM or carrier update changes it, "
-                + "Warden puts it back right away. Set things the way you like in Settings first, then tick."));
+                + "Melad puts it back right away. Set things the way you like in Settings first, then tick."));
         permStatus = small("");
         root.addView(permStatus);
         lockList = new LinearLayout(this);
@@ -169,7 +190,7 @@ public final class MainActivity extends Activity {
 
         // --- staying alive
         header("Keep running");
-        root.addView(small("For all-day protection: turn on Always-on VPN for Warden, and let it ignore battery "
+        root.addView(small("For all-day protection: turn on Always-on VPN for Melad, and let it ignore battery "
                 + "optimisation (Samsung otherwise puts it to sleep). Device admin stops accidental removal."));
         row(button("Always-on VPN", v -> open(Settings.ACTION_VPN_SETTINGS)),
                 button("Battery: unrestricted", v -> askBattery()));
@@ -193,6 +214,32 @@ public final class MainActivity extends Activity {
         status.setText(s);
         boolean on = prefs.getBoolean("dns_on", false);
         if (dnsSwitch.isChecked() != on) { quiet = true; dnsSwitch.setChecked(on); quiet = false; }
+
+        // big active/inactive indicator at the top
+        boolean dnsActive = e != null && e.dnsRunning();
+        boolean spoofActive = e != null && e.spoofer.active();
+        boolean lockActive = e != null && !Guard.readLocks(this).isEmpty();
+        List<String> active = new java.util.ArrayList<>();
+        if (dnsActive) active.add("Blocking");
+        if (spoofActive) active.add("Location");
+        if (lockActive) active.add("Settings lock");
+        boolean anyWanted = on || prefs.getBoolean("spoof_on", false) || !Guard.readLocks(this).isEmpty();
+        if (!active.isEmpty()) {
+            statusCard.setText("● Protecting  ·  " + String.join(", ", active));
+            statusCard.setTextColor(0xFFFFFFFF);
+            statusCard.setBackgroundColor(0xFF1B5E20);
+        } else if (anyWanted) {
+            statusCard.setText("◌ Starting…");
+            statusCard.setTextColor(0xFFFFFFFF);
+            statusCard.setBackgroundColor(0xFFF9A825);
+        } else {
+            statusCard.setText("○ Off  ·  nothing is being blocked or changed");
+            statusCard.setTextColor(0xFFFFFFFF);
+            statusCard.setBackgroundColor(0xFF9E9E9E);
+        }
+        long when = Updater.lastUpdate(this);
+        listStatus.setText("Lists: " + (when == 0 ? "built in, never updated"
+                : "updated " + android.text.format.DateUtils.getRelativeTimeSpanString(when)));
 
         boolean secure = checkSelfPermission("android.permission.WRITE_SECURE_SETTINGS") == PackageManager.PERMISSION_GRANTED;
         boolean system = Settings.System.canWrite(this);
@@ -291,6 +338,30 @@ public final class MainActivity extends Activity {
         ui.postDelayed(() -> { prefs.edit().putBoolean("dns_on", true).apply(); Engine.sync(this); }, 500);
     }
 
+    /** Downloads one source that has no bundled copy, then rebuilds. */
+    private void downloadThen(Store.Source s) {
+        toast("Downloading " + s.label + "…");
+        new Thread(() -> {
+            String msg;
+            try {
+                int n = Updater.fetch(s.url, Store.cacheFile(this, s));
+                msg = s.label + ": " + String.format(Locale.ROOT, "%,d", n) + " rules";
+            } catch (Exception ex) {
+                msg = "Download failed: " + ex.getMessage();
+            }
+            final String m = msg;
+            ui.post(() -> { toast(m); recompile(); });
+        }).start();
+    }
+
+    private void updateLists() {
+        toast("Updating lists…");
+        new Thread(() -> {
+            String summary = Updater.updateAll(this, null);
+            ui.post(() -> toast(summary));
+        }).start();
+    }
+
     private void pickImport() {
         Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*");
         startActivityForResult(i, REQ_IMPORT);
@@ -335,6 +406,7 @@ public final class MainActivity extends Activity {
                             .putString("user_allow", allow.getText().toString()).apply();
                     recompile();
                 })
+                .setNeutralButton("Clear imported files", (d, w) -> clearImports())
                 .setNegativeButton("Cancel", null).show();
     }
 
@@ -423,13 +495,13 @@ public final class MainActivity extends Activity {
         DevicePolicyManager dpm = getSystemService(DevicePolicyManager.class);
         ComponentName admin = new ComponentName(this, Receivers.Admin.class);
         if (dpm.isAdminActive(admin)) {
-            new AlertDialog.Builder(this).setMessage("Remove Warden as device admin?")
+            new AlertDialog.Builder(this).setMessage("Remove Melad as device admin?")
                     .setPositiveButton("Remove", (d, w) -> dpm.removeActiveAdmin(admin))
                     .setNegativeButton("Keep", null).show();
         } else {
             startActivity(new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
                     .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, admin)
-                    .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Protects Warden from being removed or disabled by accident."));
+                    .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION, "Protects Melad from being removed or disabled by accident."));
         }
     }
 
@@ -449,6 +521,12 @@ public final class MainActivity extends Activity {
         TextView t = new TextView(this);
         t.setText(s);
         t.setTextSize(sp);
+        return t;
+    }
+
+    private TextView big(String s, int sp) {
+        TextView t = text(s, sp);
+        t.setTypeface(Typeface.DEFAULT_BOLD);
         return t;
     }
 
