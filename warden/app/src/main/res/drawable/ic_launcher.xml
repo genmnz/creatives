@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- shield with a keyhole -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp" android:viewportWidth="48" android:viewportHeight="48">
+    <path android:fillColor="#1B5E20" android:pathData="M24,2 L42,9 V22 C42,33 34,42 24,46 C14,42 6,33 6,22 V9 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M24,14 a5,5 0 1,1 -0.01,0 Z M21,23 h6 l1.5,11 h-9 Z" />
+</vector>

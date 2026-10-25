@@ -1,0 +1,20 @@
+# Samsung/preinstalled packages that phone home or re-apply carrier settings.
+# samsung-debloat disables them for your user (not uninstall): fully reversible with --undo,
+# and a factory reset brings everything back. One package per line; delete lines you want to keep.
+#
+# --- carrier customisation (what re-configures the phone after a SIM swap)
+com.samsung.android.app.omcagent
+# --- diagnostics / usage data
+com.sec.android.diagmonagent
+com.samsung.android.dqagent
+com.samsung.android.knox.analytics.uploader
+com.samsung.android.rubin.app
+com.google.android.feedback
+# --- preinstalled Facebook services (run even without the Facebook app)
+com.facebook.services
+com.facebook.system
+com.facebook.appmanager
+# --- location tracking extras (GPS itself is not affected)
+com.samsung.android.ipsgeofence
+# --- annoyances
+com.samsung.android.app.tips

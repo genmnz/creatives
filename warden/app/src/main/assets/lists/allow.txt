@@ -1,0 +1,9 @@
+# Never blocked, even if an imported list contains them: blocking these breaks the phone.
+connectivitycheck.gstatic.com
+clients3.google.com
+play.googleapis.com
+android.googleapis.com
+mtalk.google.com
+fcm.googleapis.com
+accounts.google.com
+time.android.com

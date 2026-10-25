@@ -1,0 +1,46 @@
+plugins { id "com.android.application" }
+
+android {
+    namespace "io.github.genmnz.warden"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "io.github.genmnz.warden"
+        minSdk 29
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+    }
+
+    signingConfigs {
+        release {
+            // Your own key: keep the same one so updates install over the old version.
+            // Create once with tools/make-key.sh; never commit it.
+            def ks = file(System.getenv("WARDEN_KEYSTORE") ?: "../warden.jks")
+            if (ks.exists()) {
+                storeFile ks
+                storePassword System.getenv("WARDEN_KS_PASS") ?: "warden"
+                keyAlias "warden"
+                keyPassword System.getenv("WARDEN_KS_PASS") ?: "warden"
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            signingConfig signingConfigs.release.storeFile != null ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packagingOptions { resources { excludes += ["META-INF/**", "kotlin/**", "DebugProbesKt.bin"] } }
+    dependenciesInfo { includeInApk false; includeInBundle false }
+    lint { abortOnError false }
+}

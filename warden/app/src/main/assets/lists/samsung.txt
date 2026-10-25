@@ -1,0 +1,31 @@
+# Samsung diagnostics, ads and carrier customisation.
+# Not blocked: Samsung account, Galaxy Store, firmware updates, Find My Mobile, Samsung Pay.
+
+# Diagnostics / usage data (DiagMon, Device Quality Agent)
+dc.di.atlas.samsung.com
+diagmon-serviceapi.samsungdm.com
+dqa-service.samsungdm.com
+samsung-gamelauncher.com
+gpm.samsungqbe.com
+bigdata.ssp.samsung.com
+log.samsunglogs.com
+samsunglogs.com
+
+# Ads / marketing
+samsungads.com
+config.samsungads.com
+samsungadhub.com
+ad.samsungadhub.com
+samsungacr.com
+log-config.samsungacr.com
+log-ingestion.samsungacr.com
+samsung-com.112.2o7.net
+samsungelectronics.demdex.net
+analytics.samsungknox.com
+metrics.samsungknox.com
+samsungqbe.com
+
+# Carrier customisation pushed after a SIM change (OMC updates). Most of it ships on the phone
+# itself, so the real fix is the settings lock plus tools/samsung-debloat.sh.
+omc.samsungdm.com
+oms.samsungdm.com
