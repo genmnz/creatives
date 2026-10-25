@@ -72,6 +72,29 @@ public final class EarbudsTest {
         Earbuds.Battery xb = Earbuds.xiaomi(xi);
         check(xb != null && xb.left == 100 && xb.leftCharging && xb.right == 70 && xb.rightCharging && xb.box == 44, "Xiaomi battery: " + xb);
 
+        // standard GATT battery + teachable custom rule + history record
+        Earbuds.Battery sb2 = Earbuds.standardBattery(new byte[]{(byte)85});
+        check(sb2 != null && sb2.single == 85, "standard battery: " + sb2);
+        check(Earbuds.standardBattery(new byte[]{(byte)200}) == null, "standard battery rejects >100");
+
+        Earbuds.CustomRule rule = new Earbuds.CustomRule();
+        rule.svc = "fe80"; rule.chr = "fe81"; rule.left = 2; rule.right = 3; rule.box = 4; rule.mask = 0x7F;
+        Earbuds.Battery cb = rule.apply(h("aa bb 64 c5 32")); // L=0x64=100, R=0x45&7f=69 charging, Case=0x32=50
+        check(cb != null && cb.left == 100 && cb.right == 69 && cb.rightCharging && cb.box == 50, "custom rule: " + cb);
+        Earbuds.CustomRule rr = Earbuds.CustomRule.parse(rule.serialize());
+        check(rr != null && rr.left == 2 && rr.box == 4 && rr.mask == 0x7F && rr.highBitCharge, "custom rule round-trip");
+        check(!new Earbuds.CustomRule().usable(), "empty rule not usable");
+
+        Earbuds.BudRecord rec2 = new Earbuds.BudRecord();
+        rec2.mac = "7C:C9:5E:25:81:D8"; rec2.name = "My Buds"; rec2.chip = "JieLi"; rec2.model = "Buds1";
+        rec2.lastBattery = "L 100%  R 90%"; rec2.lastSeen = 1700000000000L; rec2.connectedMs = 3600_000L; rec2.rule = rule;
+        Earbuds.BudRecord back = Earbuds.BudRecord.parse(rec2.serialize());
+        check(back != null && back.mac.equals(rec2.mac) && back.name.equals("My Buds") && back.chip.equals("JieLi")
+                && back.lastBattery.equals("L 100%  R 90%") && back.connectedMs == 3600_000L && back.rule != null && back.rule.right == 3,
+                "bud record round-trip");
+        check(Earbuds.uptime(3600_000L + 20 * 60_000L).equals("1 h 20 m"), "uptime: " + Earbuds.uptime(3600_000L + 20*60_000L));
+        check(Earbuds.hex(Earbuds.unhex("05 5a 0A")).equals("05 5A 0A"), "hex round-trip");
+
         // recognition
         check("Airoha".equals(Earbuds.ouiVendor("0c:fc:83:12:34:56")), "OUI lookup");
         check(Earbuds.company(0x05D6).startsWith("JieLi") && Earbuds.company(0x02B0).contains("BES"), "company IDs");

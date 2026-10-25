@@ -377,4 +377,137 @@ final class Earbuds {
         for (byte x : b) sb.append(String.format(Locale.ROOT, "%02X ", x & 0xFF));
         return sb.toString().trim();
     }
+
+    static byte[] unhex(String s) {
+        StringBuilder c = new StringBuilder();
+        for (int i = 0; i < s.length(); i++) {
+            char ch = s.charAt(i);
+            if ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')) c.append(ch);
+        }
+        if (c.length() % 2 != 0) c.setLength(c.length() - 1);
+        byte[] out = new byte[c.length() / 2];
+        for (int i = 0; i < out.length; i++) out[i] = (byte) Integer.parseInt(c.substring(2 * i, 2 * i + 2), 16);
+        return out;
+    }
+
+    // ------------------------------------------------------------------ universal fallback (standard GATT)
+
+    /** Standard Bluetooth Battery Service (0x180F / char 0x2A19): a single 0-100 byte. Works on many buds. */
+    static Battery standardBattery(byte[] v) {
+        if (v == null || v.length < 1) return null;
+        int p = v[0] & 0xFF;
+        if (p > 100) return null;
+        Battery b = new Battery();
+        b.single = p;
+        b.source = "Standard Bluetooth battery";
+        return b;
+    }
+
+    // ------------------------------------------------------------------ teachable custom rule
+
+    /**
+     * A rule the user teaches Melad for earbuds no list knows: it says which bytes of a
+     * characteristic's value hold the battery levels. This is how Melad still gives
+     * something useful for an unrecognised chip — you point at the byte, it reads it forever.
+     */
+    static final class CustomRule {
+        String svc = "", chr = "";      // the notify/read characteristic the bytes come from
+        int left = -1, right = -1, box = -1, single = -1; // byte offsets into the value, -1 = not used
+        int mask = 0x7F;                // AND mask applied to each byte
+        boolean highBitCharge = true;   // bit 0x80 = charging flag
+
+        boolean usable() { return left >= 0 || right >= 0 || box >= 0 || single >= 0; }
+
+        private int at(byte[] v, int off) {
+            if (off < 0 || off >= v.length) return -1;
+            int p = v[off] & mask;
+            return p > 100 ? -1 : p;
+        }
+
+        private boolean charge(byte[] v, int off) {
+            return highBitCharge && off >= 0 && off < v.length && (v[off] & 0x80) != 0;
+        }
+
+        Battery apply(byte[] v) {
+            if (v == null) return null;
+            Battery b = new Battery();
+            b.left = at(v, left); b.leftCharging = charge(v, left);
+            b.right = at(v, right); b.rightCharging = charge(v, right);
+            b.box = at(v, box); b.boxCharging = charge(v, box);
+            b.single = at(v, single);
+            b.source = "Your custom rule";
+            return b.any() ? b : null;
+        }
+
+        String serialize() {
+            return String.join("|", svc, chr, Integer.toString(left), Integer.toString(right),
+                    Integer.toString(box), Integer.toString(single), Integer.toString(mask), highBitCharge ? "1" : "0");
+        }
+
+        static CustomRule parse(String s) {
+            if (s == null || s.isEmpty()) return null;
+            String[] p = s.split("\\|", -1);
+            if (p.length < 8) return null;
+            try {
+                CustomRule r = new CustomRule();
+                r.svc = p[0]; r.chr = p[1];
+                r.left = Integer.parseInt(p[2]); r.right = Integer.parseInt(p[3]);
+                r.box = Integer.parseInt(p[4]); r.single = Integer.parseInt(p[5]);
+                r.mask = Integer.parseInt(p[6]); r.highBitCharge = p[7].equals("1");
+                return r;
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ device history record
+
+    private static final char SEP = '\u001f';
+
+    /** One remembered device: nickname, what we learned about it, and a taught rule if any. */
+    static final class BudRecord {
+        String mac = "", name = "", chip = "", model = "", firmware = "", lastBattery = "";
+        long lastSeen, connectedMs;
+        CustomRule rule;
+
+        static String clean(String s) {
+            if (s == null) return "";
+            StringBuilder b = new StringBuilder(s.length());
+            for (int i = 0; i < s.length(); i++) {
+                char c = s.charAt(i);
+                b.append(c < 0x20 ? ' ' : c);
+            }
+            return b.toString();
+        }
+
+        String serialize() {
+            return String.join(String.valueOf(SEP), "1", clean(mac), clean(name), clean(chip), clean(model),
+                    clean(firmware), clean(lastBattery), Long.toString(lastSeen), Long.toString(connectedMs),
+                    rule == null ? "" : rule.serialize());
+        }
+
+        static BudRecord parse(String line) {
+            if (line == null) return null;
+            String[] p = line.split(String.valueOf(SEP), -1);
+            if (p.length < 10 || !p[0].equals("1")) return null;
+            try {
+                BudRecord r = new BudRecord();
+                r.mac = p[1]; r.name = p[2]; r.chip = p[3]; r.model = p[4]; r.firmware = p[5];
+                r.lastBattery = p[6]; r.lastSeen = Long.parseLong(p[7]); r.connectedMs = Long.parseLong(p[8]);
+                r.rule = CustomRule.parse(p[9]);
+                return r;
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+    }
+
+    /** Human "connected for 3 h 20 m" from milliseconds. */
+    static String uptime(long ms) {
+        long s = ms / 1000, h = s / 3600, m = (s % 3600) / 60;
+        if (h > 0) return h + " h " + m + " m";
+        if (m > 0) return m + " m " + (s % 60) + " s";
+        return s + " s";
+    }
 }
