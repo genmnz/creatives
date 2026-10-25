@@ -36,7 +36,8 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
     private EarbudLink link;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private LinearLayout root, devices, controls, history;
-    private TextView statusLine, batteryLine, chipLine, diagLine, devInfoLine, logView;
+    private TextView statusLine, batteryLine, chipLine, diagLine, devInfoLine, classicLine, logView;
+    private boolean autoPicked;
     private final StringBuilder logBuf = new StringBuilder();
     private Earbuds.JieliInfo info;
     private String connectedMac, connectedName;
@@ -49,6 +50,7 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
+        CrashLog.install(this);
         setTitle("My earbuds");
         link = new EarbudLink(this);
         link.setListener(this);
@@ -61,6 +63,7 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
         sv.addView(root);
         setContentView(sv);
         build();
+        CrashLog.offer(this);
     }
 
     @Override protected void onResume() {
@@ -70,7 +73,7 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
 
     @Override protected void onPause() { link.stopScan(); super.onPause(); }
 
-    @Override protected void onDestroy() { link.disconnect(); link.stopScan(); super.onDestroy(); }
+    @Override protected void onDestroy() { link.close(); super.onDestroy(); }
 
     private void build() {
         root.removeAllViews();
@@ -94,6 +97,11 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
         root.addView(diagLine);
         devInfoLine = small("");
         root.addView(devInfoLine);
+        classicLine = card("");
+        classicLine.setVisibility(View.GONE);
+        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(-1, -2);
+        clp.topMargin = dp(8);
+        root.addView(classicLine, clp);
 
         controls = new LinearLayout(this);
         controls.setOrientation(LinearLayout.VERTICAL);
@@ -150,9 +158,28 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
 
     private void start() {
         if (statusLine == null) build();
+        link.open();
         link.startScan();
         listDevices();
         listHistory();
+        // auto-detect the buds you're listening on. Android reports audio connections a moment
+        // after the screen opens, so check again shortly.
+        autoPick();
+        ui.postDelayed(this::autoPick, 800);
+        ui.postDelayed(this::autoPick, 2500);
+    }
+
+    private void autoPick() {
+        if (autoPicked || connectedMac != null || isFinishing()) return;
+        for (String[] d : link.paired()) {
+            if ("playing".equals(d[2])) {
+                autoPicked = true;
+                log("Auto-detected " + d[0] + " (playing now)");
+                connect(d[1], d[0]);
+                listDevices();
+                return;
+            }
+        }
     }
 
     // ------------------------------------------------------------------ device + history lists
@@ -160,14 +187,16 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
     private void listDevices() {
         if (devices == null) return;
         devices.removeAllViews();
-        List<String[]> paired = link.pairedAudio();
+        List<String[]> paired = link.paired();
         if (paired.isEmpty()) {
-            devices.addView(small("No paired audio devices. Pair your earbuds in Settings → Bluetooth first."));
+            devices.addView(small("No paired devices. Pair your earbuds in Settings → Bluetooth first."));
             return;
         }
         for (String[] d : paired) {
             final String name = d[0], mac = d[1];
-            Button b = button(name + "\n" + mac, v -> connect(mac, name));
+            String tag = "playing".equals(d[2]) ? "▶ playing now" : "audio".equals(d[2]) ? "audio" : "other device";
+            Button b = button(name + "\n" + mac + "  ·  " + tag, v -> connect(mac, name));
+            if ("playing".equals(d[2])) { b.setTextColor(0xFF2E7D32); b.setTypeface(Typeface.DEFAULT_BOLD); }
             devices.addView(b);
         }
     }
@@ -269,15 +298,43 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
 
     // ------------------------------------------------------------------ the Lab
 
+    /** The Lab: probe the buds over Classic channels or LE characteristics, then teach a rule. */
     private void openLab() {
-        List<String[]> chars = link.labChars();
-        if (chars.isEmpty()) { toast("Connect to a device first"); return; }
-        String[] labels = new String[chars.size()];
-        for (int i = 0; i < labels.length; i++) labels[i] = chars.get(i)[0] + "  [" + chars.get(i)[2] + "]";
-        new AlertDialog.Builder(this).setTitle("Lab — pick a characteristic")
-                .setItems(labels, (d, which) -> labActions(chars.get(which)))
+        if (connectedMac == null) { toast("Tap your earbuds first"); return; }
+        final List<String> channels = link.classicChannels();
+        final List<String[]> chars = link.labChars();
+        List<String> items = new java.util.ArrayList<>();
+        final List<Runnable> acts = new java.util.ArrayList<>();
+        if (link.channelOpen()) {
+            items.add("Send hex on the open Classic channel…");
+            acts.add(() -> sendHexDialog(null));
+            items.add("Close Classic channel");
+            acts.add(link::closeChannel);
+        }
+        for (String u : channels) {
+            items.add("Classic channel · " + labelForClassic(u));
+            acts.add(() -> link.openChannel(u));
+        }
+        for (String[] c : chars) {
+            items.add("LE · " + c[0] + "  [" + c[2] + "]");
+            acts.add(() -> labActions(c));
+        }
+        if (items.isEmpty()) {
+            new AlertDialog.Builder(this).setTitle("Lab")
+                    .setMessage("These buds expose no control channel Melad can open yet — no vendor channel over Classic, "
+                            + "and no LE link. Battery still shows if the buds report it to Android or in their advertisement.")
+                    .setPositiveButton("OK", null).show();
+            return;
+        }
+        new AlertDialog.Builder(this).setTitle("Lab — pick a channel")
+                .setItems(items.toArray(new String[0]), (d, which) -> acts.get(which).run())
                 .setNeutralButton("Teach battery rule", (d, w) -> teachRuleDialog())
                 .setNegativeButton("Close", null).show();
+    }
+
+    private String labelForClassic(String uuid) {
+        String n = Earbuds.classicService(uuid);
+        return (n == null ? "" : n + " ") + uuid.substring(0, 8);
     }
 
     private void labActions(String[] ch) {
@@ -293,17 +350,19 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
                 .setNegativeButton("Back", (d, w) -> openLab()).show();
     }
 
+    /** uuid == null means the open Classic channel. */
     private void sendHexDialog(String uuid) {
         EditText in = new EditText(this);
         in.setHint("e.g. 05 5A 02 00 08 1E");
         in.setSingleLine();
         new AlertDialog.Builder(this).setTitle("Send bytes")
-                .setMessage("Hex to write to " + uuid + ". Safe to experiment — these are the same kind of commands the official app sends.")
+                .setMessage("Hex to write to " + (uuid == null ? "the Classic channel" : uuid)
+                        + ". Replies show in Activity. Only send what you understand — this talks straight to the buds.")
                 .setView(in)
                 .setPositiveButton("Send", (d, w) -> {
                     byte[] data = Earbuds.unhex(in.getText().toString());
                     if (data.length == 0) { toast("Enter some hex"); return; }
-                    link.labWrite(uuid, data);
+                    if (uuid == null) link.channelWrite(data); else link.labWrite(uuid, data);
                 })
                 .setNegativeButton("Cancel", null).show();
     }
@@ -374,6 +433,29 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
     }
 
     @Override public void inspector(List<String[]> rows) { lastInspector = rows; }
+
+    @Override public void classic(EarbudLink.ClassicReport r) {
+        if (classicLine == null) return;
+        StringBuilder sb = new StringBuilder();
+        sb.append(r.name).append(r.playing ? "  ·  ▶ playing audio now" : "  ·  not connected for audio").append('\n');
+        sb.append("Chip: ").append(r.verdict.isEmpty() ? "maker not in any list (yet)" : r.verdict);
+        if (!r.vendor.isEmpty() && !r.vendor.equals(r.verdict)) sb.append("  ·  radio by ").append(r.vendor);
+        sb.append('\n');
+        if (!r.claims.isEmpty()) sb.append("Says it is: ").append(r.claims).append('\n');
+        if (!r.type.isEmpty()) sb.append("Bluetooth: ").append(r.type).append('\n');
+        if (r.hfpBattery >= 0) sb.append("Headset battery reported to Android: ").append(r.hfpBattery).append("%\n");
+        if (!r.services.isEmpty()) {
+            sb.append("Offers: ");
+            for (int i = 0; i < r.services.size(); i++) sb.append(i > 0 ? ", " : "").append(r.services.get(i)[0]);
+            sb.append('\n');
+        }
+        sb.append(r.vendorChannels.isEmpty()
+                ? "No vendor control channel over Classic."
+                : r.vendorChannels.size() + " control channel(s) found → open the Lab to talk to it.");
+        classicLine.setText(sb);
+        classicLine.setVisibility(View.VISIBLE);
+        if (!r.verdict.isEmpty() && chipLine.getText().length() == 0) chipLine.setText(r.verdict + " chip");
+    }
 
     @Override public void diagnostics(int latencyMs, int rssi, long uptimeMs) {
         if (diagLine == null) return;
@@ -488,6 +570,7 @@ public final class EarbudsActivity extends Activity implements EarbudLink.Listen
     private static String name(String[] table, int v) { return v > 0 && v < table.length ? table[v] : "mode " + v; }
 
     private static String shortOf(String uuid) {
+        if (uuid.startsWith("classic:")) return "Classic " + shortOf(uuid.substring(8));
         if (uuid.startsWith("0000") && uuid.endsWith("-0000-1000-8000-00805f9b34fb")) return uuid.substring(4, 8).toUpperCase(Locale.ROOT);
         return uuid.length() > 8 ? uuid.substring(0, 8) : uuid;
     }

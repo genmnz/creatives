@@ -89,6 +89,70 @@ final class Earbuds {
         return null;
     }
 
+    /** True for the standard Bluetooth SIG 16-bit range (xxxx-0000-1000-8000-00805f9b34fb). */
+    static boolean isSigUuid(String uuid) {
+        String u = uuid.toLowerCase(Locale.ROOT);
+        return u.startsWith("0000") && u.endsWith("-0000-1000-8000-00805f9b34fb");
+    }
+
+    /**
+     * Classic (SDP) services: names what we know, and flags any unknown 128-bit UUID as a
+     * vendor control channel. Such a channel is how most clone chips (Airoha, BES, Bluetrum,
+     * Actions, Qualcomm) talk to their own apps, so it's a strong "controllable" clue even
+     * when the vendor isn't in any list.
+     */
+    static String classicService(String uuid) {
+        String known = service(uuid);
+        if (known != null) return known;
+        String u = uuid.toLowerCase(Locale.ROOT);
+        if (isSigUuid(u)) {
+            switch (u.substring(4, 8)) {
+                case "1108": return "Headset (HSP)";
+                case "110a": return "Audio source";
+                case "110c": return "Remote control target";
+                case "111f": return "Hands-free gateway";
+                case "1200": return "Device ID (PnP)";
+                case "1131": return "Headset audio gateway";
+                default: return null;
+            }
+        }
+        return "Vendor control channel (unknown maker)";
+    }
+
+    /** Bluetooth Class of Device → what the buds claim to be. That's what Samsung's icon is based on. */
+    static String deviceClass(int cod) {
+        int major = cod & 0x1F00;
+        if (major == 0x1F00) return "uncategorised (no type) — why phones show a generic Bluetooth icon";
+        if (major != 0x0400) {
+            switch (major) {
+                case 0x0000: return "miscellaneous";
+                case 0x0100: return "computer";
+                case 0x0200: return "phone";
+                case 0x0500: return "input device";
+                case 0x0700: return "wearable";
+                default: return String.format(Locale.ROOT, "class 0x%04X", cod & 0x1FFC);
+            }
+        }
+        switch (cod & 0x1FFC) {
+            case 0x0404: return "wearable headset";
+            case 0x0408: return "hands-free";
+            case 0x0414: return "loudspeaker";
+            case 0x0418: return "headphones";
+            case 0x041C: return "portable audio";
+            case 0x0420: return "car audio";
+            default: return "audio/video device";
+        }
+    }
+
+    static String deviceType(int t) {
+        switch (t) {
+            case 1: return "Classic only";
+            case 2: return "LE only";
+            case 3: return "Classic + LE";
+            default: return "unknown";
+        }
+    }
+
     /** Best single guess from everything seen. */
     static String chipVerdict(List<String> clues) {
         for (String c : clues) if (c.contains("JieLi")) return "JieLi";
@@ -170,6 +234,18 @@ final class Earbuds {
         b.box = pct7(p[7]); b.boxCharging = (p[7] & 0x80) != 0;
         b.source = "Xiaomi-style advertisement";
         return b;
+    }
+
+    /**
+     * The buds' Classic address hidden in a Xiaomi-style advertisement (bytes 11..16,
+     * stored permuted). Lets Melad tie an LE advertiser to the paired buds you're listening on.
+     */
+    static String xiaomiEdrMac(byte[] p) {
+        if (p == null || p.length < 17 || (p[0] != 0x16 && p[0] != 0x17) || p[1] != 0x01) return null;
+        int[] order = {12, 11, 13, 16, 15, 14};
+        StringBuilder sb = new StringBuilder();
+        for (int i : order) sb.append(sb.length() > 0 ? ":" : "").append(String.format(Locale.ROOT, "%02X", p[i] & 0xFF));
+        return sb.toString();
     }
 
     /** Xiaomi Fast Connect service data (UUID 0xFD2D). Right comes before left here. */

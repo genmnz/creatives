@@ -62,6 +62,16 @@ final class EarbudLink {
         void diagnostics(int latencyMs, int rssi, long uptimeMs);
         void raw(String charUuid, byte[] value);
         void log(String line);
+        void classic(ClassicReport r);
+    }
+
+    /** Everything Classic Bluetooth tells us — available the moment the buds play music, no LE needed. */
+    static final class ClassicReport {
+        String name = "", mac = "", type = "", claims = "", vendor = "", verdict = "";
+        boolean playing;
+        int hfpBattery = -1;
+        final List<String[]> services = new ArrayList<>(); // {name, uuid}
+        final List<String> vendorChannels = new ArrayList<>(); // uuids usable in the Lab's Classic channel
     }
 
     private final Context ctx;
@@ -94,6 +104,23 @@ final class EarbudLink {
     private BluetoothLeScanner scanner;
     private ScanCallback scanCb;
 
+    // Classic side
+    private android.bluetooth.BluetoothProfile a2dp, headset;
+    private android.content.BroadcastReceiver btRx;
+    /** LE advertisers seen in the scan: address → {name, hasJieliService, xiaomiEdrMac, rssi}. */
+    private final java.util.Map<String, String[]> leSeen = new java.util.HashMap<>();
+    private boolean waitingForLe;
+    private String targetName = "";
+    private int leTries;
+
+    // Lab: Classic (RFCOMM) channel
+    private volatile android.bluetooth.BluetoothSocket channel;
+    private volatile String channelUuid = "";
+
+    private static final long CONNECT_TIMEOUT_MS = 12_000;
+    private static final String ACTION_BATTERY = "android.bluetooth.device.action.BATTERY_LEVEL_CHANGED";
+    private static final String EXTRA_BATTERY = "android.bluetooth.device.extra.BATTERY_LEVEL";
+
     EarbudLink(Context c) {
         ctx = c;
         BluetoothAdapter a = null;
@@ -102,42 +129,191 @@ final class EarbudLink {
         } catch (RuntimeException ignored) {
         }
         adapter = a;
+        if (a != null) {
+            android.bluetooth.BluetoothProfile.ServiceListener sl = new android.bluetooth.BluetoothProfile.ServiceListener() {
+                @Override public void onServiceConnected(int profile, android.bluetooth.BluetoothProfile proxy) {
+                    if (profile == android.bluetooth.BluetoothProfile.A2DP) a2dp = proxy; else headset = proxy;
+                    if (targetMac != null) emitClassic(targetMac);
+                }
+
+                @Override public void onServiceDisconnected(int profile) {
+                    if (profile == android.bluetooth.BluetoothProfile.A2DP) a2dp = null; else headset = null;
+                }
+            };
+            try {
+                a.getProfileProxy(c, sl, android.bluetooth.BluetoothProfile.A2DP);
+                a.getProfileProxy(c, sl, android.bluetooth.BluetoothProfile.HEADSET);
+            } catch (RuntimeException ignored) {
+            }
+        }
     }
 
     void setListener(Listener l) { listener = l; }
 
-    boolean ready() { return adapter != null && adapter.isEnabled(); }
+    boolean ready() {
+        try { return adapter != null && adapter.isEnabled(); } catch (RuntimeException e) { return false; }
+    }
+
+    /** Start listening for Classic events (call from onResume). */
+    void open() {
+        if (btRx != null) return;
+        btRx = new android.content.BroadcastReceiver() {
+            @Override public void onReceive(Context c, android.content.Intent i) {
+                BluetoothDevice d = i.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                String mac = d == null ? null : d.getAddress();
+                String a = i.getAction();
+                if (ACTION_BATTERY.equals(a) && mac != null) {
+                    int lvl = i.getIntExtra(EXTRA_BATTERY, -1);
+                    if (lvl >= 0 && lvl <= 100 && mac.equals(targetMac)) emitBattery(hfpBatteryOf(lvl));
+                }
+                if (mac != null && mac.equals(targetMac)) emitClassic(mac);
+            }
+        };
+        android.content.IntentFilter f = new android.content.IntentFilter();
+        f.addAction(BluetoothDevice.ACTION_UUID);
+        f.addAction(ACTION_BATTERY);
+        f.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
+        f.addAction(BluetoothDevice.ACTION_ACL_DISCONNECTED);
+        f.addAction("android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED");
+        try {
+            if (Build.VERSION.SDK_INT >= 33) ctx.registerReceiver(btRx, f, Context.RECEIVER_EXPORTED);
+            else ctx.registerReceiver(btRx, f);
+        } catch (RuntimeException e) {
+            btRx = null;
+        }
+    }
+
+    /** Stop everything (call from onDestroy). */
+    void close() {
+        closeChannel();
+        disconnect();
+        stopScan();
+        if (btRx != null) { try { ctx.unregisterReceiver(btRx); } catch (RuntimeException ignored) { } btRx = null; }
+        try {
+            if (a2dp != null) adapter.closeProfileProxy(android.bluetooth.BluetoothProfile.A2DP, a2dp);
+            if (headset != null) adapter.closeProfileProxy(android.bluetooth.BluetoothProfile.HEADSET, headset);
+        } catch (RuntimeException ignored) {
+        }
+    }
 
     // ----------------------------------------------------- bonded devices + rename
 
-    /** Paired audio devices. {name, mac}. */
-    List<String[]> pairedAudio() {
-        List<String[]> out = new ArrayList<>();
-        if (adapter == null) return out;
+    /**
+     * Every paired device, so nothing is missed — buds that claim no device type included.
+     * {name, mac, tag}: tag "playing" (connected for audio now), "audio", or "".
+     * Sorted: playing first, then audio, then the rest.
+     */
+    List<String[]> paired() {
+        List<String[]> playing = new ArrayList<>(), audio = new ArrayList<>(), other = new ArrayList<>();
+        if (adapter == null) return playing;
         try {
             for (BluetoothDevice d : adapter.getBondedDevices()) {
-                int major = d.getBluetoothClass() == null ? 0 : d.getBluetoothClass().getMajorDeviceClass();
-                if (major == android.bluetooth.BluetoothClass.Device.Major.AUDIO_VIDEO || major == 0) {
-                    String name = d.getName();
-                    out.add(new String[]{name == null ? d.getAddress() : name, d.getAddress()});
-                }
+                String name = d.getName();
+                String[] row = {name == null ? d.getAddress() : name, d.getAddress(), ""};
+                if (isPlaying(d.getAddress())) { row[2] = "playing"; playing.add(row); }
+                else if (looksAudio(d)) { row[2] = "audio"; audio.add(row); }
+                else other.add(row);
             }
         } catch (RuntimeException ignored) {
         }
-        return out;
+        playing.addAll(audio);
+        playing.addAll(other);
+        return playing;
     }
 
-    /** Renames the device system-wide (Android 12+ alias), falling back to a local nickname. */
+    private static boolean looksAudio(BluetoothDevice d) {
+        try {
+            if (d.getBluetoothClass() != null
+                    && d.getBluetoothClass().getMajorDeviceClass() == android.bluetooth.BluetoothClass.Device.Major.AUDIO_VIDEO) return true;
+            android.os.ParcelUuid[] us = d.getUuids();
+            if (us != null) for (android.os.ParcelUuid u : us) {
+                String s = u.toString();
+                if (s.startsWith("0000110b") || s.startsWith("0000111e") || s.startsWith("00001108")) return true;
+            }
+        } catch (RuntimeException ignored) {
+        }
+        return false;
+    }
+
+    /** True when this device is connected for music or calls right now. */
+    boolean isPlaying(String mac) {
+        for (android.bluetooth.BluetoothProfile p : new android.bluetooth.BluetoothProfile[]{a2dp, headset}) {
+            if (p == null) continue;
+            try {
+                for (BluetoothDevice d : p.getConnectedDevices()) if (d.getAddress().equals(mac)) return true;
+            } catch (RuntimeException ignored) {
+            }
+        }
+        return false;
+    }
+
+    /** Headset battery Android got over the call profile (HFP), if the buds report one. -1 if not. */
+    int hfpBattery(String mac) {
+        try {
+            BluetoothDevice d = adapter.getRemoteDevice(mac);
+            Object r = BluetoothDevice.class.getMethod("getBatteryLevel").invoke(d);
+            if (r instanceof Integer && (Integer) r >= 0 && (Integer) r <= 100) return (Integer) r;
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+        }
+        return -1;
+    }
+
+    private static Earbuds.Battery hfpBatteryOf(int lvl) {
+        Earbuds.Battery b = new Earbuds.Battery();
+        b.single = lvl;
+        b.source = "Headset battery (what Android sees)";
+        return b;
+    }
+
+    /** Builds the Classic-side picture of a paired device from what Android has cached. */
+    ClassicReport classicReport(String mac) {
+        ClassicReport r = new ClassicReport();
+        r.mac = mac;
+        try {
+            BluetoothDevice d = adapter.getRemoteDevice(mac);
+            String n = d.getName();
+            r.name = n == null ? mac : n;
+            r.type = Earbuds.deviceType(d.getType());
+            if (d.getBluetoothClass() != null) r.claims = Earbuds.deviceClass(d.getBluetoothClass().getDeviceClass());
+            android.os.ParcelUuid[] us = d.getUuids();
+            List<String> clues = new ArrayList<>();
+            if (us != null) for (android.os.ParcelUuid u : us) {
+                String s = u.toString();
+                String name = Earbuds.classicService(s);
+                if (name == null) continue;
+                r.services.add(new String[]{name, s});
+                clues.add(name);
+                boolean vendor = name.startsWith("Vendor control") || name.contains("RACE") || name.contains("GAIA")
+                        || name.contains("Serial port") || name.contains("Sony");
+                if (vendor) r.vendorChannels.add(s);
+            }
+            String oui = Earbuds.ouiVendor(mac);
+            if (oui != null) { r.vendor = oui; clues.add(oui); }
+            String v = Earbuds.chipVerdict(clues);
+            r.verdict = v == null ? "" : v;
+        } catch (RuntimeException ignored) {
+        }
+        r.playing = isPlaying(mac);
+        r.hfpBattery = hfpBattery(mac);
+        return r;
+    }
+
+    private void emitClassic(String mac) {
+        ClassicReport r = classicReport(mac);
+        if (r.hfpBattery >= 0) emitBattery(hfpBatteryOf(r.hfpBattery));
+        post(() -> { if (listener != null) listener.classic(r); });
+    }
+
+    /** Renames the device everywhere when Android allows it (12+), always keeps a nickname in Melad. */
     boolean rename(String mac, String newName) {
         boolean systemWide = false;
         try {
-            BluetoothDevice d = adapter.getRemoteDevice(mac);
-            if (Build.VERSION.SDK_INT >= 30) {
-                java.lang.reflect.Method m = BluetoothDevice.class.getMethod("setAlias", CharSequence.class);
-                Object r = m.invoke(d, newName);
-                systemWide = !(r instanceof Integer) || (Integer) r == 0;
+            if (Build.VERSION.SDK_INT >= 31) {
+                int r = adapter.getRemoteDevice(mac).setAlias(newName);
+                systemWide = r == android.bluetooth.BluetoothStatusCodes.SUCCESS;
             }
-        } catch (ReflectiveOperationException | RuntimeException ignored) {
+        } catch (RuntimeException ignored) {
+            // Android only allows apps paired through its "companion device" flow to rename
         }
         History.rename(ctx, mac, newName);
         return systemWide;
@@ -172,6 +348,7 @@ final class EarbudLink {
     private void onAdvertisement(ScanResult r) {
         ScanRecord rec = r.getScanRecord();
         if (rec == null) return;
+        remember(r, rec);
         Earbuds.Battery b = null;
         byte[] apple = rec.getManufacturerSpecificData(APPLE_COMPANY);
         if (apple != null) b = Earbuds.apple(apple);
@@ -191,8 +368,52 @@ final class EarbudLink {
         post(() -> { if (listener != null) listener.battery(fb); });
     }
 
+    /** Notes every LE advertiser so connect() can find the buds' real LE address. */
+    private void remember(ScanResult r, ScanRecord rec) {
+        String addr = r.getDevice().getAddress();
+        String name = rec.getDeviceName();
+        boolean jieli = false;
+        if (rec.getServiceUuids() != null)
+            for (android.os.ParcelUuid u : rec.getServiceUuids()) if (JL_SERVICE.equals(u.getUuid())) jieli = true;
+        if (rec.getManufacturerSpecificData(0x05D6) != null) jieli = true;
+        String edr = Earbuds.xiaomiEdrMac(rec.getManufacturerSpecificData(XIAOMI_COMPANY));
+        String[] row = {name == null ? "" : name, jieli ? "1" : "0", edr == null ? "" : edr, Integer.toString(r.getRssi())};
+        boolean isNew;
+        synchronized (leSeen) { isNew = leSeen.put(addr, row) == null; }
+        // a matching advertiser showed up after we started waiting: try it now
+        if (isNew && waitingForLe && targetMac != null) {
+            String le = findLeAddress(targetMac, targetName);
+            if (le != null) post(() -> { if (waitingForLe) startLe(le); });
+        }
+    }
+
+    /** The LE address belonging to the paired buds, by embedded address, same address, or same name. */
+    private String findLeAddress(String mac, String name) {
+        String best = null;
+        int bestScore = Integer.MIN_VALUE;
+        synchronized (leSeen) {
+            for (java.util.Map.Entry<String, String[]> e : leSeen.entrySet()) {
+                String[] v = e.getValue();
+                int score;
+                if (mac.equalsIgnoreCase(v[2])) score = 1000;                      // address embedded in the ad
+                else if (mac.equalsIgnoreCase(e.getKey())) score = 900;            // same address (dual-mode)
+                else if (!name.isEmpty() && name.equalsIgnoreCase(v[0])) score = 500; // same name
+                else continue;
+                if (v[1].equals("1")) score += 100;                                 // advertises the JieLi service
+                try { score += Integer.parseInt(v[3]) / 10; } catch (NumberFormatException ignored) { }
+                if (score > bestScore) { bestScore = score; best = e.getKey(); }
+            }
+        }
+        return best;
+    }
+
     // ----------------------------------------------------- connect
 
+    /**
+     * Shows the Classic picture at once (works while you're listening), then looks for an LE
+     * control link: the buds' own LE address if the scan found one, else the same address.
+     * The LE attempt has a timeout and never blocks the screen.
+     */
     void connect(String mac) {
         disconnect();
         targetMac = mac;
@@ -200,19 +421,60 @@ final class EarbudLink {
         authed = false;
         voiceModeRecord = null;
         latencyMs = -1;
+        leTries = 0;
         reader.feed(new byte[0]);
-        BluetoothDevice dev;
         try {
-            dev = adapter.getRemoteDevice(mac);
+            BluetoothDevice dev = adapter.getRemoteDevice(mac);
+            String n = dev.getName();
+            targetName = n == null ? "" : n;
+            dev.fetchUuidsWithSdp(); // refreshes the Classic service list; arrives as ACTION_UUID
         } catch (RuntimeException e) {
-            status("Bad address");
-            return;
+            targetName = "";
         }
-        status("Connecting…");
-        gatt = dev.connectGatt(ctx, false, callback, BluetoothDevice.TRANSPORT_LE);
+        emitClassic(mac);
+        History.seen(ctx, mac, targetName, classicReport(mac).verdict);
+        if (rule != null && rule.usable() && rule.chr.startsWith("classic:")) {
+            final String ch = rule.chr.substring(8);
+            main.postDelayed(() -> { if (mac.equals(targetMac)) openChannel(ch); }, 1500); // your taught Classic rule
+        }
+        startScan();
+        String le = findLeAddress(mac, targetName);
+        startLe(le != null ? le : mac);
+    }
+
+    private void startLe(String leMac) {
+        waitingForLe = false;
+        if (gatt != null) { try { gatt.close(); } catch (RuntimeException ignored) { } gatt = null; }
+        leTries++;
+        try {
+            BluetoothDevice dev = adapter.getRemoteDevice(leMac);
+            status("Recognised over Classic · looking for a control link"
+                    + (leMac.equals(targetMac) ? "…" : " at " + leMac + "…"));
+            gatt = dev.connectGatt(ctx, false, callback, BluetoothDevice.TRANSPORT_LE);
+            main.removeCallbacks(leTimeout);
+            main.postDelayed(leTimeout, CONNECT_TIMEOUT_MS);
+        } catch (RuntimeException e) {
+            leGaveUp("LE not available (" + e.getClass().getSimpleName() + ")");
+        }
+    }
+
+    private final Runnable leTimeout = () -> {
+        if (connectedSince > 0) return;
+        if (gatt != null) { try { gatt.disconnect(); gatt.close(); } catch (RuntimeException ignored) { } gatt = null; }
+        leGaveUp("no answer on Bluetooth LE");
+    };
+
+    /** No LE link (yet): say so plainly, keep everything Classic gave us, and keep watching the scan. */
+    private void leGaveUp(String why) {
+        waitingForLe = leTries < 3; // a matching advertiser may still appear (open the case)
+        status("Recognised over Classic Bluetooth · " + why + ". Battery shows if the buds report it; "
+                + "try the Lab's Classic channel for controls.");
+        log("LE control link: " + why);
     }
 
     void disconnect() {
+        waitingForLe = false;
+        main.removeCallbacks(leTimeout);
         if (gatt != null && targetMac != null && connectedSince > 0) {
             History.addConnectedTime(ctx, targetMac, SystemClock.elapsedRealtime() - connectedSince);
         }
@@ -240,8 +502,10 @@ final class EarbudLink {
     private final BluetoothGattCallback callback = new BluetoothGattCallback() {
         @Override public void onConnectionStateChange(BluetoothGatt g, int s, int newState) {
             if (newState == BluetoothGatt.STATE_CONNECTED) {
+                main.removeCallbacks(leTimeout);
+                waitingForLe = false;
                 connectedSince = SystemClock.elapsedRealtime();
-                status("Discovering services…");
+                status("Control link up · reading services…");
                 try { g.requestMtu(517); } catch (RuntimeException ignored) { }
                 main.postDelayed(() -> { try { g.discoverServices(); } catch (RuntimeException ignored) { } }, 300);
             } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
@@ -250,7 +514,12 @@ final class EarbudLink {
                 connectedSince = 0;
                 authed = false;
                 main.removeCallbacks(rssiTick);
-                status(was ? "Disconnected" : "Could not connect");
+                main.removeCallbacks(leTimeout);
+                post(() -> {
+                    if (gatt == g) { try { g.close(); } catch (RuntimeException ignored) { } gatt = null; }
+                    if (was) status("Control link closed · Classic audio is unaffected");
+                    else leGaveUp("refused (code " + s + ")");
+                });
             }
         }
 
@@ -521,6 +790,71 @@ final class EarbudLink {
     }
 
     Earbuds.CustomRule currentRule() { return rule; }
+
+    // ----------------------------------------------------- Lab: Classic (RFCOMM) channel
+
+    /** Classic channels the paired buds offer (vendor apps use these to control clone chips). */
+    List<String> classicChannels() {
+        return targetMac == null ? new ArrayList<>() : classicReport(targetMac).vendorChannels;
+    }
+
+    boolean channelOpen() { return channel != null; }
+
+    /** Opens a raw Classic channel to the buds, the way a vendor app does. Bytes received go to raw(). */
+    void openChannel(String uuid) {
+        closeChannel();
+        if (targetMac == null) return;
+        final String mac = targetMac;
+        log("Opening Classic channel " + uuid.substring(0, 8) + "…");
+        new Thread(() -> {
+            android.bluetooth.BluetoothSocket s = null;
+            try {
+                try { adapter.cancelDiscovery(); } catch (RuntimeException ignored) { }
+                s = adapter.getRemoteDevice(mac).createRfcommSocketToServiceRecord(UUID.fromString(uuid));
+                s.connect();
+                channel = s;
+                channelUuid = uuid;
+                log("Classic channel open — send hex from the Lab, replies show in Activity");
+                java.io.InputStream in = s.getInputStream();
+                byte[] buf = new byte[1024];
+                for (int n; (n = in.read(buf)) > 0; ) {
+                    final byte[] got = java.util.Arrays.copyOf(buf, n);
+                    Earbuds.CustomRule rr = rule;
+                    if (rr != null && rr.usable() && ("classic:" + uuid).equalsIgnoreCase(rr.chr)) {
+                        Earbuds.Battery bt = rr.apply(got);
+                        if (bt != null) emitBattery(bt);
+                    }
+                    post(() -> { if (listener != null) listener.raw("classic:" + uuid, got); });
+                }
+            } catch (java.io.IOException | RuntimeException e) {
+                log("Classic channel: " + (channel == null ? "could not open (" + e.getMessage() + ")" : "closed"));
+            } finally {
+                if (s != null) try { s.close(); } catch (java.io.IOException ignored) { }
+                if (channel == s) { channel = null; channelUuid = ""; }
+            }
+        }, "melad-rfcomm").start();
+    }
+
+    void channelWrite(byte[] data) {
+        android.bluetooth.BluetoothSocket s = channel;
+        if (s == null) { log("Open a Classic channel first"); return; }
+        new Thread(() -> {
+            try {
+                s.getOutputStream().write(data);
+                s.getOutputStream().flush();
+                log("Sent " + Earbuds.hex(data) + " on Classic channel");
+            } catch (java.io.IOException e) {
+                log("Send failed: " + e.getMessage());
+            }
+        }, "melad-rfcomm-tx").start();
+    }
+
+    void closeChannel() {
+        android.bluetooth.BluetoothSocket s = channel;
+        channel = null;
+        channelUuid = "";
+        if (s != null) try { s.close(); } catch (java.io.IOException ignored) { }
+    }
 
     // ----------------------------------------------------- serial GATT op queue
 

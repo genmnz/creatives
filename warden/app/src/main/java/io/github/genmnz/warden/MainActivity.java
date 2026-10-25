@@ -57,6 +57,8 @@ public final class MainActivity extends Activity {
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
+        CrashLog.install(this);
+        if (getActionBar() != null) getActionBar().hide(); // the bold in-page title replaces it
         prefs = Store.prefs(this);
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -67,6 +69,7 @@ public final class MainActivity extends Activity {
         sv.addView(root);
         setContentView(sv);
         build();
+        CrashLog.offer(this);
     }
 
     @Override protected void onResume() {
@@ -227,15 +230,15 @@ public final class MainActivity extends Activity {
         if (!active.isEmpty()) {
             statusCard.setText("● Protecting  ·  " + String.join(", ", active));
             statusCard.setTextColor(0xFFFFFFFF);
-            statusCard.setBackgroundColor(0xFF1B5E20);
+            statusCard.setBackground(rounded(0xFF1B5E20));
         } else if (anyWanted) {
             statusCard.setText("◌ Starting…");
             statusCard.setTextColor(0xFFFFFFFF);
-            statusCard.setBackgroundColor(0xFFF9A825);
+            statusCard.setBackground(rounded(0xFFF9A825));
         } else {
             statusCard.setText("○ Off  ·  nothing is being blocked or changed");
             statusCard.setTextColor(0xFFFFFFFF);
-            statusCard.setBackgroundColor(0xFF9E9E9E);
+            statusCard.setBackground(rounded(0xFF9E9E9E));
         }
         long when = Updater.lastUpdate(this);
         listStatus.setText("Lists: " + (when == 0 ? "built in, never updated"
@@ -522,6 +525,14 @@ public final class MainActivity extends Activity {
         t.setText(s);
         t.setTextSize(sp);
         return t;
+    }
+
+    /** A filled shape with rounded corners, for the status banner. */
+    private android.graphics.drawable.GradientDrawable rounded(int color) {
+        android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+        g.setColor(color);
+        g.setCornerRadius(dp(16));
+        return g;
     }
 
     private TextView big(String s, int sp) {

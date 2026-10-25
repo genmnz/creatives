@@ -72,6 +72,8 @@ public final class EarbudsTest {
         Earbuds.Battery xb = Earbuds.xiaomi(xi);
         check(xb != null && xb.left == 100 && xb.leftCharging && xb.right == 70 && xb.rightCharging && xb.box == 44, "Xiaomi battery: " + xb);
 
+        check("7C:C9:5E:25:81:D8".equals(Earbuds.xiaomiEdrMac(xi)), "Xiaomi adv EDR address: " + Earbuds.xiaomiEdrMac(xi));
+
         // standard GATT battery + teachable custom rule + history record
         Earbuds.Battery sb2 = Earbuds.standardBattery(new byte[]{(byte)85});
         check(sb2 != null && sb2.single == 85, "standard battery: " + sb2);
@@ -94,6 +96,16 @@ public final class EarbudsTest {
                 "bud record round-trip");
         check(Earbuds.uptime(3600_000L + 20 * 60_000L).equals("1 h 20 m"), "uptime: " + Earbuds.uptime(3600_000L + 20*60_000L));
         check(Earbuds.hex(Earbuds.unhex("05 5a 0A")).equals("05 5A 0A"), "hex round-trip");
+
+        // classic-side recognition
+        check("Airoha RACE (classic)".equals(Earbuds.classicService("00000000-0000-0000-0099-AABBCCDDEEFF")), "classic Airoha SPP");
+        check("Music (A2DP)".equals(Earbuds.classicService("0000110b-0000-1000-8000-00805f9b34fb")), "classic A2DP");
+        check(Earbuds.classicService("12345678-90ab-cdef-1234-567890abcdef").startsWith("Vendor control channel"), "unknown 128-bit = vendor channel");
+        check(Earbuds.classicService("00001234-0000-1000-8000-00805f9b34fb") == null, "unknown SIG uuid ignored");
+        check(Earbuds.deviceClass(0x240404).equals("wearable headset"), "CoD headset: " + Earbuds.deviceClass(0x240404));
+        check(Earbuds.deviceClass(0x001F00).startsWith("uncategorised"), "CoD uncategorised");
+        check(Earbuds.deviceClass(0x240418).equals("headphones"), "CoD headphones");
+        check(Earbuds.deviceType(3).equals("Classic + LE"), "device type dual");
 
         // recognition
         check("Airoha".equals(Earbuds.ouiVendor("0c:fc:83:12:34:56")), "OUI lookup");
