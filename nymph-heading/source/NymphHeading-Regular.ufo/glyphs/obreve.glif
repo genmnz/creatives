@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<glyph name="obreve" format="2">
+  <advance width="1568"/>
+  <unicode hex="014F"/>
+  <anchor x="810" y="1452" name="top"/>
+  <anchor x="784" y="0" name="bottom"/>
+  <anchor x="849" y="0" name="ogonek"/>
+  <outline>
+    <component base="o"/>
+    <component base="brevecomb" xOffset="1270" yOffset="-423"/>
+  </outline>
+</glyph>

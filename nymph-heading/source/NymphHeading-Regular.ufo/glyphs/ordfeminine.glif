@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<glyph name="ordfeminine" format="2">
+  <advance width="1026"/>
+  <unicode hex="00AA"/>
+  <outline>
+    <component base="A.ordn"/>
+    <component base="hyphen" xScale="1.643" yScale="0.75" xOffset="-95" yOffset="-75"/>
+  </outline>
+</glyph>

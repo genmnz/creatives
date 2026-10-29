@@ -1,0 +1,11 @@
+afdko==5.0.1
+brotli==1.2.1
+fonttools==4.68.0
+opentype-sanitizer==9.2.0
+pillow==12.3.0
+skia-pathops==0.9.2
+ttfautohint-py==0.6.1
+ufo-extractor==0.8.1
+ufo2ft==3.9.1
+ufoLib2==0.19.1
+uharfbuzz==0.57.0

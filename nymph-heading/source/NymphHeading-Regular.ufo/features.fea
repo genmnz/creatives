@@ -1,0 +1,318 @@
+languagesystem DFLT dflt;
+languagesystem latn dflt;
+languagesystem latn TRK;
+languagesystem latn AZE;
+languagesystem latn CRT;
+languagesystem latn KAZ;
+languagesystem latn TAT;
+languagesystem latn ROM;
+languagesystem latn MOL;
+languagesystem latn CAT;
+
+@DIGITS = [zero one two three four five six seven eight nine];
+@NUMR = [zero.numr one.numr two.numr three.numr four.numr five.numr six.numr seven.numr eight.numr nine.numr];
+@DNOM = [zero.dnom one.dnom two.dnom three.dnom four.dnom five.dnom six.dnom seven.dnom eight.dnom nine.dnom];
+
+feature aalt {
+    feature locl;
+    feature c2sc;
+    feature sups;
+    feature subs;
+    feature ordn;
+    feature ss01;
+    feature case;
+} aalt;
+
+feature locl {
+    script latn;
+    language TRK exclude_dflt;
+        sub i by i.loclTRK;
+    language AZE exclude_dflt;
+        sub i by i.loclTRK;
+    language CRT exclude_dflt;
+        sub i by i.loclTRK;
+    language KAZ exclude_dflt;
+        sub i by i.loclTRK;
+    language TAT exclude_dflt;
+        sub i by i.loclTRK;
+    language ROM exclude_dflt;
+        sub [Scedilla scedilla uni0162 uni0163] by [uni0218 uni0219 uni021A uni021B];
+    language MOL exclude_dflt;
+        sub [Scedilla scedilla uni0162 uni0163] by [uni0218 uni0219 uni021A uni021B];
+} locl;
+
+feature c2sc {
+    sub A by a;
+    sub AE by ae;
+    sub AEacute by aeacute;
+    sub Aacute by aacute;
+    sub Abreve by abreve;
+    sub Acircumflex by acircumflex;
+    sub Adieresis by adieresis;
+    sub Agrave by agrave;
+    sub Amacron by amacron;
+    sub Aogonek by aogonek;
+    sub Aring by aring;
+    sub Aringacute by aringacute;
+    sub Atilde by atilde;
+    sub B by b;
+    sub C by c;
+    sub Cacute by cacute;
+    sub Ccaron by ccaron;
+    sub Ccedilla by ccedilla;
+    sub Ccircumflex by ccircumflex;
+    sub Cdotaccent by cdotaccent;
+    sub D by d;
+    sub Dcaron by dcaron;
+    sub Dcroat by dcroat;
+    sub E by e;
+    sub Eacute by eacute;
+    sub Ebreve by ebreve;
+    sub Ecaron by ecaron;
+    sub Ecircumflex by ecircumflex;
+    sub Edieresis by edieresis;
+    sub Edotaccent by edotaccent;
+    sub Egrave by egrave;
+    sub Emacron by emacron;
+    sub Eng by eng;
+    sub Eogonek by eogonek;
+    sub Eth by eth;
+    sub F by f;
+    sub G by g;
+    sub Gbreve by gbreve;
+    sub Gcaron by gcaron;
+    sub Gcircumflex by gcircumflex;
+    sub Gdotaccent by gdotaccent;
+    sub H by h;
+    sub Hbar by hbar;
+    sub Hcircumflex by hcircumflex;
+    sub I by i;
+    sub IJ by ij;
+    sub Iacute by iacute;
+    sub Ibreve by ibreve;
+    sub Icircumflex by icircumflex;
+    sub Idieresis by idieresis;
+    sub Igrave by igrave;
+    sub Imacron by imacron;
+    sub Iogonek by iogonek;
+    sub Itilde by itilde;
+    sub J by j;
+    sub Jcircumflex by jcircumflex;
+    sub K by k;
+    sub L by l;
+    sub Lacute by lacute;
+    sub Lcaron by lcaron;
+    sub Ldot by ldot;
+    sub Lslash by lslash;
+    sub M by m;
+    sub N by n;
+    sub Nacute by nacute;
+    sub Ncaron by ncaron;
+    sub Ntilde by ntilde;
+    sub O by o;
+    sub OE by oe;
+    sub Oacute by oacute;
+    sub Obreve by obreve;
+    sub Ocircumflex by ocircumflex;
+    sub Odieresis by odieresis;
+    sub Ograve by ograve;
+    sub Ohungarumlaut by ohungarumlaut;
+    sub Omacron by omacron;
+    sub Oslash by oslash;
+    sub Oslashacute by oslashacute;
+    sub Otilde by otilde;
+    sub P by p;
+    sub Q by q;
+    sub R by r;
+    sub Racute by racute;
+    sub Rcaron by rcaron;
+    sub S by s;
+    sub Sacute by sacute;
+    sub Scaron by scaron;
+    sub Scedilla by scedilla;
+    sub Scircumflex by scircumflex;
+    sub T by t;
+    sub Tbar by tbar;
+    sub Tcaron by tcaron;
+    sub Thorn by thorn;
+    sub U by u;
+    sub Uacute by uacute;
+    sub Ubreve by ubreve;
+    sub Ucircumflex by ucircumflex;
+    sub Udieresis by udieresis;
+    sub Ugrave by ugrave;
+    sub Uhungarumlaut by uhungarumlaut;
+    sub Umacron by umacron;
+    sub Uogonek by uogonek;
+    sub Uring by uring;
+    sub Utilde by utilde;
+    sub V by v;
+    sub W by w;
+    sub Wacute by wacute;
+    sub Wcircumflex by wcircumflex;
+    sub Wdieresis by wdieresis;
+    sub Wgrave by wgrave;
+    sub X by x;
+    sub Y by y;
+    sub Yacute by yacute;
+    sub Ycircumflex by ycircumflex;
+    sub Ydieresis by ydieresis;
+    sub Ygrave by ygrave;
+    sub Z by z;
+    sub Zacute by zacute;
+    sub Zcaron by zcaron;
+    sub Zdotaccent by zdotaccent;
+    sub uni0122 by uni0123;
+    sub uni0136 by uni0137;
+    sub uni013B by uni013C;
+    sub uni0145 by uni0146;
+    sub uni0156 by uni0157;
+    sub uni0162 by uni0163;
+    sub uni018F by uni0259;
+    sub uni0218 by uni0219;
+    sub uni021A by uni021B;
+    sub uni1E9E by germandbls;
+    sub uni1EBC by uni1EBD;
+    sub uni1EF8 by uni1EF9;
+} c2sc;
+
+feature case {
+    sub [guilsinglleft guilsinglright guillemotleft guillemotright periodcentered]
+     by [guilsinglleft.case guilsinglright.case guillemotleft.case guillemotright.case periodcentered.case];
+} case;
+
+feature sups {
+    sub @DIGITS by [zero.sups one.sups two.sups three.sups four.sups five.sups six.sups seven.sups eight.sups nine.sups];
+} sups;
+
+feature subs {
+    sub @DIGITS by [zero.subs one.subs two.subs three.subs four.subs five.subs six.subs seven.subs eight.subs nine.subs];
+} subs;
+feature sinf {
+    sub @DIGITS by [zero.subs one.subs two.subs three.subs four.subs five.subs six.subs seven.subs eight.subs nine.subs];
+} sinf;
+
+feature numr {
+    sub @DIGITS by @NUMR;
+} numr;
+
+feature dnom {
+    sub @DIGITS by @DNOM;
+} dnom;
+
+feature frac {
+    lookup FRAC_PREP {
+        sub slash by fraction;
+    } FRAC_PREP;
+    lookup FRAC_NUMR {
+        sub @DIGITS by @NUMR;
+    } FRAC_NUMR;
+    lookup FRAC_DNOM {
+        sub [fraction @DNOM] @NUMR' by @DNOM;
+    } FRAC_DNOM;
+} frac;
+
+feature ordn {
+    sub [A a] by A.ordn;
+    sub [O o] by O.ordn;
+    sub N o by uni2116;
+} ordn;
+
+feature ss01 {
+    featureNames { name "Underscored alternates"; };
+    sub [A C E O S U Y] by [A.ss01 C.ss01 E.ss01 O.ss01 S.ss01 U.ss01 Y.ss01];
+    sub [a c e o s u y] by [a.ss01 c.ss01 e.ss01 o.ss01 s.ss01 u.ss01 y.ss01];
+} ss01;
+
+feature dlig {
+    sub A N D by A_N_D.dlig;
+    sub F O R by F_O_R.dlig;
+    sub L L A by L_L_A.dlig;
+    sub L L E by L_L_E.dlig;
+    sub L L I by L_L_I.dlig;
+    sub L L O by L_L_O.dlig;
+    sub L L S by L_L_S.dlig;
+    sub L L U by L_L_U.dlig;
+    sub L L Y by L_L_Y.dlig;
+    sub T H E by T_H_E.dlig;
+    sub B Y by B_Y.dlig;
+    sub D O by D_O.dlig;
+    sub E A by E_A.dlig;
+    sub E V by E_V.dlig;
+    sub E W by E_W.dlig;
+    sub I N by I_N.dlig;
+    sub K A by K_A.dlig;
+    sub K E by K_E.dlig;
+    sub K O by K_O.dlig;
+    sub K S by K_S.dlig;
+    sub L A by L_A.dlig;
+    sub L E by L_E.dlig;
+    sub L I by L_I.dlig;
+    sub L L by L_L.dlig;
+    sub L O by L_O.dlig;
+    sub L S by L_S.dlig;
+    sub L U by L_U.dlig;
+    sub L Y by L_Y.dlig;
+    sub O C by O_C.dlig;
+    sub O F by O_F.dlig;
+    sub O G by O_G.dlig;
+    sub O N by O_N.dlig;
+    sub O O by O_O.dlig;
+    sub R A by R_A.dlig;
+    sub R O by R_O.dlig;
+    sub R S by R_S.dlig;
+    sub S S by S_S.dlig;
+    sub T H by T_H.dlig;
+    sub T O by T_O.dlig;
+    sub T T by T_T.dlig;
+    sub Z A by Z_A.dlig;
+    sub Z E by Z_E.dlig;
+    sub Z I by Z_I.dlig;
+    sub Z O by Z_O.dlig;
+    sub Z U by Z_U.dlig;
+    sub a n d by a_n_d.dlig;
+    sub f o r by f_o_r.dlig;
+    sub l l a by l_l_a.dlig;
+    sub l l e by l_l_e.dlig;
+    sub l l i by l_l_i.dlig;
+    sub l l o by l_l_o.dlig;
+    sub l l s by l_l_s.dlig;
+    sub l l u by l_l_u.dlig;
+    sub l l y by l_l_y.dlig;
+    sub t h e by t_h_e.dlig;
+    sub b y by b_y.dlig;
+    sub d o by d_o.dlig;
+    sub e a by e_a.dlig;
+    sub e v by e_v.dlig;
+    sub e w by e_w.dlig;
+    sub i n by i_n.dlig;
+    sub k a by k_a.dlig;
+    sub k e by k_e.dlig;
+    sub k o by k_o.dlig;
+    sub k s by k_s.dlig;
+    sub l a by l_a.dlig;
+    sub l e by l_e.dlig;
+    sub l i by l_i.dlig;
+    sub l l by l_l.dlig;
+    sub l o by l_o.dlig;
+    sub l s by l_s.dlig;
+    sub l u by l_u.dlig;
+    sub l y by l_y.dlig;
+    sub o c by o_c.dlig;
+    sub o f by o_f.dlig;
+    sub o g by o_g.dlig;
+    sub o n by o_n.dlig;
+    sub o o by o_o.dlig;
+    sub r a by r_a.dlig;
+    sub r o by r_o.dlig;
+    sub r s by r_s.dlig;
+    sub s s by s_s.dlig;
+    sub t h by t_h.dlig;
+    sub t o by t_o.dlig;
+    sub t t by t_t.dlig;
+    sub z a by z_a.dlig;
+    sub z e by z_e.dlig;
+    sub z i by z_i.dlig;
+    sub z o by z_o.dlig;
+    sub z u by z_u.dlig;
+} dlig;

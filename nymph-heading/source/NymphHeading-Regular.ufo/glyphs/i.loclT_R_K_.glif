@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<glyph name="i.loclTRK" format="2">
+  <advance width="438"/>
+  <anchor x="228" y="1421" name="top"/>
+  <anchor x="219" y="0" name="bottom"/>
+  <anchor x="251" y="0" name="ogonek"/>
+  <outline>
+    <component base="i"/>
+    <component base="dotaccentcomb" xOffset="688" yOffset="-423"/>
+  </outline>
+</glyph>

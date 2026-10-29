@@ -1,0 +1,50 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<glyph name="four.dnom" format="2">
+  <advance width="829"/>
+  <outline>
+    <contour>
+      <point x="215" y="326" type="line"/>
+      <point x="489" y="326" type="line"/>
+      <point x="490" y="643" type="line"/>
+    </contour>
+    <contour>
+      <point x="526" y="0" type="line" smooth="yes"/>
+      <point x="489" y="0"/>
+      <point x="489" y="31" type="qcurve" smooth="yes"/>
+      <point x="489" y="227" type="line"/>
+      <point x="51" y="227" type="line" smooth="yes"/>
+      <point x="24" y="227"/>
+      <point x="18" y="246" type="qcurve"/>
+      <point x="17" y="249"/>
+      <point x="16" y="253" type="qcurve"/>
+      <point x="16" y="267"/>
+      <point x="29" y="282" type="qcurve" smooth="yes"/>
+      <point x="571" y="884" type="line" smooth="yes"/>
+      <point x="581" y="896"/>
+      <point x="595" y="900" type="qcurve"/>
+      <point x="600" y="902"/>
+      <point x="605" y="902" type="qcurve" smooth="yes"/>
+      <point x="616" y="902"/>
+      <point x="624" y="895" type="qcurve" smooth="yes"/>
+      <point x="635" y="886"/>
+      <point x="635" y="869" type="qcurve" smooth="yes"/>
+      <point x="635" y="326" type="line"/>
+      <point x="687" y="326"/>
+      <point x="742" y="335"/>
+      <point x="760" y="344" type="qcurve" smooth="yes"/>
+      <point x="797" y="362"/>
+      <point x="809" y="342" type="qcurve" smooth="yes"/>
+      <point x="812" y="336"/>
+      <point x="813" y="329" type="qcurve"/>
+      <point x="813" y="316"/>
+      <point x="802" y="300" type="qcurve"/>
+      <point x="778" y="257"/>
+      <point x="717" y="227"/>
+      <point x="661" y="227" type="qcurve" smooth="yes"/>
+      <point x="635" y="227" type="line"/>
+      <point x="635" y="31" type="line" smooth="yes"/>
+      <point x="635" y="0"/>
+      <point x="598" y="0" type="qcurve" smooth="yes"/>
+    </contour>
+  </outline>
+</glyph>
