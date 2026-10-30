@@ -1,12 +1,12 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <glyph name="itilde" format="2">
-  <advance width="438"/>
+  <advance width="386"/>
   <unicode hex="0129"/>
-  <anchor x="228" y="1395" name="top"/>
-  <anchor x="219" y="0" name="bottom"/>
-  <anchor x="251" y="0" name="ogonek"/>
+  <anchor x="193" y="0" name="bottom"/>
+  <anchor x="174" y="0" name="ogonek"/>
+  <anchor x="193" y="1255" name="top"/>
   <outline>
-    <component base="i"/>
-    <component base="tildecomb" xOffset="688" yOffset="-423"/>
+    <component base="dotlessi"/>
+    <component base="tildecomb" xOffset="653" yOffset="-563"/>
   </outline>
 </glyph>

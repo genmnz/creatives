@@ -1,12 +1,12 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <glyph name="ccedilla" format="2">
-  <advance width="1312"/>
+  <advance width="1103"/>
   <unicode hex="00E7"/>
-  <anchor x="712" y="1150" name="top"/>
-  <anchor x="1119" y="0" name="ogonek"/>
-  <anchor x="799" y="0" name="bottom"/>
+  <anchor x="582" y="1010" name="top"/>
+  <anchor x="603" y="0" name="bottom"/>
+  <anchor x="908" y="0" name="ogonek"/>
   <outline>
     <component base="c"/>
-    <component base="cedillacomb" xOffset="1286"/>
+    <component base="cedillacomb" xOffset="1090"/>
   </outline>
 </glyph>

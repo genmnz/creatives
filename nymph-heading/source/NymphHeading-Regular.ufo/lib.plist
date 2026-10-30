@@ -358,9 +358,175 @@
       <string>ringcomb</string>
       <string>hungarumlautcomb</string>
       <string>caroncomb</string>
+      <string>commaturnedabovecomb</string>
       <string>commaaccentcomb</string>
       <string>cedillacomb</string>
       <string>ogonekcomb</string>
+      <string>uni037E</string>
+      <string>tonos</string>
+      <string>dieresistonos</string>
+      <string>Alphatonos</string>
+      <string>anoteleia</string>
+      <string>Epsilontonos</string>
+      <string>Etatonos</string>
+      <string>Iotatonos</string>
+      <string>Omicrontonos</string>
+      <string>Upsilontonos</string>
+      <string>Omegatonos</string>
+      <string>iotadieresistonos</string>
+      <string>Alpha</string>
+      <string>Beta</string>
+      <string>Gamma</string>
+      <string>uni0394</string>
+      <string>Epsilon</string>
+      <string>Zeta</string>
+      <string>Eta</string>
+      <string>Theta</string>
+      <string>Iota</string>
+      <string>Kappa</string>
+      <string>Lambda</string>
+      <string>Mu</string>
+      <string>Nu</string>
+      <string>Xi</string>
+      <string>Omicron</string>
+      <string>Pi</string>
+      <string>Rho</string>
+      <string>Sigma</string>
+      <string>Tau</string>
+      <string>Upsilon</string>
+      <string>Phi</string>
+      <string>Chi</string>
+      <string>Psi</string>
+      <string>uni03A9</string>
+      <string>Iotadieresis</string>
+      <string>Upsilondieresis</string>
+      <string>alphatonos</string>
+      <string>epsilontonos</string>
+      <string>etatonos</string>
+      <string>iotatonos</string>
+      <string>upsilondieresistonos</string>
+      <string>alpha</string>
+      <string>beta</string>
+      <string>gamma</string>
+      <string>delta</string>
+      <string>epsilon</string>
+      <string>zeta</string>
+      <string>eta</string>
+      <string>theta</string>
+      <string>iota</string>
+      <string>kappa</string>
+      <string>lambda</string>
+      <string>uni03BC</string>
+      <string>nu</string>
+      <string>xi</string>
+      <string>omicron</string>
+      <string>pi</string>
+      <string>rho</string>
+      <string>sigma1</string>
+      <string>sigma</string>
+      <string>tau</string>
+      <string>upsilon</string>
+      <string>phi</string>
+      <string>chi</string>
+      <string>psi</string>
+      <string>omega</string>
+      <string>iotadieresis</string>
+      <string>upsilondieresis</string>
+      <string>omicrontonos</string>
+      <string>upsilontonos</string>
+      <string>omegatonos</string>
+      <string>uni060C</string>
+      <string>uni061B</string>
+      <string>uni061C</string>
+      <string>uni061F</string>
+      <string>uni0621</string>
+      <string>uni0622</string>
+      <string>uni0623</string>
+      <string>uni0624</string>
+      <string>uni0625</string>
+      <string>uni0626</string>
+      <string>uni0627</string>
+      <string>uni0628</string>
+      <string>uni0629</string>
+      <string>uni062A</string>
+      <string>uni062B</string>
+      <string>uni062C</string>
+      <string>uni062D</string>
+      <string>uni062E</string>
+      <string>uni062F</string>
+      <string>uni0630</string>
+      <string>uni0631</string>
+      <string>uni0632</string>
+      <string>uni0633</string>
+      <string>uni0634</string>
+      <string>uni0635</string>
+      <string>uni0636</string>
+      <string>uni0637</string>
+      <string>uni0638</string>
+      <string>uni0639</string>
+      <string>uni063A</string>
+      <string>uni0640</string>
+      <string>uni0641</string>
+      <string>uni0642</string>
+      <string>uni0643</string>
+      <string>uni0644</string>
+      <string>uni0645</string>
+      <string>uni0646</string>
+      <string>uni0647</string>
+      <string>uni0648</string>
+      <string>uni0649</string>
+      <string>uni064A</string>
+      <string>uni064B</string>
+      <string>uni064C</string>
+      <string>uni064D</string>
+      <string>uni064E</string>
+      <string>uni064F</string>
+      <string>uni0650</string>
+      <string>uni0651</string>
+      <string>uni0652</string>
+      <string>uni0653</string>
+      <string>uni0654</string>
+      <string>uni0655</string>
+      <string>uni0660</string>
+      <string>uni0661</string>
+      <string>uni0662</string>
+      <string>uni0663</string>
+      <string>uni0664</string>
+      <string>uni0665</string>
+      <string>uni0666</string>
+      <string>uni0667</string>
+      <string>uni0668</string>
+      <string>uni0669</string>
+      <string>uni066A</string>
+      <string>uni066B</string>
+      <string>uni066C</string>
+      <string>uni066E</string>
+      <string>uni066F</string>
+      <string>uni0670</string>
+      <string>uni0671</string>
+      <string>uni0679</string>
+      <string>uni067E</string>
+      <string>uni0686</string>
+      <string>uni0688</string>
+      <string>uni0691</string>
+      <string>uni0698</string>
+      <string>uni06A9</string>
+      <string>uni06AF</string>
+      <string>uni06BA</string>
+      <string>uni06BE</string>
+      <string>uni06C1</string>
+      <string>uni06CC</string>
+      <string>uni06D2</string>
+      <string>uni06F0</string>
+      <string>uni06F1</string>
+      <string>uni06F2</string>
+      <string>uni06F3</string>
+      <string>uni06F4</string>
+      <string>uni06F5</string>
+      <string>uni06F6</string>
+      <string>uni06F7</string>
+      <string>uni06F8</string>
+      <string>uni06F9</string>
       <string>Wgrave</string>
       <string>wgrave</string>
       <string>Wacute</string>
@@ -385,11 +551,16 @@
       <string>uni2008</string>
       <string>uni2009</string>
       <string>uni200A</string>
+      <string>uni200C</string>
+      <string>uni200D</string>
+      <string>uni200E</string>
+      <string>uni200F</string>
       <string>uni2010</string>
       <string>uni2011</string>
       <string>figuredash</string>
       <string>endash</string>
       <string>emdash</string>
+      <string>uni2015</string>
       <string>quoteleft</string>
       <string>quoteright</string>
       <string>quotesinglbase</string>
@@ -488,21 +659,49 @@
       <string>Z_I.dlig</string>
       <string>Z_O.dlig</string>
       <string>Z_U.dlig</string>
+      <string>a.sc</string>
       <string>a.ss01</string>
-      <string>a_n_d.dlig</string>
-      <string>b_y.dlig</string>
+      <string>aacute.sc</string>
+      <string>abreve.sc</string>
+      <string>acircumflex.sc</string>
+      <string>adieresis.sc</string>
+      <string>ae.sc</string>
+      <string>aeacute.sc</string>
+      <string>agrave.sc</string>
+      <string>amacron.sc</string>
+      <string>aogonek.sc</string>
+      <string>aring.sc</string>
+      <string>aringacute.sc</string>
+      <string>atilde.sc</string>
+      <string>b.sc</string>
+      <string>c.sc</string>
       <string>c.ss01</string>
+      <string>cacute.sc</string>
       <string>caroncomb.alt</string>
-      <string>d_o.dlig</string>
+      <string>ccaron.sc</string>
+      <string>ccedilla.sc</string>
+      <string>ccircumflex.sc</string>
+      <string>cdotaccent.sc</string>
+      <string>d.sc</string>
+      <string>dcaron.sc</string>
+      <string>e.sc</string>
       <string>e.ss01</string>
-      <string>e_a.dlig</string>
-      <string>e_v.dlig</string>
-      <string>e_w.dlig</string>
+      <string>eacute.sc</string>
+      <string>ebreve.sc</string>
+      <string>ecaron.sc</string>
+      <string>ecircumflex.sc</string>
+      <string>edieresis.sc</string>
+      <string>edotaccent.sc</string>
+      <string>egrave.sc</string>
       <string>eight.dnom</string>
       <string>eight.numr</string>
       <string>eight.subs</string>
       <string>eight.sups</string>
-      <string>f_o_r.dlig</string>
+      <string>emacron.sc</string>
+      <string>eng.sc</string>
+      <string>eogonek.sc</string>
+      <string>eth.sc</string>
+      <string>f.sc</string>
       <string>five.dnom</string>
       <string>five.numr</string>
       <string>five.subs</string>
@@ -511,52 +710,74 @@
       <string>four.numr</string>
       <string>four.subs</string>
       <string>four.sups</string>
+      <string>g.sc</string>
+      <string>gbreve.sc</string>
+      <string>gcaron.sc</string>
+      <string>gcircumflex.sc</string>
+      <string>gdotaccent.sc</string>
+      <string>germandbls.sc</string>
       <string>guillemotleft.case</string>
       <string>guillemotright.case</string>
       <string>guilsinglleft.case</string>
       <string>guilsinglright.case</string>
-      <string>i.loclTRK</string>
-      <string>i_n.dlig</string>
-      <string>k_a.dlig</string>
-      <string>k_e.dlig</string>
-      <string>k_o.dlig</string>
-      <string>k_s.dlig</string>
-      <string>l_a.dlig</string>
-      <string>l_e.dlig</string>
-      <string>l_i.dlig</string>
-      <string>l_l.dlig</string>
-      <string>l_l_a.dlig</string>
-      <string>l_l_e.dlig</string>
-      <string>l_l_i.dlig</string>
-      <string>l_l_o.dlig</string>
-      <string>l_l_s.dlig</string>
-      <string>l_l_u.dlig</string>
-      <string>l_l_y.dlig</string>
-      <string>l_o.dlig</string>
-      <string>l_s.dlig</string>
-      <string>l_u.dlig</string>
-      <string>l_y.dlig</string>
+      <string>h.sc</string>
+      <string>hbar.sc</string>
+      <string>hcircumflex.sc</string>
+      <string>i.sc</string>
+      <string>iacute.sc</string>
+      <string>ibreve.sc</string>
+      <string>icircumflex.sc</string>
+      <string>idieresis.sc</string>
+      <string>igrave.sc</string>
+      <string>imacron.sc</string>
+      <string>iogonek.sc</string>
+      <string>itilde.sc</string>
+      <string>j.sc</string>
+      <string>jcircumflex.sc</string>
+      <string>k.sc</string>
+      <string>l.sc</string>
+      <string>lacute.sc</string>
+      <string>lcaron.sc</string>
+      <string>lslash.sc</string>
+      <string>m.sc</string>
+      <string>n.sc</string>
+      <string>nacute.sc</string>
+      <string>ncaron.sc</string>
       <string>nine.dnom</string>
       <string>nine.numr</string>
       <string>nine.subs</string>
       <string>nine.sups</string>
+      <string>ntilde.sc</string>
       <string>o.numero</string>
+      <string>o.sc</string>
       <string>o.ss01</string>
-      <string>o_c.dlig</string>
-      <string>o_f.dlig</string>
-      <string>o_g.dlig</string>
-      <string>o_n.dlig</string>
-      <string>o_o.dlig</string>
+      <string>oacute.sc</string>
+      <string>obreve.sc</string>
+      <string>ocircumflex.sc</string>
+      <string>odieresis.sc</string>
+      <string>oe.sc</string>
+      <string>ograve.sc</string>
+      <string>ohungarumlaut.sc</string>
+      <string>omacron.sc</string>
       <string>one.dnom</string>
       <string>one.numr</string>
       <string>one.subs</string>
       <string>one.sups</string>
+      <string>oslash.sc</string>
+      <string>oslashacute.sc</string>
+      <string>otilde.sc</string>
+      <string>p.sc</string>
       <string>periodcentered.case</string>
-      <string>r_a.dlig</string>
-      <string>r_o.dlig</string>
-      <string>r_s.dlig</string>
+      <string>q.sc</string>
+      <string>r.sc</string>
+      <string>racute.sc</string>
+      <string>rcaron.sc</string>
+      <string>s.sc</string>
       <string>s.ss01</string>
-      <string>s_s.dlig</string>
+      <string>sacute.sc</string>
+      <string>scaron.sc</string>
+      <string>scedilla.sc</string>
+      <string>scircumflex.sc</string>
       <string>seven.dnom</string>
       <string>seven.numr</string>
       <string>seven.subs</string>
@@ -565,10 +786,10 @@
       <string>six.numr</string>
       <string>six.subs</string>
       <string>six.sups</string>
-      <string>t_h.dlig</string>
-      <string>t_h_e.dlig</string>
-      <string>t_o.dlig</string>
-      <string>t_t.dlig</string>
+      <string>t.sc</string>
+      <string>tbar.sc</string>
+      <string>tcaron.sc</string>
+      <string>thorn.sc</string>
       <string>three.dnom</string>
       <string>three.numr</string>
       <string>three.subs</string>
@@ -577,13 +798,174 @@
       <string>two.numr</string>
       <string>two.subs</string>
       <string>two.sups</string>
+      <string>u.sc</string>
       <string>u.ss01</string>
-      <string>y.ss01</string>
-      <string>z_a.dlig</string>
-      <string>z_e.dlig</string>
-      <string>z_i.dlig</string>
-      <string>z_o.dlig</string>
-      <string>z_u.dlig</string>
+      <string>uacute.sc</string>
+      <string>ubreve.sc</string>
+      <string>ucircumflex.sc</string>
+      <string>udieresis.sc</string>
+      <string>ugrave.sc</string>
+      <string>uhungarumlaut.sc</string>
+      <string>umacron.sc</string>
+      <string>uni0123.sc</string>
+      <string>uni0137.sc</string>
+      <string>uni013C.sc</string>
+      <string>uni0146.sc</string>
+      <string>uni0157.sc</string>
+      <string>uni0163.sc</string>
+      <string>uni0219.sc</string>
+      <string>uni021B.sc</string>
+      <string>uni0259.sc</string>
+      <string>uni0622.fina</string>
+      <string>uni0623.fina</string>
+      <string>uni0624.fina</string>
+      <string>uni0625.fina</string>
+      <string>uni0626.fina</string>
+      <string>uni0626.init</string>
+      <string>uni0626.medi</string>
+      <string>uni0627.fina</string>
+      <string>uni0628.fina</string>
+      <string>uni0628.init</string>
+      <string>uni0628.medi</string>
+      <string>uni0629.fina</string>
+      <string>uni062A.fina</string>
+      <string>uni062A.init</string>
+      <string>uni062A.medi</string>
+      <string>uni062B.fina</string>
+      <string>uni062B.init</string>
+      <string>uni062B.medi</string>
+      <string>uni062C.fina</string>
+      <string>uni062C.init</string>
+      <string>uni062C.medi</string>
+      <string>uni062D.fina</string>
+      <string>uni062D.init</string>
+      <string>uni062D.medi</string>
+      <string>uni062E.fina</string>
+      <string>uni062E.init</string>
+      <string>uni062E.medi</string>
+      <string>uni062F.fina</string>
+      <string>uni0630.fina</string>
+      <string>uni0631.fina</string>
+      <string>uni0632.fina</string>
+      <string>uni0633.fina</string>
+      <string>uni0633.init</string>
+      <string>uni0633.medi</string>
+      <string>uni0634.fina</string>
+      <string>uni0634.init</string>
+      <string>uni0634.medi</string>
+      <string>uni0635.fina</string>
+      <string>uni0635.init</string>
+      <string>uni0635.medi</string>
+      <string>uni0636.fina</string>
+      <string>uni0636.init</string>
+      <string>uni0636.medi</string>
+      <string>uni0637.fina</string>
+      <string>uni0637.init</string>
+      <string>uni0637.medi</string>
+      <string>uni0638.fina</string>
+      <string>uni0638.init</string>
+      <string>uni0638.medi</string>
+      <string>uni0639.fina</string>
+      <string>uni0639.init</string>
+      <string>uni0639.medi</string>
+      <string>uni063A.fina</string>
+      <string>uni063A.init</string>
+      <string>uni063A.medi</string>
+      <string>uni0641.fina</string>
+      <string>uni0641.init</string>
+      <string>uni0641.medi</string>
+      <string>uni0642.fina</string>
+      <string>uni0642.init</string>
+      <string>uni0642.medi</string>
+      <string>uni0643.fina</string>
+      <string>uni0643.init</string>
+      <string>uni0643.medi</string>
+      <string>uni0644.fina</string>
+      <string>uni0644.init</string>
+      <string>uni0644.medi</string>
+      <string>uni0644_uni0622</string>
+      <string>uni0644_uni0622.fina</string>
+      <string>uni0644_uni0623</string>
+      <string>uni0644_uni0623.fina</string>
+      <string>uni0644_uni0625</string>
+      <string>uni0644_uni0625.fina</string>
+      <string>uni0644_uni0627</string>
+      <string>uni0644_uni0627.fina</string>
+      <string>uni0645.fina</string>
+      <string>uni0645.init</string>
+      <string>uni0645.medi</string>
+      <string>uni0646.fina</string>
+      <string>uni0646.init</string>
+      <string>uni0646.medi</string>
+      <string>uni0647.fina</string>
+      <string>uni0647.init</string>
+      <string>uni0647.medi</string>
+      <string>uni0648.fina</string>
+      <string>uni0649.fina</string>
+      <string>uni0649.init</string>
+      <string>uni0649.medi</string>
+      <string>uni064A.fina</string>
+      <string>uni064A.init</string>
+      <string>uni064A.medi</string>
+      <string>uni066E.fina</string>
+      <string>uni066E.init</string>
+      <string>uni066E.medi</string>
+      <string>uni066F.fina</string>
+      <string>uni066F.init</string>
+      <string>uni066F.medi</string>
+      <string>uni0671.fina</string>
+      <string>uni0679.fina</string>
+      <string>uni0679.init</string>
+      <string>uni0679.medi</string>
+      <string>uni067E.fina</string>
+      <string>uni067E.init</string>
+      <string>uni067E.medi</string>
+      <string>uni0686.fina</string>
+      <string>uni0686.init</string>
+      <string>uni0686.medi</string>
+      <string>uni0688.fina</string>
+      <string>uni0691.fina</string>
+      <string>uni0698.fina</string>
+      <string>uni06A9.fina</string>
+      <string>uni06A9.init</string>
+      <string>uni06A9.medi</string>
+      <string>uni06AF.fina</string>
+      <string>uni06AF.init</string>
+      <string>uni06AF.medi</string>
+      <string>uni06BA.fina</string>
+      <string>uni06BA.init</string>
+      <string>uni06BA.medi</string>
+      <string>uni06BE.fina</string>
+      <string>uni06BE.init</string>
+      <string>uni06BE.medi</string>
+      <string>uni06C1.fina</string>
+      <string>uni06C1.init</string>
+      <string>uni06C1.medi</string>
+      <string>uni06CC.fina</string>
+      <string>uni06CC.init</string>
+      <string>uni06CC.medi</string>
+      <string>uni06D2.fina</string>
+      <string>uni1EBD.sc</string>
+      <string>uni1EF9.sc</string>
+      <string>uogonek.sc</string>
+      <string>uring.sc</string>
+      <string>utilde.sc</string>
+      <string>v.sc</string>
+      <string>w.sc</string>
+      <string>wacute.sc</string>
+      <string>wcircumflex.sc</string>
+      <string>wdieresis.sc</string>
+      <string>wgrave.sc</string>
+      <string>x.sc</string>
+      <string>y.sc</string>
+      <string>yacute.sc</string>
+      <string>ycircumflex.sc</string>
+      <string>ydieresis.sc</string>
+      <string>ygrave.sc</string>
+      <string>z.sc</string>
+      <string>zacute.sc</string>
+      <string>zcaron.sc</string>
+      <string>zdotaccent.sc</string>
       <string>zero.dnom</string>
       <string>zero.numr</string>
       <string>zero.subs</string>
@@ -615,6 +997,10 @@
       <string>base</string>
       <key>Agrave</key>
       <string>base</string>
+      <key>Alpha</key>
+      <string>base</string>
+      <key>Alphatonos</key>
+      <string>base</string>
       <key>Amacron</key>
       <string>base</string>
       <key>Aogonek</key>
@@ -629,6 +1015,8 @@
       <string>base</string>
       <key>B_Y.dlig</key>
       <string>ligature</string>
+      <key>Beta</key>
+      <string>base</string>
       <key>C</key>
       <string>base</string>
       <key>C.ss01</key>
@@ -642,6 +1030,8 @@
       <key>Ccircumflex</key>
       <string>base</string>
       <key>Cdotaccent</key>
+      <string>base</string>
+      <key>Chi</key>
       <string>base</string>
       <key>D</key>
       <string>base</string>
@@ -681,6 +1071,14 @@
       <string>base</string>
       <key>Eogonek</key>
       <string>base</string>
+      <key>Epsilon</key>
+      <string>base</string>
+      <key>Epsilontonos</key>
+      <string>base</string>
+      <key>Eta</key>
+      <string>base</string>
+      <key>Etatonos</key>
+      <string>base</string>
       <key>Eth</key>
       <string>base</string>
       <key>Euro</key>
@@ -690,6 +1088,8 @@
       <key>F_O_R.dlig</key>
       <string>ligature</string>
       <key>G</key>
+      <string>base</string>
+      <key>Gamma</key>
       <string>base</string>
       <key>Gbreve</key>
       <string>base</string>
@@ -727,6 +1127,12 @@
       <string>base</string>
       <key>Iogonek</key>
       <string>base</string>
+      <key>Iota</key>
+      <string>base</string>
+      <key>Iotadieresis</key>
+      <string>base</string>
+      <key>Iotatonos</key>
+      <string>base</string>
       <key>Itilde</key>
       <string>base</string>
       <key>J</key>
@@ -743,6 +1149,8 @@
       <string>ligature</string>
       <key>K_S.dlig</key>
       <string>ligature</string>
+      <key>Kappa</key>
+      <string>base</string>
       <key>L</key>
       <string>base</string>
       <key>L_A.dlig</key>
@@ -777,6 +1185,8 @@
       <string>ligature</string>
       <key>Lacute</key>
       <string>base</string>
+      <key>Lambda</key>
+      <string>base</string>
       <key>Lcaron</key>
       <string>base</string>
       <key>Ldot</key>
@@ -785,6 +1195,8 @@
       <string>base</string>
       <key>M</key>
       <string>base</string>
+      <key>Mu</key>
+      <string>base</string>
       <key>N</key>
       <string>base</string>
       <key>Nacute</key>
@@ -792,6 +1204,8 @@
       <key>Ncaron</key>
       <string>base</string>
       <key>Ntilde</key>
+      <string>base</string>
+      <key>Nu</key>
       <string>base</string>
       <key>O</key>
       <string>base</string>
@@ -825,6 +1239,12 @@
       <string>base</string>
       <key>Omacron</key>
       <string>base</string>
+      <key>Omegatonos</key>
+      <string>base</string>
+      <key>Omicron</key>
+      <string>base</string>
+      <key>Omicrontonos</key>
+      <string>base</string>
       <key>Oslash</key>
       <string>base</string>
       <key>Oslashacute</key>
@@ -832,6 +1252,12 @@
       <key>Otilde</key>
       <string>base</string>
       <key>P</key>
+      <string>base</string>
+      <key>Phi</key>
+      <string>base</string>
+      <key>Pi</key>
+      <string>base</string>
+      <key>Psi</key>
       <string>base</string>
       <key>Q</key>
       <string>base</string>
@@ -847,6 +1273,8 @@
       <string>base</string>
       <key>Rcaron</key>
       <string>base</string>
+      <key>Rho</key>
+      <string>base</string>
       <key>S</key>
       <string>base</string>
       <key>S.ss01</key>
@@ -861,6 +1289,8 @@
       <string>base</string>
       <key>Scircumflex</key>
       <string>base</string>
+      <key>Sigma</key>
+      <string>base</string>
       <key>T</key>
       <string>base</string>
       <key>T_H.dlig</key>
@@ -871,9 +1301,13 @@
       <string>ligature</string>
       <key>T_T.dlig</key>
       <string>ligature</string>
+      <key>Tau</key>
+      <string>base</string>
       <key>Tbar</key>
       <string>base</string>
       <key>Tcaron</key>
+      <string>base</string>
+      <key>Theta</key>
       <string>base</string>
       <key>Thorn</key>
       <string>base</string>
@@ -897,6 +1331,12 @@
       <string>base</string>
       <key>Uogonek</key>
       <string>base</string>
+      <key>Upsilon</key>
+      <string>base</string>
+      <key>Upsilondieresis</key>
+      <string>base</string>
+      <key>Upsilontonos</key>
+      <string>base</string>
       <key>Uring</key>
       <string>base</string>
       <key>Utilde</key>
@@ -914,6 +1354,8 @@
       <key>Wgrave</key>
       <string>base</string>
       <key>X</key>
+      <string>base</string>
+      <key>Xi</key>
       <string>base</string>
       <key>Y</key>
       <string>base</string>
@@ -945,17 +1387,25 @@
       <string>base</string>
       <key>Zdotaccent</key>
       <string>base</string>
+      <key>Zeta</key>
+      <string>base</string>
       <key>a</key>
+      <string>base</string>
+      <key>a.sc</key>
       <string>base</string>
       <key>a.ss01</key>
       <string>base</string>
-      <key>a_n_d.dlig</key>
-      <string>ligature</string>
       <key>aacute</key>
+      <string>base</string>
+      <key>aacute.sc</key>
       <string>base</string>
       <key>abreve</key>
       <string>base</string>
+      <key>abreve.sc</key>
+      <string>base</string>
       <key>acircumflex</key>
+      <string>base</string>
+      <key>acircumflex.sc</key>
       <string>base</string>
       <key>acute</key>
       <string>base</string>
@@ -963,23 +1413,45 @@
       <string>mark</string>
       <key>adieresis</key>
       <string>base</string>
+      <key>adieresis.sc</key>
+      <string>base</string>
       <key>ae</key>
+      <string>base</string>
+      <key>ae.sc</key>
       <string>base</string>
       <key>aeacute</key>
       <string>base</string>
+      <key>aeacute.sc</key>
+      <string>base</string>
       <key>agrave</key>
+      <string>base</string>
+      <key>agrave.sc</key>
+      <string>base</string>
+      <key>alpha</key>
+      <string>base</string>
+      <key>alphatonos</key>
       <string>base</string>
       <key>amacron</key>
       <string>base</string>
+      <key>amacron.sc</key>
+      <string>base</string>
       <key>ampersand</key>
       <string>base</string>
+      <key>anoteleia</key>
+      <string>base</string>
       <key>aogonek</key>
+      <string>base</string>
+      <key>aogonek.sc</key>
       <string>base</string>
       <key>approxequal</key>
       <string>base</string>
       <key>aring</key>
       <string>base</string>
+      <key>aring.sc</key>
+      <string>base</string>
       <key>aringacute</key>
+      <string>base</string>
+      <key>aringacute.sc</key>
       <string>base</string>
       <key>asciicircum</key>
       <string>base</string>
@@ -991,13 +1463,17 @@
       <string>base</string>
       <key>atilde</key>
       <string>base</string>
+      <key>atilde.sc</key>
+      <string>base</string>
       <key>b</key>
       <string>base</string>
-      <key>b_y.dlig</key>
-      <string>ligature</string>
+      <key>b.sc</key>
+      <string>base</string>
       <key>backslash</key>
       <string>base</string>
       <key>bar</key>
+      <string>base</string>
+      <key>beta</key>
       <string>base</string>
       <key>braceleft</key>
       <string>base</string>
@@ -1017,9 +1493,13 @@
       <string>base</string>
       <key>c</key>
       <string>base</string>
+      <key>c.sc</key>
+      <string>base</string>
       <key>c.ss01</key>
       <string>base</string>
       <key>cacute</key>
+      <string>base</string>
+      <key>cacute.sc</key>
       <string>base</string>
       <key>caron</key>
       <string>base</string>
@@ -1029,17 +1509,27 @@
       <string>mark</string>
       <key>ccaron</key>
       <string>base</string>
+      <key>ccaron.sc</key>
+      <string>base</string>
       <key>ccedilla</key>
+      <string>base</string>
+      <key>ccedilla.sc</key>
       <string>base</string>
       <key>ccircumflex</key>
       <string>base</string>
+      <key>ccircumflex.sc</key>
+      <string>base</string>
       <key>cdotaccent</key>
+      <string>base</string>
+      <key>cdotaccent.sc</key>
       <string>base</string>
       <key>cedilla</key>
       <string>base</string>
       <key>cedillacomb</key>
       <string>mark</string>
       <key>cent</key>
+      <string>base</string>
+      <key>chi</key>
       <string>base</string>
       <key>circumflex</key>
       <string>base</string>
@@ -1051,28 +1541,36 @@
       <string>base</string>
       <key>commaaccentcomb</key>
       <string>mark</string>
+      <key>commaturnedabovecomb</key>
+      <string>mark</string>
       <key>copyright</key>
       <string>base</string>
       <key>currency</key>
       <string>base</string>
       <key>d</key>
       <string>base</string>
-      <key>d_o.dlig</key>
-      <string>ligature</string>
+      <key>d.sc</key>
+      <string>base</string>
       <key>dagger</key>
       <string>base</string>
       <key>daggerdbl</key>
       <string>base</string>
       <key>dcaron</key>
       <string>base</string>
+      <key>dcaron.sc</key>
+      <string>base</string>
       <key>dcroat</key>
       <string>base</string>
       <key>degree</key>
+      <string>base</string>
+      <key>delta</key>
       <string>base</string>
       <key>dieresis</key>
       <string>base</string>
       <key>dieresiscomb</key>
       <string>mark</string>
+      <key>dieresistonos</key>
+      <string>base</string>
       <key>divide</key>
       <string>base</string>
       <key>dollar</key>
@@ -1085,27 +1583,37 @@
       <string>base</string>
       <key>e</key>
       <string>base</string>
+      <key>e.sc</key>
+      <string>base</string>
       <key>e.ss01</key>
       <string>base</string>
-      <key>e_a.dlig</key>
-      <string>ligature</string>
-      <key>e_v.dlig</key>
-      <string>ligature</string>
-      <key>e_w.dlig</key>
-      <string>ligature</string>
       <key>eacute</key>
+      <string>base</string>
+      <key>eacute.sc</key>
       <string>base</string>
       <key>ebreve</key>
       <string>base</string>
+      <key>ebreve.sc</key>
+      <string>base</string>
       <key>ecaron</key>
+      <string>base</string>
+      <key>ecaron.sc</key>
       <string>base</string>
       <key>ecircumflex</key>
       <string>base</string>
+      <key>ecircumflex.sc</key>
+      <string>base</string>
       <key>edieresis</key>
+      <string>base</string>
+      <key>edieresis.sc</key>
       <string>base</string>
       <key>edotaccent</key>
       <string>base</string>
+      <key>edotaccent.sc</key>
+      <string>base</string>
       <key>egrave</key>
+      <string>base</string>
+      <key>egrave.sc</key>
       <string>base</string>
       <key>eight</key>
       <string>base</string>
@@ -1121,17 +1629,33 @@
       <string>base</string>
       <key>emacron</key>
       <string>base</string>
+      <key>emacron.sc</key>
+      <string>base</string>
       <key>emdash</key>
       <string>base</string>
       <key>endash</key>
       <string>base</string>
       <key>eng</key>
       <string>base</string>
+      <key>eng.sc</key>
+      <string>base</string>
       <key>eogonek</key>
+      <string>base</string>
+      <key>eogonek.sc</key>
+      <string>base</string>
+      <key>epsilon</key>
+      <string>base</string>
+      <key>epsilontonos</key>
       <string>base</string>
       <key>equal</key>
       <string>base</string>
+      <key>eta</key>
+      <string>base</string>
+      <key>etatonos</key>
+      <string>base</string>
       <key>eth</key>
+      <string>base</string>
+      <key>eth.sc</key>
       <string>base</string>
       <key>exclam</key>
       <string>base</string>
@@ -1139,8 +1663,8 @@
       <string>base</string>
       <key>f</key>
       <string>base</string>
-      <key>f_o_r.dlig</key>
-      <string>ligature</string>
+      <key>f.sc</key>
+      <string>base</string>
       <key>fi</key>
       <string>base</string>
       <key>figuredash</key>
@@ -1173,15 +1697,29 @@
       <string>base</string>
       <key>g</key>
       <string>base</string>
+      <key>g.sc</key>
+      <string>base</string>
+      <key>gamma</key>
+      <string>base</string>
       <key>gbreve</key>
+      <string>base</string>
+      <key>gbreve.sc</key>
       <string>base</string>
       <key>gcaron</key>
       <string>base</string>
+      <key>gcaron.sc</key>
+      <string>base</string>
       <key>gcircumflex</key>
+      <string>base</string>
+      <key>gcircumflex.sc</key>
       <string>base</string>
       <key>gdotaccent</key>
       <string>base</string>
+      <key>gdotaccent.sc</key>
+      <string>base</string>
       <key>germandbls</key>
+      <string>base</string>
+      <key>germandbls.sc</key>
       <string>base</string>
       <key>grave</key>
       <string>base</string>
@@ -1209,9 +1747,15 @@
       <string>base</string>
       <key>h</key>
       <string>base</string>
+      <key>h.sc</key>
+      <string>base</string>
       <key>hbar</key>
       <string>base</string>
+      <key>hbar.sc</key>
+      <string>base</string>
       <key>hcircumflex</key>
+      <string>base</string>
+      <key>hcircumflex.sc</key>
       <string>base</string>
       <key>hungarumlaut</key>
       <string>base</string>
@@ -1221,79 +1765,79 @@
       <string>base</string>
       <key>i</key>
       <string>base</string>
-      <key>i.loclTRK</key>
+      <key>i.sc</key>
       <string>base</string>
-      <key>i_n.dlig</key>
-      <string>ligature</string>
       <key>iacute</key>
+      <string>base</string>
+      <key>iacute.sc</key>
       <string>base</string>
       <key>ibreve</key>
       <string>base</string>
+      <key>ibreve.sc</key>
+      <string>base</string>
       <key>icircumflex</key>
+      <string>base</string>
+      <key>icircumflex.sc</key>
       <string>base</string>
       <key>idieresis</key>
       <string>base</string>
+      <key>idieresis.sc</key>
+      <string>base</string>
       <key>igrave</key>
+      <string>base</string>
+      <key>igrave.sc</key>
       <string>base</string>
       <key>ij</key>
       <string>base</string>
       <key>imacron</key>
       <string>base</string>
+      <key>imacron.sc</key>
+      <string>base</string>
       <key>iogonek</key>
+      <string>base</string>
+      <key>iogonek.sc</key>
+      <string>base</string>
+      <key>iota</key>
+      <string>base</string>
+      <key>iotadieresis</key>
+      <string>base</string>
+      <key>iotadieresistonos</key>
+      <string>base</string>
+      <key>iotatonos</key>
       <string>base</string>
       <key>itilde</key>
       <string>base</string>
+      <key>itilde.sc</key>
+      <string>base</string>
       <key>j</key>
+      <string>base</string>
+      <key>j.sc</key>
       <string>base</string>
       <key>jcircumflex</key>
       <string>base</string>
+      <key>jcircumflex.sc</key>
+      <string>base</string>
       <key>k</key>
       <string>base</string>
-      <key>k_a.dlig</key>
-      <string>ligature</string>
-      <key>k_e.dlig</key>
-      <string>ligature</string>
-      <key>k_o.dlig</key>
-      <string>ligature</string>
-      <key>k_s.dlig</key>
-      <string>ligature</string>
+      <key>k.sc</key>
+      <string>base</string>
+      <key>kappa</key>
+      <string>base</string>
       <key>kgreenlandic</key>
       <string>base</string>
       <key>l</key>
       <string>base</string>
-      <key>l_a.dlig</key>
-      <string>ligature</string>
-      <key>l_e.dlig</key>
-      <string>ligature</string>
-      <key>l_i.dlig</key>
-      <string>ligature</string>
-      <key>l_l.dlig</key>
-      <string>ligature</string>
-      <key>l_l_a.dlig</key>
-      <string>ligature</string>
-      <key>l_l_e.dlig</key>
-      <string>ligature</string>
-      <key>l_l_i.dlig</key>
-      <string>ligature</string>
-      <key>l_l_o.dlig</key>
-      <string>ligature</string>
-      <key>l_l_s.dlig</key>
-      <string>ligature</string>
-      <key>l_l_u.dlig</key>
-      <string>ligature</string>
-      <key>l_l_y.dlig</key>
-      <string>ligature</string>
-      <key>l_o.dlig</key>
-      <string>ligature</string>
-      <key>l_s.dlig</key>
-      <string>ligature</string>
-      <key>l_u.dlig</key>
-      <string>ligature</string>
-      <key>l_y.dlig</key>
-      <string>ligature</string>
+      <key>l.sc</key>
+      <string>base</string>
       <key>lacute</key>
       <string>base</string>
+      <key>lacute.sc</key>
+      <string>base</string>
+      <key>lambda</key>
+      <string>base</string>
       <key>lcaron</key>
+      <string>base</string>
+      <key>lcaron.sc</key>
       <string>base</string>
       <key>ldot</key>
       <string>base</string>
@@ -1305,7 +1849,11 @@
       <string>base</string>
       <key>lslash</key>
       <string>base</string>
+      <key>lslash.sc</key>
+      <string>base</string>
       <key>m</key>
+      <string>base</string>
+      <key>m.sc</key>
       <string>base</string>
       <key>macron</key>
       <string>base</string>
@@ -1319,11 +1867,17 @@
       <string>base</string>
       <key>n</key>
       <string>base</string>
+      <key>n.sc</key>
+      <string>base</string>
       <key>nacute</key>
+      <string>base</string>
+      <key>nacute.sc</key>
       <string>base</string>
       <key>napostrophe</key>
       <string>base</string>
       <key>ncaron</key>
+      <string>base</string>
+      <key>ncaron.sc</key>
       <string>base</string>
       <key>nine</key>
       <string>base</string>
@@ -1339,33 +1893,39 @@
       <string>base</string>
       <key>ntilde</key>
       <string>base</string>
+      <key>ntilde.sc</key>
+      <string>base</string>
+      <key>nu</key>
+      <string>base</string>
       <key>numbersign</key>
       <string>base</string>
       <key>o</key>
       <string>base</string>
       <key>o.numero</key>
       <string>base</string>
+      <key>o.sc</key>
+      <string>base</string>
       <key>o.ss01</key>
       <string>base</string>
-      <key>o_c.dlig</key>
-      <string>ligature</string>
-      <key>o_f.dlig</key>
-      <string>ligature</string>
-      <key>o_g.dlig</key>
-      <string>ligature</string>
-      <key>o_n.dlig</key>
-      <string>ligature</string>
-      <key>o_o.dlig</key>
-      <string>ligature</string>
       <key>oacute</key>
+      <string>base</string>
+      <key>oacute.sc</key>
       <string>base</string>
       <key>obreve</key>
       <string>base</string>
+      <key>obreve.sc</key>
+      <string>base</string>
       <key>ocircumflex</key>
+      <string>base</string>
+      <key>ocircumflex.sc</key>
       <string>base</string>
       <key>odieresis</key>
       <string>base</string>
+      <key>odieresis.sc</key>
+      <string>base</string>
       <key>oe</key>
+      <string>base</string>
+      <key>oe.sc</key>
       <string>base</string>
       <key>ogonek</key>
       <string>base</string>
@@ -1373,9 +1933,23 @@
       <string>mark</string>
       <key>ograve</key>
       <string>base</string>
+      <key>ograve.sc</key>
+      <string>base</string>
       <key>ohungarumlaut</key>
       <string>base</string>
+      <key>ohungarumlaut.sc</key>
+      <string>base</string>
       <key>omacron</key>
+      <string>base</string>
+      <key>omacron.sc</key>
+      <string>base</string>
+      <key>omega</key>
+      <string>base</string>
+      <key>omegatonos</key>
+      <string>base</string>
+      <key>omicron</key>
+      <string>base</string>
+      <key>omicrontonos</key>
       <string>base</string>
       <key>one</key>
       <string>base</string>
@@ -1397,11 +1971,19 @@
       <string>base</string>
       <key>oslash</key>
       <string>base</string>
+      <key>oslash.sc</key>
+      <string>base</string>
       <key>oslashacute</key>
+      <string>base</string>
+      <key>oslashacute.sc</key>
       <string>base</string>
       <key>otilde</key>
       <string>base</string>
+      <key>otilde.sc</key>
+      <string>base</string>
       <key>p</key>
+      <string>base</string>
+      <key>p.sc</key>
       <string>base</string>
       <key>paragraph</key>
       <string>base</string>
@@ -1419,11 +2001,19 @@
       <string>base</string>
       <key>perthousand</key>
       <string>base</string>
+      <key>phi</key>
+      <string>base</string>
+      <key>pi</key>
+      <string>base</string>
       <key>plus</key>
       <string>base</string>
       <key>plusminus</key>
       <string>base</string>
+      <key>psi</key>
+      <string>base</string>
       <key>q</key>
+      <string>base</string>
+      <key>q.sc</key>
       <string>base</string>
       <key>question</key>
       <string>base</string>
@@ -1447,17 +2037,19 @@
       <string>base</string>
       <key>r</key>
       <string>base</string>
-      <key>r_a.dlig</key>
-      <string>ligature</string>
-      <key>r_o.dlig</key>
-      <string>ligature</string>
-      <key>r_s.dlig</key>
-      <string>ligature</string>
+      <key>r.sc</key>
+      <string>base</string>
       <key>racute</key>
+      <string>base</string>
+      <key>racute.sc</key>
       <string>base</string>
       <key>rcaron</key>
       <string>base</string>
+      <key>rcaron.sc</key>
+      <string>base</string>
       <key>registered</key>
+      <string>base</string>
+      <key>rho</key>
       <string>base</string>
       <key>ring</key>
       <string>base</string>
@@ -1465,17 +2057,25 @@
       <string>mark</string>
       <key>s</key>
       <string>base</string>
+      <key>s.sc</key>
+      <string>base</string>
       <key>s.ss01</key>
       <string>base</string>
-      <key>s_s.dlig</key>
-      <string>ligature</string>
       <key>sacute</key>
+      <string>base</string>
+      <key>sacute.sc</key>
       <string>base</string>
       <key>scaron</key>
       <string>base</string>
+      <key>scaron.sc</key>
+      <string>base</string>
       <key>scedilla</key>
       <string>base</string>
+      <key>scedilla.sc</key>
+      <string>base</string>
       <key>scircumflex</key>
+      <string>base</string>
+      <key>scircumflex.sc</key>
       <string>base</string>
       <key>section</key>
       <string>base</string>
@@ -1490,6 +2090,10 @@
       <key>seven.subs</key>
       <string>base</string>
       <key>seven.sups</key>
+      <string>base</string>
+      <key>sigma</key>
+      <string>base</string>
+      <key>sigma1</key>
       <string>base</string>
       <key>six</key>
       <string>base</string>
@@ -1509,19 +2113,23 @@
       <string>base</string>
       <key>t</key>
       <string>base</string>
-      <key>t_h.dlig</key>
-      <string>ligature</string>
-      <key>t_h_e.dlig</key>
-      <string>ligature</string>
-      <key>t_o.dlig</key>
-      <string>ligature</string>
-      <key>t_t.dlig</key>
-      <string>ligature</string>
+      <key>t.sc</key>
+      <string>base</string>
+      <key>tau</key>
+      <string>base</string>
       <key>tbar</key>
+      <string>base</string>
+      <key>tbar.sc</key>
       <string>base</string>
       <key>tcaron</key>
       <string>base</string>
+      <key>tcaron.sc</key>
+      <string>base</string>
+      <key>theta</key>
+      <string>base</string>
       <key>thorn</key>
+      <string>base</string>
+      <key>thorn.sc</key>
       <string>base</string>
       <key>three</key>
       <string>base</string>
@@ -1539,6 +2147,8 @@
       <string>base</string>
       <key>tildecomb</key>
       <string>mark</string>
+      <key>tonos</key>
+      <string>base</string>
       <key>trademark</key>
       <string>base</string>
       <key>two</key>
@@ -1553,21 +2163,37 @@
       <string>base</string>
       <key>u</key>
       <string>base</string>
+      <key>u.sc</key>
+      <string>base</string>
       <key>u.ss01</key>
       <string>base</string>
       <key>uacute</key>
       <string>base</string>
+      <key>uacute.sc</key>
+      <string>base</string>
       <key>ubreve</key>
+      <string>base</string>
+      <key>ubreve.sc</key>
       <string>base</string>
       <key>ucircumflex</key>
       <string>base</string>
+      <key>ucircumflex.sc</key>
+      <string>base</string>
       <key>udieresis</key>
+      <string>base</string>
+      <key>udieresis.sc</key>
       <string>base</string>
       <key>ugrave</key>
       <string>base</string>
+      <key>ugrave.sc</key>
+      <string>base</string>
       <key>uhungarumlaut</key>
       <string>base</string>
+      <key>uhungarumlaut.sc</key>
+      <string>base</string>
       <key>umacron</key>
+      <string>base</string>
+      <key>umacron.sc</key>
       <string>base</string>
       <key>underscore</key>
       <string>base</string>
@@ -1585,25 +2211,37 @@
       <string>base</string>
       <key>uni0123</key>
       <string>base</string>
+      <key>uni0123.sc</key>
+      <string>base</string>
       <key>uni0136</key>
       <string>base</string>
       <key>uni0137</key>
+      <string>base</string>
+      <key>uni0137.sc</key>
       <string>base</string>
       <key>uni013B</key>
       <string>base</string>
       <key>uni013C</key>
       <string>base</string>
+      <key>uni013C.sc</key>
+      <string>base</string>
       <key>uni0145</key>
       <string>base</string>
       <key>uni0146</key>
+      <string>base</string>
+      <key>uni0146.sc</key>
       <string>base</string>
       <key>uni0156</key>
       <string>base</string>
       <key>uni0157</key>
       <string>base</string>
+      <key>uni0157.sc</key>
+      <string>base</string>
       <key>uni0162</key>
       <string>base</string>
       <key>uni0163</key>
+      <string>base</string>
+      <key>uni0163.sc</key>
       <string>base</string>
       <key>uni018F</key>
       <string>base</string>
@@ -1611,13 +2249,469 @@
       <string>base</string>
       <key>uni0219</key>
       <string>base</string>
+      <key>uni0219.sc</key>
+      <string>base</string>
       <key>uni021A</key>
       <string>base</string>
       <key>uni021B</key>
       <string>base</string>
+      <key>uni021B.sc</key>
+      <string>base</string>
       <key>uni0237</key>
       <string>base</string>
       <key>uni0259</key>
+      <string>base</string>
+      <key>uni0259.sc</key>
+      <string>base</string>
+      <key>uni037E</key>
+      <string>base</string>
+      <key>uni0394</key>
+      <string>base</string>
+      <key>uni03A9</key>
+      <string>base</string>
+      <key>uni03BC</key>
+      <string>base</string>
+      <key>uni060C</key>
+      <string>base</string>
+      <key>uni061B</key>
+      <string>base</string>
+      <key>uni061C</key>
+      <string>base</string>
+      <key>uni061F</key>
+      <string>base</string>
+      <key>uni0621</key>
+      <string>base</string>
+      <key>uni0622</key>
+      <string>base</string>
+      <key>uni0622.fina</key>
+      <string>base</string>
+      <key>uni0623</key>
+      <string>base</string>
+      <key>uni0623.fina</key>
+      <string>base</string>
+      <key>uni0624</key>
+      <string>base</string>
+      <key>uni0624.fina</key>
+      <string>base</string>
+      <key>uni0625</key>
+      <string>base</string>
+      <key>uni0625.fina</key>
+      <string>base</string>
+      <key>uni0626</key>
+      <string>base</string>
+      <key>uni0626.fina</key>
+      <string>base</string>
+      <key>uni0626.init</key>
+      <string>base</string>
+      <key>uni0626.medi</key>
+      <string>base</string>
+      <key>uni0627</key>
+      <string>base</string>
+      <key>uni0627.fina</key>
+      <string>base</string>
+      <key>uni0628</key>
+      <string>base</string>
+      <key>uni0628.fina</key>
+      <string>base</string>
+      <key>uni0628.init</key>
+      <string>base</string>
+      <key>uni0628.medi</key>
+      <string>base</string>
+      <key>uni0629</key>
+      <string>base</string>
+      <key>uni0629.fina</key>
+      <string>base</string>
+      <key>uni062A</key>
+      <string>base</string>
+      <key>uni062A.fina</key>
+      <string>base</string>
+      <key>uni062A.init</key>
+      <string>base</string>
+      <key>uni062A.medi</key>
+      <string>base</string>
+      <key>uni062B</key>
+      <string>base</string>
+      <key>uni062B.fina</key>
+      <string>base</string>
+      <key>uni062B.init</key>
+      <string>base</string>
+      <key>uni062B.medi</key>
+      <string>base</string>
+      <key>uni062C</key>
+      <string>base</string>
+      <key>uni062C.fina</key>
+      <string>base</string>
+      <key>uni062C.init</key>
+      <string>base</string>
+      <key>uni062C.medi</key>
+      <string>base</string>
+      <key>uni062D</key>
+      <string>base</string>
+      <key>uni062D.fina</key>
+      <string>base</string>
+      <key>uni062D.init</key>
+      <string>base</string>
+      <key>uni062D.medi</key>
+      <string>base</string>
+      <key>uni062E</key>
+      <string>base</string>
+      <key>uni062E.fina</key>
+      <string>base</string>
+      <key>uni062E.init</key>
+      <string>base</string>
+      <key>uni062E.medi</key>
+      <string>base</string>
+      <key>uni062F</key>
+      <string>base</string>
+      <key>uni062F.fina</key>
+      <string>base</string>
+      <key>uni0630</key>
+      <string>base</string>
+      <key>uni0630.fina</key>
+      <string>base</string>
+      <key>uni0631</key>
+      <string>base</string>
+      <key>uni0631.fina</key>
+      <string>base</string>
+      <key>uni0632</key>
+      <string>base</string>
+      <key>uni0632.fina</key>
+      <string>base</string>
+      <key>uni0633</key>
+      <string>base</string>
+      <key>uni0633.fina</key>
+      <string>base</string>
+      <key>uni0633.init</key>
+      <string>base</string>
+      <key>uni0633.medi</key>
+      <string>base</string>
+      <key>uni0634</key>
+      <string>base</string>
+      <key>uni0634.fina</key>
+      <string>base</string>
+      <key>uni0634.init</key>
+      <string>base</string>
+      <key>uni0634.medi</key>
+      <string>base</string>
+      <key>uni0635</key>
+      <string>base</string>
+      <key>uni0635.fina</key>
+      <string>base</string>
+      <key>uni0635.init</key>
+      <string>base</string>
+      <key>uni0635.medi</key>
+      <string>base</string>
+      <key>uni0636</key>
+      <string>base</string>
+      <key>uni0636.fina</key>
+      <string>base</string>
+      <key>uni0636.init</key>
+      <string>base</string>
+      <key>uni0636.medi</key>
+      <string>base</string>
+      <key>uni0637</key>
+      <string>base</string>
+      <key>uni0637.fina</key>
+      <string>base</string>
+      <key>uni0637.init</key>
+      <string>base</string>
+      <key>uni0637.medi</key>
+      <string>base</string>
+      <key>uni0638</key>
+      <string>base</string>
+      <key>uni0638.fina</key>
+      <string>base</string>
+      <key>uni0638.init</key>
+      <string>base</string>
+      <key>uni0638.medi</key>
+      <string>base</string>
+      <key>uni0639</key>
+      <string>base</string>
+      <key>uni0639.fina</key>
+      <string>base</string>
+      <key>uni0639.init</key>
+      <string>base</string>
+      <key>uni0639.medi</key>
+      <string>base</string>
+      <key>uni063A</key>
+      <string>base</string>
+      <key>uni063A.fina</key>
+      <string>base</string>
+      <key>uni063A.init</key>
+      <string>base</string>
+      <key>uni063A.medi</key>
+      <string>base</string>
+      <key>uni0640</key>
+      <string>base</string>
+      <key>uni0641</key>
+      <string>base</string>
+      <key>uni0641.fina</key>
+      <string>base</string>
+      <key>uni0641.init</key>
+      <string>base</string>
+      <key>uni0641.medi</key>
+      <string>base</string>
+      <key>uni0642</key>
+      <string>base</string>
+      <key>uni0642.fina</key>
+      <string>base</string>
+      <key>uni0642.init</key>
+      <string>base</string>
+      <key>uni0642.medi</key>
+      <string>base</string>
+      <key>uni0643</key>
+      <string>base</string>
+      <key>uni0643.fina</key>
+      <string>base</string>
+      <key>uni0643.init</key>
+      <string>base</string>
+      <key>uni0643.medi</key>
+      <string>base</string>
+      <key>uni0644</key>
+      <string>base</string>
+      <key>uni0644.fina</key>
+      <string>base</string>
+      <key>uni0644.init</key>
+      <string>base</string>
+      <key>uni0644.medi</key>
+      <string>base</string>
+      <key>uni0644_uni0622</key>
+      <string>base</string>
+      <key>uni0644_uni0622.fina</key>
+      <string>base</string>
+      <key>uni0644_uni0623</key>
+      <string>base</string>
+      <key>uni0644_uni0623.fina</key>
+      <string>base</string>
+      <key>uni0644_uni0625</key>
+      <string>base</string>
+      <key>uni0644_uni0625.fina</key>
+      <string>base</string>
+      <key>uni0644_uni0627</key>
+      <string>base</string>
+      <key>uni0644_uni0627.fina</key>
+      <string>base</string>
+      <key>uni0645</key>
+      <string>base</string>
+      <key>uni0645.fina</key>
+      <string>base</string>
+      <key>uni0645.init</key>
+      <string>base</string>
+      <key>uni0645.medi</key>
+      <string>base</string>
+      <key>uni0646</key>
+      <string>base</string>
+      <key>uni0646.fina</key>
+      <string>base</string>
+      <key>uni0646.init</key>
+      <string>base</string>
+      <key>uni0646.medi</key>
+      <string>base</string>
+      <key>uni0647</key>
+      <string>base</string>
+      <key>uni0647.fina</key>
+      <string>base</string>
+      <key>uni0647.init</key>
+      <string>base</string>
+      <key>uni0647.medi</key>
+      <string>base</string>
+      <key>uni0648</key>
+      <string>base</string>
+      <key>uni0648.fina</key>
+      <string>base</string>
+      <key>uni0649</key>
+      <string>base</string>
+      <key>uni0649.fina</key>
+      <string>base</string>
+      <key>uni0649.init</key>
+      <string>base</string>
+      <key>uni0649.medi</key>
+      <string>base</string>
+      <key>uni064A</key>
+      <string>base</string>
+      <key>uni064A.fina</key>
+      <string>base</string>
+      <key>uni064A.init</key>
+      <string>base</string>
+      <key>uni064A.medi</key>
+      <string>base</string>
+      <key>uni064B</key>
+      <string>mark</string>
+      <key>uni064C</key>
+      <string>mark</string>
+      <key>uni064D</key>
+      <string>mark</string>
+      <key>uni064E</key>
+      <string>mark</string>
+      <key>uni064F</key>
+      <string>mark</string>
+      <key>uni0650</key>
+      <string>mark</string>
+      <key>uni0651</key>
+      <string>mark</string>
+      <key>uni0652</key>
+      <string>mark</string>
+      <key>uni0653</key>
+      <string>mark</string>
+      <key>uni0654</key>
+      <string>mark</string>
+      <key>uni0655</key>
+      <string>mark</string>
+      <key>uni0660</key>
+      <string>base</string>
+      <key>uni0661</key>
+      <string>base</string>
+      <key>uni0662</key>
+      <string>base</string>
+      <key>uni0663</key>
+      <string>base</string>
+      <key>uni0664</key>
+      <string>base</string>
+      <key>uni0665</key>
+      <string>base</string>
+      <key>uni0666</key>
+      <string>base</string>
+      <key>uni0667</key>
+      <string>base</string>
+      <key>uni0668</key>
+      <string>base</string>
+      <key>uni0669</key>
+      <string>base</string>
+      <key>uni066A</key>
+      <string>base</string>
+      <key>uni066B</key>
+      <string>base</string>
+      <key>uni066C</key>
+      <string>base</string>
+      <key>uni066E</key>
+      <string>base</string>
+      <key>uni066E.fina</key>
+      <string>base</string>
+      <key>uni066E.init</key>
+      <string>base</string>
+      <key>uni066E.medi</key>
+      <string>base</string>
+      <key>uni066F</key>
+      <string>base</string>
+      <key>uni066F.fina</key>
+      <string>base</string>
+      <key>uni066F.init</key>
+      <string>base</string>
+      <key>uni066F.medi</key>
+      <string>base</string>
+      <key>uni0670</key>
+      <string>mark</string>
+      <key>uni0671</key>
+      <string>base</string>
+      <key>uni0671.fina</key>
+      <string>base</string>
+      <key>uni0679</key>
+      <string>base</string>
+      <key>uni0679.fina</key>
+      <string>base</string>
+      <key>uni0679.init</key>
+      <string>base</string>
+      <key>uni0679.medi</key>
+      <string>base</string>
+      <key>uni067E</key>
+      <string>base</string>
+      <key>uni067E.fina</key>
+      <string>base</string>
+      <key>uni067E.init</key>
+      <string>base</string>
+      <key>uni067E.medi</key>
+      <string>base</string>
+      <key>uni0686</key>
+      <string>base</string>
+      <key>uni0686.fina</key>
+      <string>base</string>
+      <key>uni0686.init</key>
+      <string>base</string>
+      <key>uni0686.medi</key>
+      <string>base</string>
+      <key>uni0688</key>
+      <string>base</string>
+      <key>uni0688.fina</key>
+      <string>base</string>
+      <key>uni0691</key>
+      <string>base</string>
+      <key>uni0691.fina</key>
+      <string>base</string>
+      <key>uni0698</key>
+      <string>base</string>
+      <key>uni0698.fina</key>
+      <string>base</string>
+      <key>uni06A9</key>
+      <string>base</string>
+      <key>uni06A9.fina</key>
+      <string>base</string>
+      <key>uni06A9.init</key>
+      <string>base</string>
+      <key>uni06A9.medi</key>
+      <string>base</string>
+      <key>uni06AF</key>
+      <string>base</string>
+      <key>uni06AF.fina</key>
+      <string>base</string>
+      <key>uni06AF.init</key>
+      <string>base</string>
+      <key>uni06AF.medi</key>
+      <string>base</string>
+      <key>uni06BA</key>
+      <string>base</string>
+      <key>uni06BA.fina</key>
+      <string>base</string>
+      <key>uni06BA.init</key>
+      <string>base</string>
+      <key>uni06BA.medi</key>
+      <string>base</string>
+      <key>uni06BE</key>
+      <string>base</string>
+      <key>uni06BE.fina</key>
+      <string>base</string>
+      <key>uni06BE.init</key>
+      <string>base</string>
+      <key>uni06BE.medi</key>
+      <string>base</string>
+      <key>uni06C1</key>
+      <string>base</string>
+      <key>uni06C1.fina</key>
+      <string>base</string>
+      <key>uni06C1.init</key>
+      <string>base</string>
+      <key>uni06C1.medi</key>
+      <string>base</string>
+      <key>uni06CC</key>
+      <string>base</string>
+      <key>uni06CC.fina</key>
+      <string>base</string>
+      <key>uni06CC.init</key>
+      <string>base</string>
+      <key>uni06CC.medi</key>
+      <string>base</string>
+      <key>uni06D2</key>
+      <string>base</string>
+      <key>uni06D2.fina</key>
+      <string>base</string>
+      <key>uni06F0</key>
+      <string>base</string>
+      <key>uni06F1</key>
+      <string>base</string>
+      <key>uni06F2</key>
+      <string>base</string>
+      <key>uni06F3</key>
+      <string>base</string>
+      <key>uni06F4</key>
+      <string>base</string>
+      <key>uni06F5</key>
+      <string>base</string>
+      <key>uni06F6</key>
+      <string>base</string>
+      <key>uni06F7</key>
+      <string>base</string>
+      <key>uni06F8</key>
+      <string>base</string>
+      <key>uni06F9</key>
       <string>base</string>
       <key>uni1E9E</key>
       <string>base</string>
@@ -1625,9 +2719,13 @@
       <string>base</string>
       <key>uni1EBD</key>
       <string>base</string>
+      <key>uni1EBD.sc</key>
+      <string>base</string>
       <key>uni1EF8</key>
       <string>base</string>
       <key>uni1EF9</key>
+      <string>base</string>
+      <key>uni1EF9.sc</key>
       <string>base</string>
       <key>uni2000</key>
       <string>base</string>
@@ -1651,9 +2749,19 @@
       <string>base</string>
       <key>uni200A</key>
       <string>base</string>
+      <key>uni200C</key>
+      <string>base</string>
+      <key>uni200D</key>
+      <string>base</string>
+      <key>uni200E</key>
+      <string>base</string>
+      <key>uni200F</key>
+      <string>base</string>
       <key>uni2010</key>
       <string>base</string>
       <key>uni2011</key>
+      <string>base</string>
+      <key>uni2015</key>
       <string>base</string>
       <key>uni202F</key>
       <string>base</string>
@@ -1699,55 +2807,91 @@
       <string>base</string>
       <key>uogonek</key>
       <string>base</string>
+      <key>uogonek.sc</key>
+      <string>base</string>
+      <key>upsilon</key>
+      <string>base</string>
+      <key>upsilondieresis</key>
+      <string>base</string>
+      <key>upsilondieresistonos</key>
+      <string>base</string>
+      <key>upsilontonos</key>
+      <string>base</string>
       <key>uring</key>
+      <string>base</string>
+      <key>uring.sc</key>
       <string>base</string>
       <key>utilde</key>
       <string>base</string>
+      <key>utilde.sc</key>
+      <string>base</string>
       <key>v</key>
+      <string>base</string>
+      <key>v.sc</key>
       <string>base</string>
       <key>w</key>
       <string>base</string>
+      <key>w.sc</key>
+      <string>base</string>
       <key>wacute</key>
+      <string>base</string>
+      <key>wacute.sc</key>
       <string>base</string>
       <key>wcircumflex</key>
       <string>base</string>
+      <key>wcircumflex.sc</key>
+      <string>base</string>
       <key>wdieresis</key>
+      <string>base</string>
+      <key>wdieresis.sc</key>
       <string>base</string>
       <key>wgrave</key>
       <string>base</string>
+      <key>wgrave.sc</key>
+      <string>base</string>
       <key>x</key>
+      <string>base</string>
+      <key>x.sc</key>
+      <string>base</string>
+      <key>xi</key>
       <string>base</string>
       <key>y</key>
       <string>base</string>
-      <key>y.ss01</key>
+      <key>y.sc</key>
       <string>base</string>
       <key>yacute</key>
       <string>base</string>
+      <key>yacute.sc</key>
+      <string>base</string>
       <key>ycircumflex</key>
       <string>base</string>
+      <key>ycircumflex.sc</key>
+      <string>base</string>
       <key>ydieresis</key>
+      <string>base</string>
+      <key>ydieresis.sc</key>
       <string>base</string>
       <key>yen</key>
       <string>base</string>
       <key>ygrave</key>
       <string>base</string>
+      <key>ygrave.sc</key>
+      <string>base</string>
       <key>z</key>
       <string>base</string>
-      <key>z_a.dlig</key>
-      <string>ligature</string>
-      <key>z_e.dlig</key>
-      <string>ligature</string>
-      <key>z_i.dlig</key>
-      <string>ligature</string>
-      <key>z_o.dlig</key>
-      <string>ligature</string>
-      <key>z_u.dlig</key>
-      <string>ligature</string>
+      <key>z.sc</key>
+      <string>base</string>
       <key>zacute</key>
+      <string>base</string>
+      <key>zacute.sc</key>
       <string>base</string>
       <key>zcaron</key>
       <string>base</string>
+      <key>zcaron.sc</key>
+      <string>base</string>
       <key>zdotaccent</key>
+      <string>base</string>
+      <key>zdotaccent.sc</key>
       <string>base</string>
       <key>zero</key>
       <string>base</string>
@@ -1758,6 +2902,8 @@
       <key>zero.subs</key>
       <string>base</string>
       <key>zero.sups</key>
+      <string>base</string>
+      <key>zeta</key>
       <string>base</string>
     </dict>
   </dict>

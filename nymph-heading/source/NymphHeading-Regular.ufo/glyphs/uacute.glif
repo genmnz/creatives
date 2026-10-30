@@ -1,12 +1,12 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <glyph name="uacute" format="2">
-  <advance width="1180"/>
+  <advance width="1130"/>
   <unicode hex="00FA"/>
-  <anchor x="638" y="1556" name="top"/>
-  <anchor x="591" y="0" name="bottom"/>
-  <anchor x="655" y="0" name="ogonek"/>
+  <anchor x="589" y="0" name="bottom"/>
+  <anchor x="500" y="1416" name="top"/>
+  <anchor x="943" y="0" name="ogonek"/>
   <outline>
     <component base="u"/>
-    <component base="acutecomb" xOffset="1098" yOffset="-423"/>
+    <component base="acutecomb" xOffset="960" yOffset="-563"/>
   </outline>
 </glyph>

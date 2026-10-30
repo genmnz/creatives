@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<glyph name="Pi" format="2">
+  <advance width="1413"/>
+  <unicode hex="03A0"/>
+  <anchor x="706" y="1573" name="top"/>
+  <anchor x="706" y="0" name="bottom"/>
+  <anchor x="1172" y="0" name="ogonek"/>
+  <outline>
+    <contour>
+      <point x="176" y="0" type="line" smooth="yes"/>
+      <point x="157" y="0"/>
+      <point x="143" y="12"/>
+      <point x="143" y="33" type="qcurve" smooth="yes"/>
+      <point x="143" y="1573" type="line"/>
+      <point x="1270" y="1573" type="line"/>
+      <point x="1270" y="33" type="line" smooth="yes"/>
+      <point x="1270" y="12"/>
+      <point x="1256" y="0"/>
+      <point x="1237" y="0" type="qcurve" smooth="yes"/>
+      <point x="1106" y="0" type="line" smooth="yes"/>
+      <point x="1087" y="0"/>
+      <point x="1073" y="12"/>
+      <point x="1073" y="33" type="qcurve" smooth="yes"/>
+      <point x="1073" y="1457" type="line"/>
+      <point x="340" y="1457" type="line"/>
+      <point x="340" y="33" type="line" smooth="yes"/>
+      <point x="340" y="12"/>
+      <point x="326" y="0"/>
+      <point x="307" y="0" type="qcurve" smooth="yes"/>
+    </contour>
+  </outline>
+</glyph>

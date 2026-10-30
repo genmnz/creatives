@@ -4,88 +4,126 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Nymph Heading</title>
-<link rel="stylesheet" href="../fonts/webfonts/nymph-heading.css">
+<link rel="stylesheet" href="../fonts/variable/nymph-heading-variable.css">
 <style>
-  :root { --ink: #1b1a17; --muted: #7a756c; --line: #e4e0d8; --bg: #fbfaf7; }
+  :root { --ink: #1b1a17; --muted: #7a756c; --line: #e4e0d8; --bg: #fbfaf7; --accent: #8a5a2b; }
   @media (prefers-color-scheme: dark) {
-    :root { --ink: #ece8df; --muted: #9a958b; --line: #34322e; --bg: #161513; }
+    :root:not([data-theme="light"]) { --ink: #ece8df; --muted: #9a958b; --line: #34322e; --bg: #161513; --accent: #d9a46c; }
   }
+  :root[data-theme="dark"] { --ink: #ece8df; --muted: #9a958b; --line: #34322e; --bg: #161513; --accent: #d9a46c; }
   body { margin: 0; padding: 32px 16px 64px; background: var(--bg); color: var(--ink);
          font: 15px/1.5 system-ui, sans-serif; }
   main { max-width: 1100px; margin: 0 auto; }
-  .nh { font-family: "Nymph Heading", serif; }
-  h1 { font: 400 clamp(56px, 10vw, 120px)/1 "Nymph Heading", serif; margin: 0 0 8px; }
+  h1 { font: 400 clamp(56px, 10vw, 120px)/1 "Nymph Heading", serif; margin: 0 0 8px;
+       font-variation-settings: "wght" var(--w, 400); }
   .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em;
-           margin: 32px 0 6px; }
-  .sample { font-family: "Nymph Heading", serif; font-size: clamp(28px, 4.5vw, 48px);
-            line-height: 1.25; overflow-wrap: anywhere; }
-  textarea { width: 100%; box-sizing: border-box; min-height: 120px; padding: 12px;
+           margin: 36px 0 8px; }
+  .nh { font-family: "Nymph Heading", serif; font-weight: var(--w, 400); }
+  .sample { font-family: "Nymph Heading", serif; font-size: clamp(26px, 4.2vw, 46px);
+            line-height: 1.35; overflow-wrap: anywhere; font-weight: var(--w, 400); }
+  [dir="rtl"].sample { text-align: right; }
+  textarea { width: 100%; box-sizing: border-box; min-height: 110px; padding: 12px;
              background: transparent; color: var(--ink); border: 1px solid var(--line);
-             font: 40px/1.3 "Nymph Heading", serif; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+             font: 40px/1.35 "Nymph Heading", serif; font-weight: var(--w, 400); }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+  .controls label { user-select: none; white-space: nowrap; }
+  input[type=range] { width: min(320px, 100%); accent-color: var(--accent); }
+  .weights div { font-family: "Nymph Heading", serif; font-size: clamp(24px, 3.6vw, 40px); line-height: 1.4; }
+  .weights small { font: 12px system-ui, sans-serif; color: var(--muted); margin-left: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
           border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
   .grid div { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line);
-              text-align: center; padding: 6px 0 2px; font: 32px/1.3 "Nymph Heading", serif; }
+              text-align: center; padding: 6px 0 2px; font: 30px/1.4 "Nymph Heading", serif;
+              font-weight: var(--w, 400); }
   .grid small { display: block; font: 9px/1.2 ui-monospace, monospace; color: var(--muted); }
-  label { margin-right: 12px; user-select: none; }
 </style>
 </head>
 <body>
 <main>
   <h1>Nymph Heading</h1>
-  <p>Caps with small-cap lowercase, extended for every Latin-script European language.</p>
+  <p>Display type with true lowercase, European Latin, Greek and Arabic, Light to Bold in one variable font.</p>
+
+  <div class="label">Weight</div>
+  <div class="controls">
+    <input id="weight" type="range" min="300" max="700" step="1" value="400" aria-label="Weight">
+    <span id="wval">400</span>
+  </div>
 
   <div class="label">Try it</div>
-  <div id="features">
+  <div class="controls" id="features">
+    <label><input type="checkbox" value="smcp"> smcp small caps</label>
+    <label><input type="checkbox" value="c2sc"> c2sc caps to small caps</label>
     <label><input type="checkbox" value="ss01"> ss01 underscored</label>
     <label><input type="checkbox" value="dlig"> dlig ligatures</label>
-    <label><input type="checkbox" value="c2sc"> c2sc all small caps</label>
     <label><input type="checkbox" value="frac"> frac fractions</label>
     <label><input type="checkbox" value="sups"> sups superiors</label>
-    <label><input type="checkbox" value="ordn"> ordn ordinals</label>
   </div>
-  <textarea id="tester" spellcheck="false">The Enchanted Forest — 1/2 Price, THE AND FOR</textarea>
+  <textarea id="tester" spellcheck="false">The Enchanted Forest — THE AND FOR, 1/2</textarea>
+  <textarea id="tester-ar" dir="rtl" lang="ar" spellcheck="false">مرحبا بالعالم، كيف حالك؟</textarea>
+
+  <div class="label">Weights</div>
+  <div class="weights" id="weights"></div>
 
   <div class="label">Languages</div>
+  <div class="sample" lang="en">The quick brown fox jumps over the lazy dog</div>
   <div class="sample" lang="de">Größe, Straße, Übermäßig</div>
-  <div class="sample" lang="fr">Œuvre à côté d’un château</div>
   <div class="sample" lang="pl">Zażółć gęślą jaźń — Łódź</div>
   <div class="sample" lang="cs">Příliš žluťoučký kůň</div>
-  <div class="sample" lang="hu">Árvíztűrő tükörfúrógép</div>
   <div class="sample" lang="ro">Știință și țară</div>
   <div class="sample" lang="tr">İstanbul için ılık ışık</div>
-  <div class="sample" lang="lv">Ģērbjas ķēniņš</div>
-  <div class="sample" lang="is">Þórður, Ærø, Øresund</div>
-  <div class="sample" lang="mt">Ħabiba Żejtun</div>
+  <div class="sample" lang="el">Καλημέρα κόσμε — Ξεσκεπάζω την ψυχοφθόρα βδελυγμία</div>
+  <div class="sample" lang="ar" dir="rtl">السَّلامُ عَلَيْكُمْ — بسم الله الرحمن الرحيم</div>
+  <div class="sample" lang="fa" dir="rtl">سپاس گزارم؛ ژاله چای می‌نوشد ۱۲۳۴۵</div>
 
   <div class="label">Every character</div>
   <div class="grid" id="grid"></div>
 </main>
 <script>
-  const ranges = [[0x20,0x7E],[0xA0,0xFF],[0x100,0x17E]];
+  const root = document.documentElement;
+  const slider = document.getElementById('weight');
+  const wval = document.getElementById('wval');
+  slider.addEventListener('input', () => {
+    root.style.setProperty('--w', slider.value);
+    wval.textContent = slider.value;
+  });
+
+  const weights = document.getElementById('weights');
+  for (const [w, name] of [[300, 'Light'], [400, 'Regular'], [500, 'Medium'], [600, 'SemiBold'], [700, 'Bold']]) {
+    const d = document.createElement('div');
+    d.style.fontWeight = w;
+    d.textContent = 'Nymph Heading  Καλημέρα  مرحبا';
+    const s = document.createElement('small');
+    s.textContent = `${name} ${w}`;
+    d.appendChild(s);
+    weights.appendChild(d);
+  }
+
+  const ranges = [[0x20,0x7E],[0xA0,0x17E],[0x386,0x3CE],[0x60C,0x60C],[0x61B,0x61B],[0x61F,0x63A],
+                  [0x640,0x652],[0x660,0x66F],[0x670,0x671],[0x6F0,0x6F9]];
   const extra = [0x18F,0x259,0x1E6,0x1E7,0x1FA,0x1FB,0x1FC,0x1FD,0x1FE,0x1FF,0x218,0x219,0x21A,0x21B,
-    0x237,0x2C6,0x2C7,0x2D8,0x2D9,0x2DA,0x2DB,0x2DC,0x2DD,0x1E80,0x1E81,0x1E82,0x1E83,0x1E84,0x1E85,
-    0x1E9E,0x1EBC,0x1EBD,0x1EF2,0x1EF3,0x1EF8,0x1EF9,0x2013,0x2014,0x2018,0x2019,0x201A,0x201C,0x201D,
-    0x201E,0x2020,0x2021,0x2022,0x2026,0x2030,0x2039,0x203A,0x2044,0x2070,0x2074,0x2075,0x2076,0x2077,
-    0x2078,0x2079,0x2080,0x2081,0x2082,0x2083,0x2084,0x2085,0x2086,0x2087,0x2088,0x2089,0x20AC,0x2116,
-    0x2122,0x2212,0x2248,0x2260,0x2264,0x2265,0xFB01,0xFB02];
+    0x237,0x1E80,0x1E81,0x1E82,0x1E83,0x1E84,0x1E85,0x1E9E,0x1EBC,0x1EBD,0x1EF2,0x1EF3,0x1EF8,0x1EF9,
+    0x67E,0x686,0x698,0x6A9,0x6AF,0x6CC,0x2013,0x2014,0x2018,0x2019,0x201C,0x201D,0x201E,0x2020,0x2021,
+    0x2026,0x2030,0x2039,0x203A,0x20AC,0x2116,0x2122,0x2212,0x2248,0x2260,0x2264,0x2265];
   const cps = [];
-  for (const [a,b] of ranges) for (let c=a;c<=b;c++) cps.push(c);
+  for (const [a, b] of ranges) for (let c = a; c <= b; c++) cps.push(c);
   cps.push(...extra);
   const grid = document.getElementById('grid');
+  const skip = new Set([0x20, 0xA0, 0xAD, 0x387 - 1, 0x38B, 0x38D, 0x3A2]);
   for (const c of cps) {
-    if (c === 0xAD || c === 0xA0 || c === 0x20) continue;
+    if (skip.has(c)) continue;
     const d = document.createElement('div');
     d.textContent = String.fromCodePoint(c);
+    if (c >= 0x600 && c <= 0x6FF) d.dir = 'rtl';
     const s = document.createElement('small');
-    s.textContent = c.toString(16).toUpperCase().padStart(4,'0');
+    s.textContent = c.toString(16).toUpperCase().padStart(4, '0');
     d.appendChild(s);
     grid.appendChild(d);
   }
-  const tester = document.getElementById('tester');
+
+  const testers = [document.getElementById('tester'), document.getElementById('tester-ar')];
   document.getElementById('features').addEventListener('change', () => {
     const on = [...document.querySelectorAll('#features input:checked')].map(i => `"${i.value}" 1`);
-    tester.style.fontFeatureSettings = on.join(', ') || 'normal';
+    for (const t of testers) t.style.fontFeatureSettings = on.join(', ') || 'normal';
   });
 </script>
 </body>

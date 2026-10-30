@@ -1,0 +1,8 @@
+@font-face {
+  font-family: "Nymph Heading";
+  src: url("NymphHeading[wght].woff2") format("woff2-variations"),
+       url("NymphHeading[wght].woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}

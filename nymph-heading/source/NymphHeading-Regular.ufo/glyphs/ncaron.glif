@@ -1,12 +1,12 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <glyph name="ncaron" format="2">
-  <advance width="1142"/>
+  <advance width="1130"/>
   <unicode hex="0148"/>
-  <anchor x="615" y="1528" name="top"/>
-  <anchor x="571" y="0" name="bottom"/>
-  <anchor x="922" y="0" name="ogonek"/>
+  <anchor x="517" y="1388" name="top"/>
+  <anchor x="565" y="0" name="bottom"/>
+  <anchor x="918" y="0" name="ogonek"/>
   <outline>
     <component base="n"/>
-    <component base="caroncomb" xOffset="1075" yOffset="-423"/>
+    <component base="caroncomb" xOffset="977" yOffset="-563"/>
   </outline>
 </glyph>

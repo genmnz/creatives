@@ -7,7 +7,7 @@
     <key>capHeight</key>
     <integer>1573</integer>
     <key>descender</key>
-    <integer>-498</integer>
+    <integer>-760</integer>
     <key>familyName</key>
     <string>Nymph Heading</string>
     <key>italicAngle</key>
@@ -26,8 +26,6 @@
         <integer>65535</integer>
       </dict>
     </array>
-    <key>openTypeHeadCreated</key>
-    <string>2016/11/14 12:28:58</string>
     <key>openTypeHeadFlags</key>
     <array>
       <integer>0</integer>
@@ -47,206 +45,13 @@
     <key>openTypeHheaCaretSlopeRun</key>
     <integer>0</integer>
     <key>openTypeHheaDescender</key>
-    <integer>-498</integer>
+    <integer>-760</integer>
     <key>openTypeHheaLineGap</key>
     <integer>0</integer>
     <key>openTypeNameDescription</key>
-    <string>Small-cap lowercase and extended European Latin added to the caps-only Irvin Heading 1.001.</string>
+    <string>Lowercase, extended European Latin, Greek and Arabic added to the caps-only Irvin Heading 1.001, in weights from Light to Bold.</string>
     <key>openTypeNameRecords</key>
-    <array>
-      <dict>
-        <key>encodingID</key>
-        <integer>0</integer>
-        <key>languageID</key>
-        <integer>0</integer>
-        <key>nameID</key>
-        <integer>1</integer>
-        <key>platformID</key>
-        <integer>1</integer>
-        <key>string</key>
-        <string>Irvin</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>1</integer>
-        <key>languageID</key>
-        <integer>1033</integer>
-        <key>nameID</key>
-        <integer>1</integer>
-        <key>platformID</key>
-        <integer>3</integer>
-        <key>string</key>
-        <string>Irvin</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>0</integer>
-        <key>languageID</key>
-        <integer>0</integer>
-        <key>nameID</key>
-        <integer>2</integer>
-        <key>platformID</key>
-        <integer>1</integer>
-        <key>string</key>
-        <string>Regular</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>1</integer>
-        <key>languageID</key>
-        <integer>1033</integer>
-        <key>nameID</key>
-        <integer>2</integer>
-        <key>platformID</key>
-        <integer>3</integer>
-        <key>string</key>
-        <string>Regular</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>0</integer>
-        <key>languageID</key>
-        <integer>0</integer>
-        <key>nameID</key>
-        <integer>3</integer>
-        <key>platformID</key>
-        <integer>1</integer>
-        <key>string</key>
-        <string>1.001;NONE;Irvin-Heading</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>1</integer>
-        <key>languageID</key>
-        <integer>1033</integer>
-        <key>nameID</key>
-        <integer>3</integer>
-        <key>platformID</key>
-        <integer>3</integer>
-        <key>string</key>
-        <string>1.001;NONE;Irvin-Heading</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>0</integer>
-        <key>languageID</key>
-        <integer>0</integer>
-        <key>nameID</key>
-        <integer>4</integer>
-        <key>platformID</key>
-        <integer>1</integer>
-        <key>string</key>
-        <string>Irvin-Heading</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>1</integer>
-        <key>languageID</key>
-        <integer>1033</integer>
-        <key>nameID</key>
-        <integer>4</integer>
-        <key>platformID</key>
-        <integer>3</integer>
-        <key>string</key>
-        <string>Irvin-Heading</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>0</integer>
-        <key>languageID</key>
-        <integer>0</integer>
-        <key>nameID</key>
-        <integer>5</integer>
-        <key>platformID</key>
-        <integer>1</integer>
-        <key>string</key>
-        <string>Version 1.001;PS 1.1;hotconv 1.0.70;makeotf.lib2.5.58329; ttfautohint (v1.4.1)</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>1</integer>
-        <key>languageID</key>
-        <integer>1033</integer>
-        <key>nameID</key>
-        <integer>5</integer>
-        <key>platformID</key>
-        <integer>3</integer>
-        <key>string</key>
-        <string>Version 1.001;PS 1.1;hotconv 1.0.70;makeotf.lib2.5.58329; ttfautohint (v1.4.1)</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>0</integer>
-        <key>languageID</key>
-        <integer>0</integer>
-        <key>nameID</key>
-        <integer>6</integer>
-        <key>platformID</key>
-        <integer>1</integer>
-        <key>string</key>
-        <string>Irvin-Heading</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>1</integer>
-        <key>languageID</key>
-        <integer>1033</integer>
-        <key>nameID</key>
-        <integer>6</integer>
-        <key>platformID</key>
-        <integer>3</integer>
-        <key>string</key>
-        <string>Irvin-Heading</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>0</integer>
-        <key>languageID</key>
-        <integer>0</integer>
-        <key>nameID</key>
-        <integer>16</integer>
-        <key>platformID</key>
-        <integer>1</integer>
-        <key>string</key>
-        <string>Irvin</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>1</integer>
-        <key>languageID</key>
-        <integer>1033</integer>
-        <key>nameID</key>
-        <integer>16</integer>
-        <key>platformID</key>
-        <integer>3</integer>
-        <key>string</key>
-        <string>Irvin</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>0</integer>
-        <key>languageID</key>
-        <integer>0</integer>
-        <key>nameID</key>
-        <integer>17</integer>
-        <key>platformID</key>
-        <integer>1</integer>
-        <key>string</key>
-        <string>Heading</string>
-      </dict>
-      <dict>
-        <key>encodingID</key>
-        <integer>1</integer>
-        <key>languageID</key>
-        <integer>1033</integer>
-        <key>nameID</key>
-        <integer>17</integer>
-        <key>platformID</key>
-        <integer>3</integer>
-        <key>string</key>
-        <string>Heading</string>
-      </dict>
-    </array>
+    <array/>
     <key>openTypeNameUniqueID</key>
     <string>2.000;NONE;NymphHeading-Regular</string>
     <key>openTypeNameVersion</key>
@@ -269,7 +74,7 @@
       <integer>7</integer>
     </array>
     <key>openTypeOS2StrikeoutPosition</key>
-    <integer>575</integer>
+    <integer>505</integer>
     <key>openTypeOS2StrikeoutSize</key>
     <integer>111</integer>
     <key>openTypeOS2SubscriptXOffset</key>
@@ -295,7 +100,7 @@
     <key>openTypeOS2TypoAscender</key>
     <integer>2058</integer>
     <key>openTypeOS2TypoDescender</key>
-    <integer>-498</integer>
+    <integer>-760</integer>
     <key>openTypeOS2TypoLineGap</key>
     <integer>0</integer>
     <key>openTypeOS2VendorID</key>
@@ -307,16 +112,18 @@
     <key>openTypeOS2WinAscent</key>
     <integer>2464</integer>
     <key>openTypeOS2WinDescent</key>
-    <integer>498</integer>
+    <integer>760</integer>
     <key>postscriptBlueValues</key>
     <array>
       <integer>-45</integer>
       <integer>0</integer>
-      <integer>1150</integer>
-      <integer>1187</integer>
+      <integer>1010</integer>
+      <integer>1026</integer>
       <integer>1573</integer>
       <integer>1622</integer>
     </array>
+    <key>postscriptFamilyBlues</key>
+    <array/>
     <key>postscriptFontName</key>
     <string>NymphHeading-Regular</string>
     <key>postscriptFullName</key>
@@ -325,8 +132,8 @@
     <false/>
     <key>postscriptOtherBlues</key>
     <array>
-      <integer>-498</integer>
-      <integer>-480</integer>
+      <integer>-500</integer>
+      <integer>-484</integer>
     </array>
     <key>postscriptStemSnapH</key>
     <array>
@@ -355,6 +162,6 @@
     <key>versionMinor</key>
     <integer>0</integer>
     <key>xHeight</key>
-    <integer>1150</integer>
+    <integer>1010</integer>
   </dict>
 </plist>

@@ -1,12 +1,12 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <glyph name="wcircumflex" format="2">
-  <advance width="1616"/>
+  <advance width="1345"/>
   <unicode hex="0175"/>
-  <anchor x="808" y="1528" name="top"/>
-  <anchor x="806" y="0" name="bottom"/>
-  <anchor x="1040" y="0" name="ogonek"/>
+  <anchor x="673" y="1388" name="top"/>
+  <anchor x="671" y="0" name="bottom"/>
+  <anchor x="854" y="0" name="ogonek"/>
   <outline>
     <component base="w"/>
-    <component base="circumflexcomb" xOffset="1268" yOffset="-423"/>
+    <component base="circumflexcomb" xOffset="1133" yOffset="-563"/>
   </outline>
 </glyph>

@@ -38,6 +38,7 @@ from fontTools.pens.reverseContourPen import ReverseContourPen
 from fontTools.ttLib import TTFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import lowercase as LC  # noqa: E402
 from geometry import (  # noqa: E402
     band_extent, difference, ellipse, embolden, intersection, path_of,
     polygon, rect, runs_at_x, runs_at_y, set_outline, transform_glyph,
@@ -54,7 +55,8 @@ PS_NAME = "NymphHeading-Regular"
 VERSION = (2, 0)
 
 CAP = 1573          # cap height of the original
-SC = 1150           # x-height = small-cap height of the new lowercase
+SC = 1150           # small-cap height (smcp / c2sc)
+LX = 1010           # x-height of the drawn lowercase
 STEM = 197          # vertical stem of the caps (I, H, L ...)
 THIN = 111          # horizontal hairline of the caps (E, F, H bars)
 
@@ -198,7 +200,7 @@ TOP_MARKS = {
     0x0300: "gravecomb", 0x0301: "acutecomb", 0x0302: "circumflexcomb",
     0x0303: "tildecomb", 0x0304: "macroncomb", 0x0306: "brevecomb",
     0x0307: "dotaccentcomb", 0x0308: "dieresiscomb", 0x030A: "ringcomb",
-    0x030B: "hungarumlautcomb", 0x030C: "caroncomb",
+    0x030B: "hungarumlautcomb", 0x030C: "caroncomb", 0x0312: "commaturnedabovecomb",
 }
 BOTTOM_MARKS = {0x0326: "commaaccentcomb", 0x0327: "cedillacomb"}
 OGONEK_MARKS = {0x0328: "ogonekcomb"}
@@ -265,6 +267,12 @@ def build_marks(font):
     embolden(g, 9, 9)
     paths["commaaccentcomb"] = path_of(font, "_tmpcomma")
     del font["_tmpcomma"]
+
+    # turned comma above (Latvian ģ)
+    ca = paths["commaaccentcomb"]
+    cab = ca.bounds
+    paths["commaturnedabovecomb"] = transformed(
+        ca, Transform().translate(512, 1690).rotate(math.pi).translate(-(cab[0] + cab[2]) / 2, -cab[3]))
 
     # ogonek: the cedilla mirrored, so its hook sweeps the other way
     cb = bbox(font, "cedilla")
@@ -516,7 +524,7 @@ def build_constructed(font):
         lb = lp.bounds
         lcx, lcy = (lb[0] + lb[2]) / 2, (lb[1] + lb[3]) / 2
         cw = (lb[2] - lb[0]) * 0.6
-        for suffix, yc in (("", SC * 0.5), (".case", CAP * 0.5)):
+        for suffix, yc in (("", LX * 0.5), (".case", CAP * 0.5)):
             chev = transformed(lp, Transform().translate(80 + cw / 2, yc).scale(0.6)
                                .translate(-lcx, -lcy))
             g = outline_glyph(font, single + suffix, chev, cw + 160, [] if suffix else [cps[0]])
@@ -529,7 +537,7 @@ def build_constructed(font):
 
     # middle dot
     pb_ = bbox(font, "period")
-    for suffix, yc in (("", SC * 0.5), (".case", CAP * 0.5)):
+    for suffix, yc in (("", LX * 0.5), (".case", CAP * 0.5)):
         g = new_glyph(font, "periodcentered" + suffix, font["period"].width,
                       [] if suffix else [0x00B7])
         add_component(g, "period", 0, yc - (pb_[1] + pb_[3]) / 2)
@@ -549,7 +557,7 @@ def build_constructed(font):
     high = transformed(low, Transform(-1, 0, 0, -1, 2 * jcx, CAP - 43))
     fl = union(low, high, rect(js[0], 700, js[1], 900))
     fl = transformed(fl, Transform().translate(0, -380))
-    fl = union(fl, bar(jcx - 330, jcx + 330, SC - 120, 0.85))
+    fl = union(fl, bar(jcx - 330, jcx + 330, LX - 120, 0.85))
     fl = transformed(fl, Transform().skew(math.radians(12), 0))
     g = outline_glyph(font, "florin", fl, 0, [0x0192])
     _center(font, "florin", sidebearing=40)
@@ -644,6 +652,7 @@ def make_lowercase(font, pairs):
 SPECIAL_MARK = {}
 for cp in (0x0122, 0x0123, 0x0136, 0x0137, 0x013B, 0x013C, 0x0145, 0x0146, 0x0156, 0x0157):
     SPECIAL_MARK[cp] = {0x0327: 0x0326}       # Latvian: comma below, not cedilla
+SPECIAL_MARK[0x0123] = {0x0327: 0x0312}       # ...but lowercase g takes it turned, above
 
 
 def flatten(cp):
@@ -664,7 +673,7 @@ def build_composite(font, name, cp, base, marks):
         mname = MARK_NAMES[m]
         mg = font[mname]
         if m in TOP_MARKS:
-            if mname == "caroncomb" and base in ("L", "l"):
+            if mname == "caroncomb" and anchor(font[base], "topright"):
                 tr = anchor(font[base], "topright")
                 ma = anchor(font["caroncomb.alt"], "_topright")
                 add_component(g, "caroncomb.alt", tr[0] - ma[0], tr[1] - ma[1])
@@ -713,7 +722,7 @@ def target_codepoints():
             0x01FE, 0x01FF, 0x0218, 0x0219, 0x021A, 0x021B, 0x0237,
             0x1E80, 0x1E81, 0x1E82, 0x1E83, 0x1E84, 0x1E85, 0x1EF2, 0x1EF3,
             0x1EBC, 0x1EBD, 0x1EF8, 0x1EF9, 0x1E9E}
-    return cps
+    return cps | GREEK_TARGET
 
 
 LOWER_OF_SPECIAL = {
@@ -721,6 +730,107 @@ LOWER_OF_SPECIAL = {
     "Lslash": "lslash", "Hbar": "hbar", "Tbar": "tbar", "Eng": "eng",
     "uni018F": "uni0259", "uni1E9E": "germandbls",
 }
+
+
+def lower_anchors(font, names):
+    """Anchors for the drawn lowercase."""
+    generic_lower_anchors(font, names, asc_stem=("b", "h", "k", "l", "thorn"))
+    latin_anchor_tweaks(font)
+
+
+def generic_lower_anchors(font, names, asc_stem=()):
+    for name in names:
+        g = font[name]
+        b = g.getBounds(font)
+        tall = b.yMax > LX + 200
+        if name in asc_stem:
+            lo, hi = band_extent(font, name, LC.ASC - 300, LC.ASC - 10)
+            set_anchor(g, "top", (lo + hi) / 2, LC.ASC)
+        else:
+            lo, hi = band_extent(font, name, LX * 0.75, LX - 5)
+            if lo is None:
+                lo, hi = b.xMin, b.xMax
+            set_anchor(g, "top", (lo + hi) / 2, LC.ASC if tall else LX)
+        lo, hi = band_extent(font, name, 4, LX * 0.18)
+        if lo is None:
+            lo, hi = b.xMin, b.xMax
+        set_anchor(g, "bottom", (lo + hi) / 2, 0)
+        set_anchor(g, "ogonek", hi - LC.ST * 0.6, 0)
+
+
+def latin_anchor_tweaks(font):
+    # tweaks: accents sit over the bowl / stem the eye reads as the letter's centre
+    for name, x in (("a", 470), ("d", 510), ("q", 510), ("g", 500), ("u", 500)):
+        set_anchor(font[name], "top", x, LX)
+    set_anchor(font["i"], "top", 100 + LC.ST / 2, LX)
+    set_anchor(font["dotlessi"], "top", 100 + LC.ST / 2, LX)
+    set_anchor(font["uni0237"], "top", 330, LX)
+    set_anchor(font["j"], "top", 330, LX)
+    for name in ("u", "a"):
+        set_anchor(font[name], "ogonek", runs_at_y(font, name, 300)[-1][1] - 20, 0)
+    set_anchor(font["e"], "ogonek", 640, 0)
+    set_anchor(font["i"], "ogonek", 100 + LC.ST / 2 + 30, 0)
+    # vertical caron after the ascender of d, l, t
+    for name in ("d", "l"):
+        hi = band_extent(font, name, LC.ASC - 200, LC.ASC - 10)[1]
+        set_anchor(font[name], "topright", hi + 70, LC.ASC)
+    hi = band_extent(font, "t", LX + 100, LX + 280)[1]
+    set_anchor(font["t"], "topright", hi + 60, LX + 300)
+    set_anchor(font["L"], "topright", 340 + 70, CAP)
+
+
+GREEK_TARGET = set(range(0x0391, 0x03AA)) - {0x03A2} | set(range(0x03AA, 0x03CF)) | \
+    {0x0384, 0x0385, 0x0386, 0x0387, 0x0388, 0x0389, 0x038A, 0x038C, 0x038E, 0x038F, 0x0390, 0x037E}
+
+
+def build_greek(font):
+    import greek as GR
+    for cp, base in GR.SHARED_CAPS.items():
+        g = new_glyph(font, uni_name(cp), font[base].width, [cp])
+        add_component(g, base)
+        for a in font[base].anchors:
+            set_anchor(g, a.name, a.x, a.y)
+    drawn = {uni_name(cp): (p, w, cp) for p, w, cp in GR.caps(font).values()}
+    for name, (path, width, cp) in drawn.items():
+        outline_glyph(font, name, path, width, [cp])
+    cap_anchors(font, list(drawn))
+    for cp, base in GR.SHARED_LOWER.items():
+        g = new_glyph(font, "uni03BC" if cp == 0x03BC else uni_name(cp), font[base].width, [cp])
+        add_component(g, base)
+        for a in font[base].anchors:
+            set_anchor(g, a.name, a.x, a.y)
+    drawn = {uni_name(cp): (p, w, cp) for p, w, cp in GR.lower(font).values()}
+    for name, (path, width, cp) in drawn.items():
+        outline_glyph(font, name, path, width, [cp])
+    generic_lower_anchors(font, list(drawn))
+    set_anchor(font["iota"], "top", 100 + LC.ST / 2, LX)
+
+    # tonos: a steep acute; on capitals it stands to the left of the letter
+    ab = bbox(font, "acute")
+    tg = new_glyph(font, "tonos", 420, [0x0384])
+    copy_outline(font, "acute", tg, Transform().translate(210, 0).skew(math.radians(-18), 0)
+                 .scale(0.82, 0.95).translate(-(ab[0] + ab[2]) / 2, 0))
+    _round(tg)
+    tb = tg.getBounds(font)
+    for c in tg.contours:
+        for p in c.points:
+            p.y += CAP - 120 - tb.yMin + 60
+    dg = new_glyph(font, "dieresistonos", 1024, [0x0385])
+    add_component(dg, "dieresis")
+    add_component(dg, "tonos", 512 - 210, 160)
+    for cp in (0x0386, 0x0388, 0x0389, 0x038A, 0x038C, 0x038E, 0x038F):
+        base = uni_name(flatten(cp)[0])
+        tb = tg.getBounds(font)
+        lsb = font[base].getBounds(font).xMin
+        # tuck the tonos into the open top-left of round and pointed capitals
+        tuck = {0x0391: 330, 0x039F: 140, 0x03A9: 140, 0x03A5: 120}.get(flatten(cp)[0], 0)
+        shift = max(0, round(tb.xMax - tb.xMin + 70 - lsb - tuck))
+        g = new_glyph(font, uni_name(cp), font[base].width + shift, [cp])
+        add_component(g, "tonos", 40 - tb.xMin, 0)
+        add_component(g, base, shift)
+    for cp, base in ((0x037E, "semicolon"), (0x0387, "periodcentered"), (0x2015, "emdash")):
+        g = new_glyph(font, uni_name(cp), font[base].width, [cp])
+        add_component(g, base)
 
 
 def build(font):
@@ -732,51 +842,65 @@ def build(font):
     cap_specials = list(LOWER_OF_SPECIAL)
     cap_anchors(font, caps + cap_specials + ["Ccedilla"])
 
-    # lowercase small caps
-    pairs = [(c, c.lower(), ord(c.lower())) for c in caps]
-    for up, lo in LOWER_OF_SPECIAL.items():
-        lcp = ord(chr(font[up].unicodes[0]).lower()) if up != "uni1E9E" else 0x00DF
-        pairs.append((up, lo, lcp))
-    # stylistic set and discretionary ligatures get small-cap twins too
-    ss01 = sorted(n for n in font.keys() if n.endswith(".ss01"))
-    dligs = sorted(n for n in font.keys() if n.endswith(".dlig"))
-    pairs += [(n, n.lower(), None) for n in ss01]
-    pairs += [(n, n.lower(), None) for n in dligs]
+    # small capitals (smcp / c2sc)
+    pairs = [(c, c.lower() + ".sc", None) for c in caps]
+    pairs += [(up, lo + ".sc", None) for up, lo in LOWER_OF_SPECIAL.items()]
     make_lowercase(font, pairs)
-    g = new_glyph(font, "dcroat", font["eth"].width, [0x0111])
-    add_component(g, "eth")
 
-    # mu: small-cap U with a descending stem
-    us = runs_at_y(font, "u", SC * 0.6)[0]
-    mu = union(path_of(font, "u"), rect(us[0], -420, us[1], SC * 0.5))
+    # the drawn lowercase
+    def derive_x(src, dst, sx):
+        sy = (LX - LC.TH) / (CAP - THIN)
+        ey = (LC.TH - THIN * sy) / 2
+        ex = (LC.ST + 10 - STEM * sx) / 2
+        derive(font, src, dst, sx, sy, ex, ey, 12, unicodes=[ord(dst)])
+    for name, (path, width) in LC.build(font, derive_x).items():
+        cp = ord(name) if len(name) == 1 else {"dotlessi": 0x0131, "uni0237": 0x0237}[name]
+        outline_glyph(font, name, path, width, [cp])
+    extra_cps = {"germandbls": 0xDF, "ae": 0xE6, "oe": 0x153, "oslash": 0xF8, "eth": 0xF0,
+                 "thorn": 0xFE, "lslash": 0x142, "hbar": 0x127, "tbar": 0x167, "dcroat": 0x111,
+                 "eng": 0x14B, "kgreenlandic": 0x138, "uni0259": 0x259}
+    for name, (path, width) in LC.build_extras(font).items():
+        outline_glyph(font, name, path, width, [extra_cps[name]])
+    lower_names = [chr(c) for c in range(ord("a"), ord("z") + 1)] + \
+        ["dotlessi", "uni0237"] + list(extra_cps)
+    lower_anchors(font, lower_names)
+
+    # ss01 for the lowercase: as the capitals' set, the letter stands on a rule
+    for up in sorted(n for n in font.keys() if n.endswith(".ss01") and n[0].isupper()):
+        lo = up[:-5].lower()
+        if lo == "y":
+            continue        # its tail would cut through the rule
+        lb = bbox(font, lo)
+        outline_glyph(font, lo + ".ss01",
+                      union(transformed(path_of(font, lo), Transform().translate(0, 230)),
+                            rect(lb[0], 0, lb[2], 131)), font[lo].width)
+
+    # mu: u with a descending left stem
+    us = runs_at_y(font, "u", LX * 0.6)[0]
+    mu = union(path_of(font, "u"), rect(us[0], LC.DESC, us[1], LX * 0.5))
     outline_glyph(font, "mu", mu, font["u"].width, [0x00B5])
 
-    # dotless forms and other one-offs
-    for name, base, cp in [("dotlessi", "i", 0x0131), ("uni0237", "j", 0x0237),
-                           ("kgreenlandic", "k", 0x0138)]:
-        g = new_glyph(font, name, font[base].width, [cp])
-        add_component(g, base)
     g = new_glyph(font, "IJ", font["I"].width + font["J"].width - 30, [0x0132])
     add_component(g, "I")
     add_component(g, "J", font["I"].width - 30)
-    g = new_glyph(font, "ij", font["i"].width + font["j"].width - 24, [0x0133])
+    g = new_glyph(font, "ij", font["i"].width + font["j"].width - 40, [0x0133])
     add_component(g, "i")
-    add_component(g, "j", font["i"].width - 24)
+    add_component(g, "j", font["i"].width - 40)
+    pb = bbox(font, "period")
     for name, base, cp, x, y in [("Ldot", "L", 0x013F, 400, CAP * 0.5),
-                                 ("ldot", "l", 0x0140, 340 * SC_SX + SC_EX + SC_TRACK + 50, SC * 0.5)]:
-        g = new_glyph(font, name, font[base].width, [cp])
+                                 ("ldot", "l", 0x0140, 100 + LC.ST + 70, LX * 0.55)]:
+        g = new_glyph(font, name, font[base].width + (120 if base == "l" else 0), [cp])
         add_component(g, base)
-        pb = bbox(font, "period")
         add_component(g, "period", x - pb[0], y - (pb[1] + pb[3]) / 2)
     g = new_glyph(font, "napostrophe", font["quoteright"].width + font["n"].width - 40, [0x0149])
     add_component(g, "quoteright")
     add_component(g, "n", font["quoteright"].width - 40)
 
-    # accented letters
+    build_greek(font)
+
+    # accented letters, and their small-cap twins
     existing = {u for g in font for u in g.unicodes}
     for cp in sorted(target_codepoints()):
-        if cp in existing:
-            continue
         fl = flatten(cp)
         if not fl:
             continue
@@ -784,19 +908,28 @@ def build(font):
         if any(m not in MARK_NAMES for m in marks):
             continue
         marks = [SPECIAL_MARK.get(cp, {}).get(m, m) for m in marks]
-        base = {0x69: "i", 0x6A: "j"}.get(base_cp, uni_name(base_cp))
+        base = {0x69: "dotlessi", 0x6A: "uni0237"}.get(base_cp, uni_name(base_cp))
         if base not in font:
-            # e.g. Ǿ ǿ ǽ: base is a precomposed letter we already have
             base = next((g.name for g in font if base_cp in g.unicodes), None)
             if base is None:
                 print("  skip (no base)", hex(cp))
                 continue
-        build_composite(font, uni_name(cp), cp, base, marks)
-    # Turkish/Azeri dotted i (locl) and Romanian forms are ordinary composites
-    build_composite(font, "i.loclTRK", None, "i", [0x0307])
+        if cp not in existing:
+            build_composite(font, uni_name(cp), cp, base, marks)
+        if unicodedata.category(chr(cp)) == "Ll":
+            sc_base = {"dotlessi": "i.sc", "uni0237": "j.sc"}.get(base, base + ".sc")
+            if sc_base in font:
+                sc_marks = [0x0326 if m == 0x0312 else m for m in marks]
+                build_composite(font, uni_name(cp) + ".sc", None, sc_base, sc_marks)
 
     anchor_precomposed(font)
     build_figures(font)
+
+    import arabic_build as AB
+    prefix, fea, marks, style = AB.build_arabic(font, new_glyph, set_anchor)
+    FEATURE_HOOKS.append((prefix, fea))
+    ARABIC_MARKS.extend(marks)
+    print("  arabic style:", style.key)
     missing = sorted(target_codepoints() - {u for g in font for u in g.unicodes})
     if missing:
         print("  not covered:", " ".join("U+%04X" % c for c in missing))
@@ -868,133 +1001,190 @@ def build_figures(font):
 # ---------------------------------------------------------------------------
 # 8. kerning
 
-def lc(name):
-    """Lowercase twin of a capital glyph name, or None."""
+def sc_name(name):
+    """Small-cap twin of a capital glyph name, or None."""
     if len(name) == 1 and name.isalpha() and name.isupper():
-        return name.lower()
+        return name.lower() + ".sc"
     if name in LOWER_OF_SPECIAL:
-        return LOWER_OF_SPECIAL[name]
-    if name.endswith(".dlig") or name.endswith(".ss01"):
-        return name.lower()
+        return LOWER_OF_SPECIAL[name] + ".sc"
     return None
 
 
+# Lowercase kerning classes: (left-side shape, right-side shape) per letter.
+LC_LEFT = {   # how the letter's LEFT edge looks (kern2 side)
+    "round": "a c d e g o q eth oe ae oslash uni0259 alpha delta epsilon theta sigma phi sigma1",
+    "stem": "b h i k l m n p r u dotlessi thorn kgreenlandic hbar lslash eng germandbls "
+            "eta iota pi rho beta upsilon psi",
+    "diag": "v w y", "x": "x", "z": "z", "s": "s", "t": "t tbar", "f": "f", "j": "j uni0237",
+}
+LC_RIGHT = {  # how the letter's RIGHT edge looks (kern1 side)
+    "round": "b o p e oe thorn oslash eth uni0259 delta theta phi rho omega upsilon", "c": "c",
+    "foot": "a d h l m n u dcroat hbar lslash alpha iota tau pi", "stem": "i dotlessi q j g uni0237 germandbls",
+    "diag": "v w y", "x": "x", "z": "z", "s": "s", "t": "t tbar", "f": "f",
+    "r": "r", "k": "k kgreenlandic",
+}
+# lowercase-lowercase values (font units)
+LC_PAIRS = {
+    ("diag", "round"): -55, ("round", "diag"): -45, ("c", "diag"): -25,
+    ("r", "round"): -45, ("f", "round"): -40, ("t", "round"): -25, ("k", "round"): -40,
+    ("round", "x"): -35, ("x", "round"): -35, ("diag", "diag"): 10, ("round", "z"): -10,
+    ("f", "f"): -20, ("r", "s"): -20, ("diag", "s"): -30, ("foot", "diag"): -15,
+    ("foot", "t"): -15, ("round", "t"): -20, ("f", "j"): 30,
+}
+# capital-on-the-left pairs, scaled from the capitals' own value against O / V
+UC_LC = {"round": ("O", 0.9), "s": ("O", 0.75), "stem": ("O", 0.4), "diag": ("V", 0.55),
+         "x": ("O", 0.45), "z": ("O", 0.45), "t": ("O", 0.35), "f": ("O", 0.3), "j": ("O", 0.5)}
+# lowercase-on-the-left pairs against capitals, from the capitals' O / V values
+LC_UC = {"round": ("O", 0.8), "foot": ("O", 0.45), "c": ("O", 0.5), "diag": ("V", 0.5),
+         "r": ("O", 0.6), "x": ("O", 0.4), "f": ("O", 0.2)}
+PUNCT_RIGHT = {"diag": -90, "r": -100, "f": -60, "round": -25, "c": -30}
+
+
 def build_kerning(font):
-    # glyph -> the letter it is built on
     base_of = {}
     for g in font:
-        if g.components and g.unicodes and g.components[0].baseGlyph in font:
+        if g.components and g.components[0].baseGlyph in font and not g.name.endswith(".dlig"):
             base_of[g.name] = g.components[0].baseGlyph
-    def is_lower(name):
+
+    def family(names):
+        out = set(n for n in names if n in font)
+        changed = True
+        while changed:
+            changed = False
+            for n, b in base_of.items():
+                if b in out and n not in out:
+                    out.add(n)
+                    changed = True
+        return sorted(out)
+
+    def is_cap_side(name):
         g = font[name]
-        return any(unicodedata.category(chr(u)) == "Ll" for u in g.unicodes) or \
-            (name.endswith((".dlig", ".ss01")) and name[0].islower())
+        return not any(unicodedata.category(chr(u)) == "Ll" for u in g.unicodes) and \
+            not name.endswith(".sc") and not (name.endswith((".dlig", ".ss01")) and name[0].islower())
 
     groups = {}
     for gname, members in ORIG_GROUPS.items():
-        caps = [m for m in members if m in font and not is_lower(m)]
+        caps = [m for m in members if m in font and is_cap_side(m)]
         if not caps:
             continue
-        built_on_caps = [n for n, b in base_of.items() if b in caps]
-        groups[gname] = sorted(set(caps + built_on_caps))
-        lower_src = [lc(m) for m in caps if lc(m) and lc(m) in font]
-        lower = lower_src + [n for n, b in base_of.items() if b in lower_src]
-        if lower:
-            groups[gname + ".sc"] = sorted(set(lower))
+        groups[gname] = family(caps)
+        scs = [sc_name(m) for m in caps if sc_name(m) in font]
+        if scs:
+            groups[gname + ".sc"] = family(scs)
+    for side, table in (("public.kern2.lc_", LC_LEFT), ("public.kern1.lc_", LC_RIGHT)):
+        for key, names in table.items():
+            groups[side + key] = family(names.split())
 
-    # a glyph may sit in only one group per side
-    seen = {1: {}, 2: {}}
+    seen = {1: set(), 2: set()}
     for gname in sorted(groups):
         side = 1 if gname.startswith("public.kern1.") else 2
-        keep = []
-        for m in groups[gname]:
-            if m in seen[side]:
-                continue
-            seen[side][m] = gname
-            keep.append(m)
-        groups[gname] = keep
+        groups[gname] = [m for m in groups[gname] if not (m in seen[side] or seen[side].add(m))]
     font.groups.clear()
     font.groups.update({k: v for k, v in groups.items() if v})
 
-    def lower_side(x):
-        if x.startswith("public.kern"):
-            return x + ".sc" if x + ".sc" in font.groups else None
-        return lc(x)
+    def cap_group(glyph, side):
+        for gname, members in font.groups.items():
+            if gname.startswith("public.kern%d." % side) and glyph in members:
+                return gname
+        return glyph
 
     kern = {}
     for (l, r), v in ORIG_KERNING.items():
         if not (isinstance(l, str) and isinstance(r, str)):
-            continue    # pairs against an empty class in the original
-        if (l.startswith("public.kern") and l not in font.groups) or \
-           (r.startswith("public.kern") and r not in font.groups) or \
-           (not l.startswith("public.kern") and l not in font) or \
-           (not r.startswith("public.kern") and r not in font):
+            continue
+        ok = lambda x: x in font.groups if x.startswith("public.kern") else x in font
+        if not (ok(l) and ok(r)):
             continue
         kern[(l, r)] = v
-        ll, lr = lower_side(l), lower_side(r)
-        if ll and lr:
-            kern[(ll, lr)] = round(v * SC_SX)
-        if lr:
-            kern[(l, lr)] = round(v * 0.9)
-        if ll:
-            kern[(ll, r)] = round(v * SC_SX)
+        sl = l + ".sc" if l + ".sc" in font.groups else sc_name(l)
+        sr = r + ".sc" if r + ".sc" in font.groups else sc_name(r)
+        if sl and sr and ok(sl) and ok(sr):
+            kern[(sl, sr)] = round(v * SC_SX)
+        if sr and ok(sr):
+            kern[(l, sr)] = round(v * 0.9)
+
+    def value(left, right):
+        return ORIG_KERNING.get((cap_group(left, 1), cap_group(right, 2)), 0)
+
+    for (a, b), v in LC_PAIRS.items():
+        kern[("public.kern1.lc_" + a, "public.kern2.lc_" + b)] = v
+    for cap in ("T", "V", "W", "Y", "P", "F", "A", "L", "K", "X", "R"):
+        for key, (ref, f) in UC_LC.items():
+            v = value(cap, ref)
+            if v:
+                kern[(cap_group(cap, 1), "public.kern2.lc_" + key)] = round(v * f)
+    for key, (ref, f) in LC_UC.items():
+        for cap in ("T", "V", "W", "Y", "A", "X"):
+            v = value(ref, cap)
+            if v:
+                kern[("public.kern1.lc_" + key, cap_group(cap, 2))] = round(v * f)
+    for key, v in PUNCT_RIGHT.items():
+        kern[("public.kern1.lc_" + key, cap_group("period", 2))] = v
     font.kerning.clear()
-    font.kerning.update({k: v for k, v in kern.items() if v})
+    font.kerning.update({k: v for k, v in kern.items()
+                         if v and all((x in font.groups) if x.startswith("public.kern") else (x in font)
+                                      for x in k)})
 
 
 # ---------------------------------------------------------------------------
 # 9. OpenType features
 
+FEATURE_HOOKS = []
+ARABIC_MARKS = []      # (prefix_text, feature_text) contributed by other scripts
+
+
 def build_features(font):
-    def cls(names):
-        return "[" + " ".join(n for n in names if n in font) + "]"
-
-    lig_lines_upper, lig_lines_lower = [], []
+    lig_lines = []
     for n in sorted(n for n in font.keys() if n.endswith(".dlig") and n[0].isupper()):
-        parts = n[:-5].split("_")
-        lig_lines_upper.append(f"    sub {' '.join(parts)} by {n};")
-        lig_lines_lower.append(f"    sub {' '.join(p.lower() for p in parts)} by {n.lower()};")
-    # longest sequences first
-    key = lambda s: -s.count(" ")
-    lig_lines_upper.sort(key=key)
-    lig_lines_lower.sort(key=key)
+        lig_lines.append(f"    sub {' '.join(n[:-5].split('_'))} by {n};")
+    lig_lines.sort(key=lambda s: -s.count(" "))
 
-    ss01 = sorted(n for n in font.keys() if n.endswith(".ss01"))
-    upper_cased = []
+    ss_up = sorted(n for n in font.keys() if n.endswith(".ss01") and n[0].isupper())
+    ss_lo = [n.lower() for n in ss_up if n.lower() in font]
+
+    smcp, c2sc = [], []
     for g in font:
-        if g.unicodes and len(g.unicodes) == 1:
-            ch = chr(g.unicodes[0])
+        if not g.unicodes or g.name.endswith(".sc"):
+            continue
+        ch = chr(g.unicodes[0])
+        cat = unicodedata.category(ch)
+        if cat == "Ll" and g.name + ".sc" in font:
+            smcp.append((g.name, g.name + ".sc"))
+        elif cat == "Lu":
             low = ch.lower()
-            if ch != low and len(low) == 1:
-                lname = next((x.name for x in font if ord(low) in x.unicodes), None)
-                if lname and g.name not in ("uni1E9E",):
-                    upper_cased.append((g.name, lname))
-    upper_cased.append(("uni1E9E", "germandbls"))
-    upper_cased.sort()
+            if len(low) != 1:
+                continue
+            lname = next((x.name for x in font if ord(low) in x.unicodes), None)
+            if lname and lname + ".sc" in font:
+                c2sc.append((g.name, lname + ".sc"))
+    for extra in (("dotlessi", "i.sc"), ("uni0237", "j.sc")):
+        smcp.append(extra)
+    smcp.sort()
+    c2sc.sort()
 
     sups = [d + ".sups" for d in DIGITS]
     subs = [d + ".subs" for d in DIGITS]
     numr = [d + ".numr" for d in DIGITS]
     dnom = [d + ".dnom" for d in DIGITS]
+    top_marks = [n for n in TOP_MARKS.values() if n in font]
 
+    prefix = "".join(p for p, _ in FEATURE_HOOKS)
+    extra = "".join(f for _, f in FEATURE_HOOKS)
     fea = f"""\
 languagesystem DFLT dflt;
 languagesystem latn dflt;
-languagesystem latn TRK;
-languagesystem latn AZE;
-languagesystem latn CRT;
-languagesystem latn KAZ;
-languagesystem latn TAT;
+languagesystem grek dflt;
 languagesystem latn ROM;
 languagesystem latn MOL;
-languagesystem latn CAT;
-
+{prefix}
 @DIGITS = [{' '.join(DIGITS)}];
 @NUMR = [{' '.join(numr)}];
 @DNOM = [{' '.join(dnom)}];
+@TOP_MARKS = [{' '.join(top_marks)}];
 
 feature aalt {{
     feature locl;
+    feature smcp;
     feature c2sc;
     feature sups;
     feature subs;
@@ -1004,30 +1194,26 @@ feature aalt {{
 }} aalt;
 
 feature ccmp {{
-    # i and j have no dot in this design, so they take accents as they are.
-    sub [i j] by [i j];
+    lookup DOTLESS {{
+        lookupflag UseMarkFilteringSet @TOP_MARKS;
+        sub [i j]' @TOP_MARKS by [dotlessi uni0237];
+    }} DOTLESS;
 }} ccmp;
 
 feature locl {{
     script latn;
-    language TRK exclude_dflt;
-        sub i by i.loclTRK;
-    language AZE exclude_dflt;
-        sub i by i.loclTRK;
-    language CRT exclude_dflt;
-        sub i by i.loclTRK;
-    language KAZ exclude_dflt;
-        sub i by i.loclTRK;
-    language TAT exclude_dflt;
-        sub i by i.loclTRK;
     language ROM exclude_dflt;
         sub [Scedilla scedilla uni0162 uni0163] by [uni0218 uni0219 uni021A uni021B];
     language MOL exclude_dflt;
         sub [Scedilla scedilla uni0162 uni0163] by [uni0218 uni0219 uni021A uni021B];
 }} locl;
 
+feature smcp {{
+{chr(10).join(f'    sub {a} by {b};' for a, b in smcp)}
+}} smcp;
+
 feature c2sc {{
-{chr(10).join(f'    sub {u} by {l};' for u, l in upper_cased)}
+{chr(10).join(f'    sub {a} by {b};' for a, b in c2sc)}
 }} c2sc;
 
 feature case {{
@@ -1042,6 +1228,7 @@ feature sups {{
 feature subs {{
     sub @DIGITS by [{' '.join(subs)}];
 }} subs;
+
 feature sinf {{
     sub @DIGITS by [{' '.join(subs)}];
 }} sinf;
@@ -1074,28 +1261,14 @@ feature ordn {{
 
 feature ss01 {{
     featureNames {{ name "Underscored alternates"; }};
-    sub [{' '.join(n for n in ss01 if n[0].isupper())}] by [{' '.join(n for n in ss01 if n[0].isupper())}];
+    sub [{' '.join(n[:-5] for n in ss_up)}] by [{' '.join(ss_up)}];
+    sub [{' '.join(n[:-5] for n in ss_lo)}] by [{' '.join(ss_lo)}];
 }} ss01;
 
 feature dlig {{
-{chr(10).join(lig_lines_upper)}
-{chr(10).join(lig_lines_lower)}
+{chr(10).join(lig_lines)}
 }} dlig;
-"""
-    # ss01 maps base -> alternate (fix the line above: from bases to .ss01)
-    ss_up = [n for n in ss01 if n[0].isupper()]
-    ss_lo = [n.lower() for n in ss_up]
-    fea = fea.replace(
-        f"    sub [{' '.join(ss_up)}] by [{' '.join(ss_up)}];",
-        f"    sub [{' '.join(n[:-5] for n in ss_up)}] by [{' '.join(ss_up)}];\n"
-        f"    sub [{' '.join(n[:-5] for n in ss_lo)}] by [{' '.join(ss_lo)}];")
-    # nothing to do in ccmp after all; keep the table lean
-    fea = fea.replace("""feature ccmp {
-    # i and j have no dot in this design, so they take accents as they are.
-    sub [i j] by [i j];
-} ccmp;
-
-""", "")
+{extra}"""
     font.features.text = fea
 
 
@@ -1116,18 +1289,20 @@ def set_info(font):
     i.openTypeNamePreferredFamilyName = None
     i.openTypeNamePreferredSubfamilyName = None
     i.openTypeNameDescription = (
-        "Small-cap lowercase and extended European Latin added to the caps-only "
-        "Irvin Heading 1.001.")
+        "Lowercase, extended European Latin, Greek and Arabic added to the caps-only "
+        "Irvin Heading 1.001, in weights from Light to Bold.")
+    i.openTypeNameRecords = []        # drop the original's name records ("Irvin")
+    i.openTypeHeadCreated = None
     i.unitsPerEm = 2048
     i.capHeight = CAP
-    i.xHeight = SC
+    i.xHeight = LX
     i.ascender = 2058
-    i.descender = -498
+    i.descender = -760
     i.openTypeHheaAscender = 2058
-    i.openTypeHheaDescender = -498
+    i.openTypeHheaDescender = -760
     i.openTypeHheaLineGap = 0
     i.openTypeOS2TypoAscender = 2058
-    i.openTypeOS2TypoDescender = -498
+    i.openTypeOS2TypoDescender = -760
     i.openTypeOS2TypoLineGap = 0
     i.openTypeOS2WeightClass = 400
     i.openTypeOS2WidthClass = 5
@@ -1136,13 +1311,14 @@ def set_info(font):
     i.postscriptUnderlinePosition = -180
     i.postscriptUnderlineThickness = THIN
     i.openTypeOS2StrikeoutSize = THIN
-    i.openTypeOS2StrikeoutPosition = round(SC * 0.5)
+    i.openTypeOS2StrikeoutPosition = round(LX * 0.5)
     i.openTypeOS2UnicodeRanges = None
     i.openTypeOS2CodePageRanges = None
     i.italicAngle = 0
     # PostScript alignment zones for CFF hinting: baseline, x-height, cap height
-    i.postscriptBlueValues = [-45, 0, SC, SC + 37, CAP, CAP + 49]
-    i.postscriptOtherBlues = [-498, -480]
+    i.postscriptBlueValues = [-45, 0, LX, LX + 16, CAP, CAP + 49]
+    i.postscriptOtherBlues = [-500, -484]
+    i.postscriptFamilyBlues = []
     i.postscriptStemSnapH = [THIN, round(0.9 * THIN)]
     i.postscriptStemSnapV = [STEM, round(0.92 * STEM)]
     ymin, ymax = 0, 0
@@ -1151,11 +1327,11 @@ def set_info(font):
         if b:
             ymin, ymax = min(ymin, b.yMin), max(ymax, b.yMax)
     i.openTypeOS2WinAscent = max(2058, math.ceil(ymax))
-    i.openTypeOS2WinDescent = max(498, -math.floor(ymin))
+    i.openTypeOS2WinDescent = max(760, -math.floor(ymin))
 
     cats = {}
     for g in font:
-        if g.name in MARK_NAMES.values() or g.name == "caroncomb.alt":
+        if g.name in MARK_NAMES.values() or g.name == "caroncomb.alt" or g.name in ARABIC_MARKS:
             cats[g.name] = "mark"
         elif g.name.endswith(".dlig"):
             cats[g.name] = "ligature"
@@ -1228,48 +1404,199 @@ def cubic_copy(font):
     return out
 
 
-def compile_all(font):
-    from ufo2ft import compileOTF, compileTTF
-    for d in ("ttf", "otf", "webfonts"):
-        (OUT / d).mkdir(parents=True, exist_ok=True)
-    ttf_raw = OUT / "ttf" / (PS_NAME + "-unhinted.ttf")
-    ttf = compileTTF(font, reverseDirection=False, removeOverlaps=False,
-                     useProductionNames=True)
-    ttf.save(ttf_raw)
-    hinted = OUT / "ttf" / (PS_NAME + ".ttf")
+# Weights: every glyph is re-weighted from the Regular drawing by growing or
+# shrinking its ink (ex horizontally, ey vertically) with the point structure
+# kept, so all masters interpolate.  Spacing grows with the stems.
+WEIGHTS = [  # (style name, OS/2 weight, ex, ey)
+    ("Light", 300, -28, -14),
+    ("Regular", 400, 0, 0),
+    ("Medium", 500, 12, 5.5),
+    ("SemiBold", 600, 30, 13.5),
+    ("Bold", 700, 48, 22),
+]
+MASTERS = ("Light", "Regular", "Bold")
+
+
+def make_weight(font, style, wclass, ex, ey):
+    """A decomposed, cubic, PostScript-direction UFO at the given weight."""
+    import copy
+    out = ufoLib2.Font()
+    out.info = copy.deepcopy(font.info)
+    out.features.text = font.features.text
+    out.groups.update(font.groups)
+    out.kerning.update(font.kerning)
+    out.lib.update(font.lib)
+    for g in font:
+        tmp = ufoLib2.objects.Glyph(g.name)
+        rec = DecomposingRecordingPen(font)
+        g.draw(rec)
+        rec.replay(tmp.getPen())
+        is_mark = g.width == 0
+        if ex or ey:
+            embolden(tmp, ex, ey)
+            if not is_mark:
+                transform_glyph(tmp, Transform().translate(ex, 0))
+        ng = out.newGlyph(g.name)
+        ng.width = g.width if is_mark else round(g.width + 2 * ex)
+        ng.unicodes = list(g.unicodes)
+        for a in g.anchors:
+            ng.appendAnchor({"name": a.name, "x": round(a.x + (0 if is_mark else ex)), "y": round(a.y)})
+        pen = ReverseContourPen(_CubicPen(ng.getPen()))
+        for c in tmp.contours:
+            for p in c.points:
+                p.x, p.y = round(p.x), round(p.y)
+            c.draw(pen)
+    out.glyphOrder = list(font.glyphOrder)
+    i = out.info
+    i.styleName = style
+    i.openTypeOS2WeightClass = wclass
+    i.postscriptFontName = "NymphHeading-" + style
+    i.postscriptFullName = FAMILY + " " + style
+    if style in ("Regular", "Bold"):
+        i.styleMapFamilyName = FAMILY
+        i.styleMapStyleName = style.lower()
+    else:
+        i.styleMapFamilyName = FAMILY + " " + style
+        i.styleMapStyleName = "regular"
+        i.openTypeNamePreferredFamilyName = FAMILY
+        i.openTypeNamePreferredSubfamilyName = style
+    i.openTypeNameUniqueID = "%d.%03d;NONE;NymphHeading-%s" % (*VERSION, style)
+    i.postscriptStemSnapV = [round(STEM + 2 * ex), round(0.92 * STEM + 2 * ex)]
+    i.postscriptStemSnapH = [round(THIN + 2 * ey), round(0.9 * THIN + 2 * ey)]
+    i.postscriptUnderlineThickness = round(THIN + 2 * ey)
+    i.openTypeOS2StrikeoutSize = round(THIN + 2 * ey)
+    return out
+
+
+def _hint_ttf(src, dst):
     import ttfautohint
-    ttfautohint.ttfautohint(in_file=str(ttf_raw), out_file=str(hinted),
-                            default_script="latn", fallback_script="none",
-                            no_info=True, hint_composites=False)
-    ttf_raw.unlink()
+    ttfautohint.ttfautohint(in_file=str(src), out_file=str(dst), default_script="latn",
+                            fallback_script="none", no_info=True, hint_composites=False)
 
-    otf_path = OUT / "otf" / (PS_NAME + ".otf")
-    otf = compileOTF(cubic_copy(font), removeOverlaps=False, useProductionNames=True,
-                     optimizeCFF=2)
-    otf.save(otf_path)
-    if shutil.which("otfautohint"):
-        subprocess.run(["otfautohint", str(otf_path)], check=True)
 
-    for flavor in ("woff", "woff2"):
-        f = TTFont(hinted)
-        f.flavor = flavor
-        f.save(OUT / "webfonts" / f"{PS_NAME}.{flavor}")
-    return hinted, otf_path
+def compile_all(font, quick_out=None):
+    from fontTools.designspaceLib import AxisDescriptor, DesignSpaceDocument, SourceDescriptor
+    from ufo2ft import compileOTF, compileTTF, compileVariableTTF
+    if quick_out:
+        compileTTF(make_weight(font, "Regular", 400, 0, 0), removeOverlaps=False,
+                   useProductionNames=True).save(quick_out)
+        return
+    if OUT.exists():
+        shutil.rmtree(OUT)
+    for d in ("ttf", "otf", "webfonts", "variable"):
+        (OUT / d).mkdir(parents=True, exist_ok=True)
+    tmp = ROOT / "build-tmp"
+    tmp.mkdir(exist_ok=True)
+
+    weights = {}
+    for style, wclass, ex, ey in WEIGHTS:
+        ufo = make_weight(font, style, wclass, ex, ey)
+        weights[style] = ufo
+        name = "NymphHeading-" + style
+        raw = tmp / (name + ".ttf")
+        compileTTF(ufo, removeOverlaps=False, useProductionNames=True).save(raw)
+        _hint_ttf(raw, OUT / "ttf" / (name + ".ttf"))
+        otf = OUT / "otf" / (name + ".otf")
+        compileOTF(ufo, removeOverlaps=False, useProductionNames=True, optimizeCFF=2).save(otf)
+        if shutil.which("otfautohint"):
+            subprocess.run(["otfautohint", str(otf)], check=True, capture_output=True)
+        for flavor in ("woff", "woff2"):
+            f = TTFont(OUT / "ttf" / (name + ".ttf"))
+            f.flavor = flavor
+            f.save(OUT / "webfonts" / f"{name}.{flavor}")
+        print("  built", style)
+
+    # variable font: Light, Regular, Bold masters on a wght axis
+    doc = DesignSpaceDocument()
+    axis = AxisDescriptor()
+    axis.name, axis.tag, axis.minimum, axis.default, axis.maximum = "Weight", "wght", 300, 400, 700
+    axis.labelNames = {"en": "Weight"}
+    doc.addAxis(axis)
+    for style in MASTERS:
+        wclass = dict((s, w) for s, w, _, _ in WEIGHTS)[style]
+        path = tmp / f"NymphHeading-{style}.ufo"
+        if path.exists():
+            shutil.rmtree(path)
+        weights[style].save(path)
+        src = SourceDescriptor()
+        src.path = str(path)
+        src.styleName = style
+        src.location = {"Weight": wclass}
+        src.font = weights[style]
+        src.familyName = FAMILY
+        doc.addSource(src)
+    from fontTools.designspaceLib import AxisLabelDescriptor, InstanceDescriptor
+    axis.axisLabels = [AxisLabelDescriptor(name=s, userValue=w, elidable=(s == "Regular"))
+                       for s, w, _, _ in WEIGHTS]
+    for s, w, _, _ in WEIGHTS:
+        inst = InstanceDescriptor()
+        inst.familyName = FAMILY
+        inst.styleName = s
+        inst.location = {"Weight": w}
+        inst.postScriptFontName = "NymphHeading-" + s
+        doc.addInstance(inst)
+    doc.write(tmp / "NymphHeading.designspace")
+    vf = compileVariableTTF(doc, useProductionNames=True, optimizeGvar=True)
+    vf_path = OUT / "variable" / "NymphHeading[wght].ttf"
+    for rec in vf["name"].names:
+        if rec.nameID == 6:
+            rec.string = "NymphHeading-Variable"
+    vf.save(vf_path)
+    f = TTFont(vf_path)
+    f.flavor = "woff2"
+    f.save(OUT / "variable" / "NymphHeading[wght].woff2")
+    shutil.rmtree(tmp)
+    write_css()
+    return vf_path
+
+
+def write_css():
+    rules = []
+    for style, wclass, _, _ in WEIGHTS:
+        rules.append(f"""@font-face {{
+  font-family: "Nymph Heading";
+  src: url("NymphHeading-{style}.woff2") format("woff2"),
+       url("NymphHeading-{style}.woff") format("woff");
+  font-weight: {wclass};
+  font-style: normal;
+  font-display: swap;
+}}""")
+    (OUT / "webfonts" / "nymph-heading.css").write_text("\n\n".join(rules) + "\n")
+    (OUT / "variable" / "nymph-heading-variable.css").write_text("""@font-face {
+  font-family: "Nymph Heading";
+  src: url("NymphHeading[wght].woff2") format("woff2-variations"),
+       url("NymphHeading[wght].woff2") format("woff2");
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+""")
 
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--quick", help="only compile an unhinted Regular TTF to this path")
+    ap.add_argument("--arabic-style", default=None)
+    args = ap.parse_args()
+    if args.arabic_style:
+        import arabic_build
+        arabic_build.ARABIC_STYLE = args.arabic_style
     font = load_original()
     build(font)
     build_kerning(font)
     build_features(font)
     set_info(font)
     sort_glyphs(font)
+    if args.quick:
+        compile_all(font, quick_out=args.quick)
+        print("wrote", args.quick)
+        return
     if UFO.exists():
         shutil.rmtree(UFO)
     font.save(UFO)
-    hinted, otf = compile_all(font)
+    compile_all(font)
     print("glyphs:", len(font))
-    print("wrote", hinted.relative_to(ROOT), otf.relative_to(ROOT))
 
 
 if __name__ == "__main__":

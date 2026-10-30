@@ -1,12 +1,12 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <glyph name="uni0123" format="2">
-  <advance width="1337"/>
+  <advance width="1120"/>
   <unicode hex="0123"/>
-  <anchor x="711" y="1150" name="top"/>
-  <anchor x="742" y="0" name="bottom"/>
-  <anchor x="1135" y="0" name="ogonek"/>
+  <anchor x="601" y="0" name="bottom"/>
+  <anchor x="911" y="0" name="ogonek"/>
+  <anchor x="500" y="1499" name="top"/>
   <outline>
     <component base="g"/>
-    <component base="commaaccentcomb" xOffset="1202"/>
+    <component base="commaturnedabovecomb" xOffset="960" yOffset="-563"/>
   </outline>
 </glyph>

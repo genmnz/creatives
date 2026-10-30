@@ -1,13 +1,13 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <glyph name="lacute" format="2">
-  <advance width="962"/>
+  <advance width="560"/>
   <unicode hex="013A"/>
-  <anchor x="219" y="1556" name="top"/>
-  <anchor x="522" y="0" name="bottom"/>
-  <anchor x="825" y="0" name="ogonek"/>
-  <anchor x="354" y="1150" name="topright"/>
+  <anchor x="193" y="2046" name="top"/>
+  <anchor x="251" y="0" name="bottom"/>
+  <anchor x="261" y="0" name="ogonek"/>
+  <anchor x="356" y="1640" name="topright"/>
   <outline>
     <component base="l"/>
-    <component base="acutecomb" xOffset="679" yOffset="-423"/>
+    <component base="acutecomb" xOffset="653" yOffset="67"/>
   </outline>
 </glyph>

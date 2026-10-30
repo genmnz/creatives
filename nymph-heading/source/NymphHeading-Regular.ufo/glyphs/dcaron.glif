@@ -1,12 +1,13 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <glyph name="dcaron" format="2">
-  <advance width="1308"/>
+  <advance width="1180"/>
   <unicode hex="010F"/>
-  <anchor x="617" y="1528" name="top"/>
-  <anchor x="598" y="0" name="bottom"/>
-  <anchor x="977" y="0" name="ogonek"/>
+  <anchor x="650" y="0" name="bottom"/>
+  <anchor x="1028" y="0" name="ogonek"/>
+  <anchor x="510" y="1010" name="top"/>
+  <anchor x="1123" y="1640" name="topright"/>
   <outline>
     <component base="d"/>
-    <component base="caroncomb" xOffset="1077" yOffset="-423"/>
+    <component base="caroncomb.alt" xOffset="1724" yOffset="67"/>
   </outline>
 </glyph>

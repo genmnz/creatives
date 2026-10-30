@@ -80,27 +80,45 @@ def label_font(size):
     return ImageFont.load_default()
 
 
-def glyph_sheet(tt, path):
+def script_of(name, rev):
+    cp = rev.get(name)
+    if cp is None:
+        base = name.split(".")[0].split("_")[0]
+        if base.startswith("uni") and len(base) >= 7:
+            try:
+                cp = int(base[3:7], 16)
+            except ValueError:
+                cp = None
+    if cp is None:
+        return "latin"
+    if 0x0370 <= cp <= 0x03FF:
+        return "greek"
+    if 0x0600 <= cp <= 0x06FF or 0x200C <= cp <= 0x200F:
+        return "arabic"
+    return "latin"
+
+
+def glyph_sheet(tt, path, script, title):
     gs = tt.getGlyphSet()
     cmap = tt.getBestCmap()
     rev = {}
     for cp, n in cmap.items():
         rev.setdefault(n, cp)
-    names = [n for n in tt.getGlyphOrder() if n != ".notdef"]
+    names = [n for n in tt.getGlyphOrder() if n != ".notdef" and script_of(n, rev) == script]
     cols, cell, lab = 12, 150 * SS, 22 * SS
     upm = tt["head"].unitsPerEm
-    scale = cell * 0.55 / upm
+    scale = cell * 0.48 / upm
     rows = (len(names) + cols - 1) // cols
     head = 90 * SS
     img = Image.new("L", (cols * cell, head + rows * (cell + lab)), 255)
     d = ImageDraw.Draw(img)
-    d.text((20 * SS, 20 * SS), f"Nymph Heading - {len(names)} glyphs, {len(cmap)} characters",
+    d.text((20 * SS, 20 * SS), f"Nymph Heading - {title}: {len(names)} glyphs",
            fill=0, font=label_font(28 * SS))
     small = label_font(10 * SS)
     for i, n in enumerate(names):
         cx = (i % cols) * cell
         cy = head + (i // cols) * (cell + lab)
-        base = cy + cell * 0.70
+        base = cy + cell * 0.66
         w = gs[n].width * scale
         x0 = cx + (cell - w) / 2
         d.rectangle([cx, cy, cx + cell - 1, cy + cell + lab - 1], outline=225)
@@ -132,6 +150,13 @@ SAMPLES = [
     ("Dansk / Norsk / Íslenska", 70, "Ærø, Øresund, Ålesund — Þórður, Ðorri", {}),
     ("Malti / Cymraeg / Esperanto", 70, "Ħabiba Żejtun — Ŵyn ŷd — ĉiuĵaŭde", {}),
     ("Azərbaycan / Sámi", 70, "Ərəb, Əli — Ŋuorra, Đuoddar, Ŧiekka", {}),
+    ("Ελληνικά", 70, "Καλημέρα κόσμε — Ξεσκεπάζω την ψυχοφθόρα βδελυγμία", {}),
+    ("Ελληνικά κεφαλαία", 70, "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ — Άθήνα, Ώρα, ΐ ΰ", {}),
+    ("العربية", 84, "السَّلامُ عَلَيْكُمْ — مرحبا بالعالم", {}),
+    ("العربية", 72, "بسم الله الرحمن الرحيم، كيف حالك؟", {}),
+    ("فارسی", 72, "سپاس گزارم؛ ژاله چای می‌نوشد", {}),
+    ("أرقام / Arabic and Persian digits", 72, "٠١٢٣٤٥٦٧٨٩  ۰۱۲۳۴۵۶۷۸۹  ٪٥٠  ٣٫١٤  ١٬٠٠٠", {"dir": "ltr"}),
+    ("Small caps (smcp)", 70, "Small Capitals Stay Available", {"smcp": True}),
     ("ss01", 90, "ACE OUSY ace ousy", {"ss01": True}),
     ("dlig", 90, "THE AND FOR — the and for", {"dlig": True}),
 ]
@@ -161,11 +186,15 @@ def text_specimen(path):
         buf.add_str(text)
         buf.guess_segment_properties()
         f = dict(feats)
+        if f.pop("dir", None) == "ltr":
+            buf.direction = "ltr"
         if f.pop("locl_tr", False):
             buf.language = "tr"
         hb.shape(hbfont, buf, f)
         scale = size / upm
         x = margin
+        if buf.direction == "rtl":
+            x = width - margin - sum(p.x_advance for p in buf.glyph_positions) * scale
         baseline = y + size * 1.05
         for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
             name = hbfont.glyph_to_string(info.codepoint)
@@ -176,12 +205,48 @@ def text_specimen(path):
     img.save(path, optimize=True)
 
 
+WEIGHT_LINES = ["Nymph Heading — Hamburgefonstiv", "Καλημέρα κόσμε", "مرحبا بالعالم"]
+
+
+def weights_specimen(path):
+    width = 2200 * SS
+    size = 76 * SS
+    styles = ["Light", "Regular", "Medium", "SemiBold", "Bold"]
+    row = int(size * 1.45)
+    img = Image.new("L", (width, 60 * SS + len(styles) * (row + 40 * SS)), 255)
+    d = ImageDraw.Draw(img)
+    y = 40 * SS
+    for style in styles:
+        p = FONT.parent / f"NymphHeading-{style}.ttf"
+        hbfont = hb.Font(hb.Face(hb.Blob.from_file_path(str(p))))
+        tt = TTFont(p)
+        gs = tt.getGlyphSet()
+        d.text((60 * SS, y), style, fill=120, font=label_font(14 * SS))
+        x = 60 * SS
+        for text in WEIGHT_LINES:
+            buf = hb.Buffer()
+            buf.add_str(text)
+            buf.guess_segment_properties()
+            hb.shape(hbfont, buf, {})
+            sc = size / tt["head"].unitsPerEm
+            for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
+                fill(img, gs, hbfont.glyph_to_string(info.codepoint), x + pos.x_offset * sc,
+                     y + 30 * SS + size - pos.y_offset * sc, sc)
+                x += pos.x_advance * sc
+            x += 70 * SS
+        y += row + 40 * SS
+    img = img.resize((img.width // SS, img.height // SS), Image.LANCZOS)
+    img.save(path, optimize=True)
+
+
 def main():
     OUT.mkdir(exist_ok=True)
     tt = TTFont(FONT)
-    glyph_sheet(tt, OUT / "glyphs.png")
+    for script, title in (("latin", "Latin and common"), ("greek", "Greek"), ("arabic", "Arabic")):
+        glyph_sheet(tt, OUT / f"glyphs-{script}.png", script, title)
     text_specimen(OUT / "text.png")
-    print("wrote", OUT / "glyphs.png", OUT / "text.png")
+    weights_specimen(OUT / "weights.png")
+    print("wrote specimens to", OUT)
 
 
 if __name__ == "__main__":

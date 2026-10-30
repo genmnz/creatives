@@ -1,12 +1,12 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <glyph name="uni1EBD" format="2">
-  <advance width="964"/>
+  <advance width="1090"/>
   <unicode hex="1EBD"/>
-  <anchor x="488" y="1395" name="top"/>
-  <anchor x="491" y="0" name="bottom"/>
-  <anchor x="700" y="0" name="ogonek"/>
+  <anchor x="545" y="1255" name="top"/>
+  <anchor x="522" y="0" name="bottom"/>
+  <anchor x="640" y="0" name="ogonek"/>
   <outline>
     <component base="e"/>
-    <component base="tildecomb" xOffset="948" yOffset="-423"/>
+    <component base="tildecomb" xOffset="1005" yOffset="-563"/>
   </outline>
 </glyph>

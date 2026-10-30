@@ -149,10 +149,11 @@ def embolden(glyph, ex, ey, miter_limit=3.0):
     stay sharp.  Relies on TrueType contour direction: the left-hand normal
     of each edge points away from the ink.
     """
-    if ex <= 0 and ey <= 0:
+    if not ex and not ey:
         return
-    ex = max(ex, 1e-6)
-    ey = max(ey, 1e-6)
+    sign = 1 if (ex + ey) > 0 else -1     # negative amounts thin the strokes
+    ex = max(abs(ex), 1e-6)
+    ey = max(abs(ey), 1e-6)
     for contour in glyph.contours:
         pts = [(p.x / ex, p.y / ey) for p in contour.points]
         n = len(pts)
@@ -182,7 +183,7 @@ def embolden(glyph, ex, ey, miter_limit=3.0):
                 ln = math.hypot(sx, sy)
                 if ln > miter_limit:
                     sx, sy = sx / ln * miter_limit, sy / ln * miter_limit
-            new.append((x + sx, y + sy))
+            new.append((x + sign * sx, y + sign * sy))
         for p, (x, y) in zip(contour.points, new):
             p.x = x * ex
             p.y = y * ey
