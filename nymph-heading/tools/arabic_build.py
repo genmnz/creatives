@@ -9,6 +9,7 @@ import arabic as AR
 from geometry import band_extent, path_of, polygon, set_outline, transformed, union
 
 ARABIC_STYLE = os.environ.get("NYMPH_ARABIC", "sahel")
+ARABIC_DONOR = os.environ.get("NYMPH_ARABIC_DONOR")   # path to a font to take Arabic from
 
 LAM_ALEF = {  # ligature suffix -> alef codepoint
     "": 0x0627, "Madda": 0x0622, "HamzaAbove": 0x0623, "HamzaBelow": 0x0625,
@@ -31,6 +32,13 @@ def _ink_top(font, name, x, span=220):
 
 
 def build_arabic(font, new_glyph, set_anchor, style=None):
+    if ARABIC_DONOR:
+        import arabic_donor
+        from types import SimpleNamespace
+        prefix, fea, marks = arabic_donor.build_from_donor(
+            font, ARABIC_DONOR, 1573, new_glyph, set_anchor,
+            lambda f, n, x: _ink_top(f, n, x))
+        return prefix, fea, marks, SimpleNamespace(key="donor: " + os.path.basename(ARABIC_DONOR))
     style = style or ARABIC_STYLE
     glyphs, marks, digits, S = AR.build(style)
     features = {"init": [], "medi": [], "fina": []}

@@ -1485,7 +1485,7 @@ def compile_all(font, quick_out=None):
         shutil.rmtree(OUT)
     for d in ("ttf", "otf", "webfonts", "variable"):
         (OUT / d).mkdir(parents=True, exist_ok=True)
-    tmp = ROOT / "build-tmp"
+    tmp = OUT.parent / (OUT.name + "-build-tmp")
     tmp.mkdir(exist_ok=True)
 
     weights = {}
@@ -1578,10 +1578,19 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", help="only compile an unhinted Regular TTF to this path")
     ap.add_argument("--arabic-style", default=None)
+    ap.add_argument("--arabic-donor", default=None,
+                    help="take the Arabic from this font instead of the drawn one")
+    ap.add_argument("--out", default=None, help="output folder for fonts (default: fonts/)")
+    ap.add_argument("--no-ufo", action="store_true", help="do not write the UFO source")
     args = ap.parse_args()
+    import arabic_build
     if args.arabic_style:
-        import arabic_build
         arabic_build.ARABIC_STYLE = args.arabic_style
+    if args.arabic_donor:
+        arabic_build.ARABIC_DONOR = args.arabic_donor
+    if args.out:
+        global OUT
+        OUT = Path(args.out).resolve()
     font = load_original()
     build(font)
     build_kerning(font)
@@ -1592,9 +1601,10 @@ def main():
         compile_all(font, quick_out=args.quick)
         print("wrote", args.quick)
         return
-    if UFO.exists():
-        shutil.rmtree(UFO)
-    font.save(UFO)
+    if not args.no_ufo:
+        if UFO.exists():
+            shutil.rmtree(UFO)
+        font.save(UFO)
     compile_all(font)
     print("glyphs:", len(font))
 
