@@ -12,3 +12,4 @@ An experimental playground. Things here are tries, prototypes and ideas — noth
 ## Contents
 
 - [`soundmesh/`](soundmesh/) — portable Windows app that fans audio out to many Bluetooth/USB/LAN outputs.
+- [`holdfast/`](holdfast/) — no-root Android app (One UI 9 / Android 17) that turns off location signals and keeps them off; confirms every step and verifies it.

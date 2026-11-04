@@ -1,0 +1,39 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.genmnz.holdfast'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.genmnz.holdfast'
+        minSdk 30
+        // Deliberately 30: from target 31 on, apps can't read the @hide settings keys this app
+        // checks (ble_scan_always_enabled, nearby_scanning_enabled...). Sideloaded only, so no store floor.
+        targetSdk 30
+        versionCode 1
+        versionName '0.1'
+    }
+    buildFeatures { aidl true; buildConfig true }
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Sideloaded app: signed with the debug key so `gradle assembleRelease` gives an installable APK.
+            signingConfig signingConfigs.debug
+        }
+    }
+    lint {
+        disable 'ExpiredTargetSdkVersion', 'OldTargetApi'
+        checkReleaseBuilds false
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Optional shell tier. Only used if Shizuku (or a fork such as Shizuku+) is running.
+    implementation 'dev.rikka.shizuku:api:13.1.5'
+    implementation 'dev.rikka.shizuku:provider:13.1.5'
+}
