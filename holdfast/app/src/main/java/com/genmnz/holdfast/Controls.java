@@ -25,38 +25,39 @@ final class Controls {
     static final String M_NET = "Network";
     static final String M_REGION = "Region (experimental, temporary)";
     static final String M_PERAPP = "Per-app location";
+    static final String M_LOCKS = "Locks (advanced)";
 
     private Controls() {}
 
     static List<Control> all(Context c) {
         List<Control> l = new ArrayList<>();
         l.add(new LocationCtl());
-        l.add(new RestrictionCtl("lock_location", M_LOCATION, "Lock the location switch",
+        l.add(new RestrictionCtl("lock_location", M_LOCKS, "Lock the location switch",
                 UserManager.DISALLOW_CONFIG_LOCATION,
                 "Stops anyone (including setup screens and 'Improve accuracy' prompts) from turning location on in Settings. Holdfast as Device Owner can still change it.",
                 "You can't turn location on from the Quick Panel or Settings until you remove this here."));
-        l.add(new RestrictionCtl("lock_share_location", M_LOCATION, "Block location sharing",
+        l.add(new RestrictionCtl("lock_share_location", M_LOCKS, "Lock location sharing",
                 UserManager.DISALLOW_SHARE_LOCATION,
                 "Blocks turning on location sharing for this user.",
                 "Apps can't be granted location sharing while this is on."));
-        l.add(new SettingCtl("agps", M_LOCATION, "Assisted GPS (SUPL) off", Sx.GLOBAL, "assisted_gps_enabled", "0", "1", null,
+        l.add(new SettingCtl("agps", M_LOCATION, "Assisted GPS (SUPL)", Sx.GLOBAL, "assisted_gps_enabled", "0", "1", null,
                 "Stops the GPS chip asking a carrier/SUPL server for help, which tells that server roughly where you are.",
                 "First GPS fix is slower when you do use location."));
 
-        l.add(new SettingCtl("wifi_scan", M_SCAN, "Wi-Fi scanning off", Sx.GLOBAL, "wifi_scan_always_enabled", "0", "1", null,
+        l.add(new SettingCtl("wifi_scan", M_SCAN, "Wi-Fi scanning", Sx.GLOBAL, "wifi_scan_always_enabled", "0", "1", null,
                 "Stops apps and Google location services from scanning nearby Wi-Fi networks while Wi-Fi is off. Wi-Fi network lists are one of the main ways phones locate themselves.",
                 "Google Maps may turn this back on during navigation; holding it puts it back."));
-        l.add(new SettingCtl("ble_scan", M_SCAN, "Bluetooth scanning off", Sx.GLOBAL, "ble_scan_always_enabled", "0", "1", null,
+        l.add(new SettingCtl("ble_scan", M_SCAN, "Bluetooth scanning", Sx.GLOBAL, "ble_scan_always_enabled", "0", "1", null,
                 "Stops background Bluetooth beacon scanning while Bluetooth is off.",
                 "Same as Wi-Fi scanning: Maps and setup flows may re-enable it."));
-        l.add(new SettingCtl("nearby_scan", M_SCAN, "Samsung nearby device scanning off", Sx.SYSTEM, "nearby_scanning_enabled", "0", "1", null,
+        l.add(new SettingCtl("nearby_scan", M_SCAN, "Samsung nearby device scanning", Sx.SYSTEM, "nearby_scanning_enabled", "0", "1", null,
                 "Samsung's own scanning for nearby Galaxy devices.",
                 "Quick Share discovery and the Galaxy Buds pop-up stop working."));
-        l.add(new SettingCtl("nearby_perm", M_SCAN, "Samsung nearby scanning permission off", Sx.SYSTEM, "nearby_scanning_permission_allowed", "0", "1", null,
+        l.add(new SettingCtl("nearby_perm", M_SCAN, "Samsung nearby scanning permission", Sx.SYSTEM, "nearby_scanning_permission_allowed", "0", "1", null,
                 "Companion switch to nearby device scanning.",
                 "Same as above."));
 
-        l.add(new SettingCtl("auto_tz", M_TIME, "Automatic time zone off", Sx.GLOBAL, "auto_time_zone", "0", "1", null,
+        l.add(new SettingCtl("auto_tz", M_TIME, "Automatic time zone", Sx.GLOBAL, "auto_time_zone", "0", "1", null,
                 "Automatic time zone listens to the cell network (NITZ/MCC) and location. Turning it off removes a passive location use.",
                 "You set the time zone yourself, including when you travel.") {
             @Override
@@ -74,11 +75,11 @@ final class Controls {
                 }
             }
         });
-        l.add(new RestrictionCtl("lock_datetime", M_TIME, "Lock date & time settings",
+        l.add(new RestrictionCtl("lock_datetime", M_LOCKS, "Lock date & time settings",
                 UserManager.DISALLOW_CONFIG_DATE_TIME,
                 "Stops the automatic time zone switch being turned back on.",
                 "You can't change date, time or time zone in Settings until you remove this here."));
-        l.add(new SettingCtl("geo_tz", M_TIME, "Location-based time zone off", Sx.SECURE, "location_time_zone_detection_enabled", "0", "1", null,
+        l.add(new SettingCtl("geo_tz", M_TIME, "Location-based time zone", Sx.SECURE, "location_time_zone_detection_enabled", "0", "1", null,
                 "Android's location time zone detector looks up your time zone from location. Off means one less location reader.",
                 "None if automatic time zone is already off.") {
             @Override
@@ -195,7 +196,7 @@ final class Controls {
 
     static final class LocationCtl extends Control {
         LocationCtl() {
-            super("location", M_LOCATION, "Location off", "location disabled",
+            super("location", M_LOCATION, "Location", "location disabled",
                     "The master location switch. Off stops GPS, network location and the fused provider for every app.",
                     "Find My Mobile, weather, maps and anything else that needs location stop working.");
         }
@@ -246,6 +247,7 @@ final class Controls {
 
         RestrictionCtl(String id, String module, String title, String key, String about, String effects) {
             super(id, module, title, "restriction " + key + " set", about, effects);
+            words("Locked", "Not locked", "Lock");
             this.key = key;
         }
 
@@ -286,6 +288,7 @@ final class Controls {
                     "Freezes " + pkg + ". Suspending is preferred: it is fully reversible and keeps the app's data.",
                     effects);
             this.pkg = pkg;
+            words("Frozen", "Running", "Freeze");
         }
 
         @Override
@@ -353,10 +356,11 @@ final class Controls {
 
     static final class PrivateDnsCtl extends Control {
         PrivateDnsCtl() {
-            super("private_dns", M_NET, "Private DNS locked to a host", "private_dns_mode = hostname",
+            super("private_dns", M_NET, "Private DNS", "private_dns_mode = hostname",
                     "Sends all DNS over TLS to a host you choose and keeps it there.",
                     "Pick one DNS owner. If your ad-blocker already sets DNS, leave this alone.");
             paramPrompt = "DNS-over-TLS hostname, e.g. dns.quad9.net";
+            words("Set to your host", "Not set to your host", "Set");
         }
 
         @Override
@@ -443,6 +447,7 @@ final class Controls {
                     "Samsung firmware may reject it. Calling/VoLTE can misbehave after a carrier config refresh. Restore clears every carrier config override.");
             holdable = false;
             paramPrompt = "Two-letter country code, e.g. us";
+            words("Overridden", "Not overridden", "Override");
         }
 
         @Override
@@ -486,6 +491,7 @@ final class Controls {
                     "Denies " + pkg + " every location and nearby-scan permission it asks for.",
                     "The app can crash or nag. Google Play services asks again; holding it re-denies.");
             this.pkg = pkg;
+            words("No access", "Has location access", "Block");
             try {
                 PackageInfo pi = c.getPackageManager().getPackageInfo(pkg, PackageManager.GET_PERMISSIONS);
                 installed = true;

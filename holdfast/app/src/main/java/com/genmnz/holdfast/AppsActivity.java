@@ -27,9 +27,9 @@ public class AppsActivity extends Activity {
         super.onCreate(b);
         LinearLayout body = Ui.column(this);
         Ui.page(this, body);
-        body.addView(Ui.secondary(this, "Apps that ask for location or nearby scanning. Tap one to deny it and, if you like, "
-                + "hold it denied. Device Owner locks the permission so the app can't ask again; Shizuku revokes it and sets "
-                + "app ops to ignore. Test one app at a time: some apps crash without location."));
+        body.addView(Ui.secondary(this, "Every app that asks for location or nearby scanning.\n✗ = it has access now. ✓ = blocked.\n"
+                + "Tap an app to block it. Do one app at a time: some apps stop working without location. "
+                + "Needs Device Owner or Shizuku (see Setup)."));
         CheckBox sys = new CheckBox(this);
         sys.setText("Show system apps");
         sys.setOnCheckedChangeListener((x, on) -> {
@@ -75,7 +75,7 @@ public class AppsActivity extends Activity {
             list.removeAllViews();
             int granted = 0;
             for (Object[] r : rows) if (Boolean.FALSE.equals(((Control.State) r[1]).ok)) granted++;
-            list.addView(Ui.heading(this, rows.size() + " apps ask · " + granted + " currently allowed"));
+            list.addView(Ui.heading(this, granted + " of " + rows.size() + " have location access"));
             for (Object[] r : rows) list.addView(row((Control) r[0], (Control.State) r[1], (Boolean) r[2]));
         });
     }
@@ -93,8 +93,7 @@ public class AppsActivity extends Activity {
         r.addView(mark, new LinearLayout.LayoutParams(Ui.dp(this, 36), -2));
         LinearLayout col = Ui.column(this);
         col.addView(Ui.text(this, c.title + (sys ? "  (system)" : ""), 15));
-        col.addView(Ui.secondary(this, ((Controls.AppCtl) c).pkg + "\n" + s.value
-                + (Store.isHeld(this, c.id) ? " · held" : "")));
+        col.addView(Ui.secondary(this, c.human(s) + (Store.isHeld(this, c.id) ? " · Holdfast is watching it" : "")));
         r.addView(col, new LinearLayout.LayoutParams(0, -2, 1));
         return Ui.clickable(this, r, v -> ControlUi.details(this, c, this::refresh));
     }

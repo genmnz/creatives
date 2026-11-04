@@ -27,8 +27,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".SetupActivity" android:exported="false" android:label="Privileges" />
-        <activity android:name=".AppsActivity" android:exported="false" android:label="Per-app location" />
+        <activity android:name=".SetupActivity" android:exported="false" android:label="Setup" />
+        <activity android:name=".AppsActivity" android:exported="false" android:label="Apps with location access" />
         <activity android:name=".DiagnosticsActivity" android:exported="false" android:label="Diagnostics" />
 
         <receiver android:name=".AdminReceiver"

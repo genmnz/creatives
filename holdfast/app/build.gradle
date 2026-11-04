@@ -9,8 +9,8 @@ android {
         // Deliberately 30: from target 31 on, apps can't read the @hide settings keys this app
         // checks (ble_scan_always_enabled, nearby_scanning_enabled...). Sideloaded only, so no store floor.
         targetSdk 30
-        versionCode 1
-        versionName '0.1'
+        versionCode 2
+        versionName '0.2'
     }
     buildFeatures { aidl true; buildConfig true }
     buildTypes {

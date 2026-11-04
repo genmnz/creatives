@@ -21,70 +21,94 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** The dialogs. Nothing changes on the device until the user presses the button in a confirm dialog. */
+/**
+ * The dialogs, in plain words. Technical detail (exact commands, raw values) is always one tap
+ * away under "Technical details", and nothing changes until the user presses the confirm button.
+ */
 final class ControlUi {
     private ControlUi() {}
 
     // ------------------------------------------------------------------ details
 
     static void details(Activity a, Control ctl, Runnable changed) {
-        Ui.bg(a, () -> ctl.read(a), s -> showDetails(a, ctl, s, changed));
+        Ui.bg(a, () -> {
+            List<Step> steps = ctl.apply(a);
+            return new Object[]{ctl.read(a), Enforcer.pick(a, ctl), needs(steps)};
+        }, r -> showDetails(a, ctl, (Control.State) r[0], (Step) r[1], (String) r[2], changed));
     }
 
-    private static void showDetails(Activity a, Control ctl, Control.State s, Runnable changed) {
-        LinearLayout v = Ui.column(a);
-        int p = Ui.dp(a, 20);
-        v.setPadding(p, Ui.dp(a, 8), p, 0);
+    private static void showDetails(Activity a, Control ctl, Control.State s, Step best, String needs, Runnable changed) {
+        LinearLayout v = pad(a);
+        boolean held = Store.isHeld(a, ctl.id);
+        boolean ok = Boolean.TRUE.equals(s.ok);
 
-        TextView now = Ui.text(a, Ui.stateMark(s.ok) + "  Now: " + s.value, 16);
+        TextView now = Ui.text(a, Ui.stateMark(s.ok) + "  " + ctl.human(s), 20);
         now.setTextColor(Ui.stateColor(s.ok));
         now.setTypeface(Typeface.DEFAULT_BOLD);
         v.addView(now);
-        v.addView(Ui.secondary(a, "Wanted: " + ctl.want
-                + (ctl.paramPrompt != null ? "\nYour value: " + (ctl.param(a) == null ? "not set" : ctl.param(a)) : "")));
-        v.addView(gap(a));
+        v.addView(Ui.text(a, ok ? "Already private. Nothing to do."
+                : s.ok == null ? "Holdfast can't read this one, so it can't tell."
+                : "This is still active.", 14));
+        if (held) v.addView(Ui.secondary(a, "Holdfast is keeping it this way. If anything changes it back, Holdfast "
+                + (Store.AUTO.equals(Store.mode(a, ctl.id)) ? "fixes it on its own and logs it." : "sends you a notification and waits for you.")));
+
+        v.addView(Ui.heading(a, "What it is"));
         v.addView(Ui.text(a, ctl.about, 14));
-        v.addView(gap(a));
-        v.addView(Ui.text(a, "Side effects: " + ctl.effects, 14));
+        v.addView(Ui.heading(a, "If you change it"));
+        v.addView(Ui.text(a, ctl.effects, 14));
+        if (ctl.paramPrompt != null)
+            v.addView(Ui.secondary(a, "\nYour value: " + (ctl.param(a) == null ? "not chosen yet" : ctl.param(a))));
         v.addView(gap(a));
 
+        AlertDialog[] dlg = new AlertDialog[1];
+        Runnable close = () -> dlg[0].dismiss();
+        if (best == null) {
+            v.addView(Ui.text(a, "Holdfast doesn't have the permission this needs yet (" + needs + ").", 14));
+            v.addView(Ui.action(a, "How to give it", null, x -> {
+                close.run();
+                a.startActivity(new Intent(a, SetupActivity.class));
+            }));
+        } else {
+            if (!ok) v.addView(Ui.action(a, ctl.verb + " now",
+                    "Changes it once. If something changes it back later, it stays that way.", x -> {
+                        close.run();
+                        confirm(a, ctl, false, false, changed);
+                    }));
+            if (ctl.holdable && !held) v.addView(Ui.action(a, ok ? "Keep it this way" : ctl.verb + " and keep it that way",
+                    "Holdfast watches it from now on. If Samsung, Google or an app changes it back, you get a notification "
+                            + "and choose whether to fix it.", x -> {
+                        close.run();
+                        confirm(a, ctl, false, true, changed);
+                    }));
+        }
+        if (held) v.addView(Ui.action(a, "Stop watching it",
+                "Holdfast stops watching. Nothing on the phone changes.", x -> {
+                    close.run();
+                    confirmRelease(a, ctl, changed);
+                }));
+        if (Store.original(a, ctl.id) != null) v.addView(Ui.action(a, "Put it back the way it was",
+                "Undoes Holdfast's change, back to how it was before you first used Holdfast on it.", x -> {
+                    close.run();
+                    confirm(a, ctl, true, false, changed);
+                }));
+        if (ctl.paramPrompt != null) v.addView(Ui.action(a, "Choose value…", ctl.paramPrompt, x -> {
+            close.run();
+            askParam(a, ctl, () -> details(a, ctl, changed));
+        }));
+
         StringBuilder diag = new StringBuilder();
-        boolean held = Store.isHeld(a, ctl.id);
-        diag.append(held ? "Held · " + (Store.AUTO.equals(Store.mode(a, ctl.id)) ? "fixes automatically" : "asks before fixing")
-                + "\nConfirmed path: " + Store.path(a, ctl.id) : "Not held (Holdfast won't watch it)");
-        if (!ctl.holdable) diag.append(" · can't be held: temporary by nature");
+        diag.append("Raw value: ").append(s.value).append("\nWanted: ").append(ctl.want);
+        diag.append("\nWould use: ").append(best == null ? "nothing (needs " + needs + ")" : best.tier.label + "\n  " + best.text());
+        if (held) diag.append("\nWatching mode: ").append(Store.mode(a, ctl.id)).append(" · method ").append(Store.path(a, ctl.id));
         String last = Store.last(a, ctl.id);
         diag.append("\nLast action: ").append(last == null ? "none" : last);
         int d = Store.drifts(a, ctl.id);
-        diag.append("\nChanged back: ").append(d).append(d > 0 ? " times, last " + Store.driftAt(a, ctl.id) : " times");
+        diag.append("\nChanged back by something else: ").append(d).append(d > 0 ? " times, last " + Store.driftAt(a, ctl.id) : " times");
         String o = Store.original(a, ctl.id);
-        diag.append("\nBefore Holdfast: ").append(o == null ? "not recorded yet" : o);
-        v.addView(Ui.mono(a, diag));
+        diag.append("\nBefore Holdfast: ").append(o == null ? "not recorded (Holdfast hasn't changed it)" : o);
+        v.addView(Ui.expander(a, "Technical details", Ui.mono(a, diag)));
 
-        ScrollView sv = new ScrollView(a);
-        sv.addView(v);
-        AlertDialog[] dlg = new AlertDialog[1];
-        List<android.widget.Button> bs = new ArrayList<>();
-        bs.add(Ui.button(a, "Apply once…", x -> {
-            dlg[0].dismiss();
-            confirm(a, ctl, false, false, changed);
-        }));
-        if (ctl.holdable) bs.add(Ui.button(a, held ? "Stop holding…" : "Hold…", x -> {
-            dlg[0].dismiss();
-            if (held) confirmRelease(a, ctl, changed);
-            else confirm(a, ctl, false, true, changed);
-        }));
-        bs.add(Ui.button(a, "Restore…", x -> {
-            dlg[0].dismiss();
-            confirm(a, ctl, true, false, changed);
-        }));
-        if (ctl.paramPrompt != null) bs.add(Ui.button(a, "Change value…", x -> {
-            dlg[0].dismiss();
-            askParam(a, ctl, () -> details(a, ctl, changed));
-        }));
-        v.addView(gap(a));
-        v.addView(Ui.buttons(a, bs.toArray(new android.widget.Button[0])));
-        dlg[0] = new AlertDialog.Builder(a).setTitle(ctl.title).setView(sv).setNegativeButton("Close", null).show();
+        dlg[0] = new AlertDialog.Builder(a).setTitle(ctl.title).setView(scroll(a, v)).setNegativeButton("Close", null).show();
     }
 
     // ------------------------------------------------------------------ confirm
@@ -105,111 +129,127 @@ final class ControlUi {
 
     private static void showConfirm(Activity a, Control ctl, Control.State s, List<Step> steps, Privs p,
                                     boolean restoring, boolean hold, Runnable changed) {
-        LinearLayout v = Ui.column(a);
-        int pad = Ui.dp(a, 20);
-        v.setPadding(pad, Ui.dp(a, 8), pad, 0);
-
+        LinearLayout v = pad(a);
         boolean already = !restoring && Boolean.TRUE.equals(s.ok);
         boolean wasHeld = restoring && Store.isHeld(a, ctl.id);
-        String o = Store.original(a, ctl.id);
-        v.addView(Ui.text(a, restoring
-                ? "Now: " + s.value + "\nBack to: " + (o == null ? "the default (no original recorded)" : o)
-                + (wasHeld ? "\nThis also stops holding it, so Holdfast won't change it back." : "")
-                : "Now: " + s.value + "\nWanted: " + ctl.want
-                + (already ? "\nAlready as wanted." + (hold ? " Holdfast will only watch it." : "") : ""), 15));
-        v.addView(gap(a));
 
-        TextView cmd = Ui.mono(a, "");
-        RadioGroup rg = new RadioGroup(a);
-        Step[] chosen = new Step[1];
-        String remembered = Store.path(a, ctl.id);
-        int firstOk = -1;
-        for (int i = 0; i < steps.size(); i++) {
-            Step st = steps.get(i);
-            RadioButton rb = new RadioButton(a);
-            rb.setId(View.generateViewId());
-            boolean can = p.has(st.tier);
-            rb.setText(st.tier.label + " — " + st.how + (can ? "" : "  (not held)"));
-            rb.setEnabled(can);
-            rb.setTag(st);
-            rg.addView(rb);
-            if (can && (firstOk < 0 || st.key().equals(remembered))) firstOk = rb.getId();
+        String what;
+        if (restoring) {
+            what = ctl.title + " goes back to how it was before Holdfast changed it."
+                    + (wasHeld ? "\nHoldfast also stops watching it." : "");
+        } else if (already) {
+            what = "It's already " + ctl.doneWord.toLowerCase(Locale.ROOT) + ". Holdfast changes nothing now, and starts watching it.";
+        } else {
+            what = "Now: " + ctl.human(s) + "\nAfter: " + ctl.doneWord;
         }
-        rg.setOnCheckedChangeListener((g, id) -> {
-            Step st = (Step) g.findViewById(id).getTag();
-            chosen[0] = st;
-            cmd.setText(st.text());
-        });
-        if (!already || !hold) {
-            v.addView(Ui.secondary(a, restoring ? "How to restore:" : "How to apply:"));
-            v.addView(rg);
-            v.addView(Ui.secondary(a, "Exactly what will run:"));
-            v.addView(cmd);
+        v.addView(Ui.text(a, what, 16));
+        if (!restoring) {
+            v.addView(gap(a));
+            v.addView(Ui.secondary(a, "If you change it: " + ctl.effects));
         }
-        if (firstOk >= 0) rg.check(firstOk);
-        else cmd.setText("Nothing Holdfast holds can do this.\nNeeds one of: " + needs(steps)
-                + "\nSee Privileges on the main screen.");
 
         RadioGroup mode = new RadioGroup(a);
         if (hold) {
-            v.addView(gap(a));
-            v.addView(Ui.secondary(a, "When something changes it back:"));
-            RadioButton ask = new RadioButton(a);
-            ask.setId(View.generateViewId());
-            ask.setText("Ask me with a notification (shows the command; nothing runs until I tap Re-apply)");
-            RadioButton auto = new RadioButton(a);
-            auto.setId(View.generateViewId());
-            auto.setText("Fix it automatically and log it (pauses after 3 fixes in 10 min)");
+            v.addView(Ui.heading(a, "If something changes it back"));
+            RadioButton ask = radio(a, "Ask me first (recommended)\nYou get a notification with a Fix it button. Nothing runs until you tap it.");
+            RadioButton auto = radio(a, "Fix it on its own\nHoldfast changes it again right away and logs it. It stops after 3 times in 10 minutes and asks you instead.");
             auto.setTag(Store.AUTO);
             mode.addView(ask);
             mode.addView(auto);
             mode.check(ask.getId());
             v.addView(mode);
         }
-        if (!restoring) {
+
+        // Technical details: which method, and the exact command.
+        LinearLayout tech = Ui.column(a);
+        TextView cmd = Ui.mono(a, "");
+        RadioGroup rg = new RadioGroup(a);
+        Step[] chosen = new Step[1];
+        String remembered = Store.path(a, ctl.id);
+        int firstOk = -1;
+        for (Step st : steps) {
+            boolean can = p.has(st.tier);
+            RadioButton rb = radio(a, st.tier.label + " — " + st.how + (can ? "" : "  (no permission)"));
+            rb.setEnabled(can);
+            rb.setTag(st);
+            rg.addView(rb);
+            if (can && (firstOk < 0 || st.key().equals(remembered))) firstOk = rb.getId();
+        }
+        rg.setOnCheckedChangeListener((g, id) -> {
+            chosen[0] = (Step) g.findViewById(id).getTag();
+            cmd.setText(chosen[0].text());
+        });
+        tech.addView(Ui.secondary(a, "Method (the best one you have is already picked):"));
+        tech.addView(rg);
+        tech.addView(Ui.secondary(a, "Exactly what runs:"));
+        tech.addView(cmd);
+        if (firstOk >= 0) rg.check(firstOk);
+        boolean runnable = firstOk >= 0 || (already && hold);
+        if (!runnable) {
             v.addView(gap(a));
-            v.addView(Ui.text(a, "Side effects: " + ctl.effects, 13));
+            v.addView(Ui.text(a, "Holdfast doesn't have the permission this needs (" + needs(steps) + "). See Setup.", 14));
+        } else if (!(already && hold)) {
+            v.addView(gap(a));
+            v.addView(Ui.expander(a, "Technical details", tech));
         }
 
-        ScrollView sv = new ScrollView(a);
-        sv.addView(v);
-        boolean runnable = firstOk >= 0 || (already && hold);
-        String label = restoring ? "Restore" : hold ? (already ? "Hold" : "Apply and hold") : "Apply";
-        AlertDialog.Builder b = new AlertDialog.Builder(a)
-                .setTitle((restoring ? "Restore: " : hold ? "Hold: " : "Apply: ") + ctl.title)
-                .setView(sv)
-                .setNegativeButton("Cancel", null);
-        if (runnable) b.setPositiveButton(label, (d, w) -> {
+        String verb = restoring ? "Put it back" : hold ? (already ? "Keep it this way" : ctl.verb + " and keep") : ctl.verb;
+        String title = restoring ? "Undo " + ctl.title + "?"
+                : already ? "Keep " + ctl.title + " " + ctl.doneWord.toLowerCase(Locale.ROOT) + "?"
+                : ctl.verb + " " + ctl.title + "?";
+        AlertDialog.Builder b = new AlertDialog.Builder(a).setTitle(title).setView(scroll(a, v)).setNegativeButton("Cancel", null);
+        if (runnable) b.setPositiveButton(verb, (d, w) -> {
             View m = mode.findViewById(mode.getCheckedRadioButtonId());
             String md = m != null && Store.AUTO.equals(m.getTag()) ? Store.AUTO : Store.ASK;
             Step st = chosen[0];
             if (already && hold) {
-                if (st == null) st = Enforcer.pick(a, ctl);
-                doHold(a, ctl, md, st);
-                result(a, "Holding " + ctl.title, "Already as wanted. Watching it now"
-                        + (st == null ? "; no path is available to fix it later." : "; would fix via " + st.tier.label + ":\n" + st.text()));
+                doHold(a, ctl, md, st != null ? st : Enforcer.pick(a, ctl));
+                plain(a, "Watching ✓", ctl.title + " is " + ctl.doneWord.toLowerCase(Locale.ROOT)
+                        + ". Holdfast will tell you if anything changes it.", null);
                 changed.run();
                 return;
             }
-            Step run = st;
             if (wasHeld) {
                 Store.release(a, ctl.id);
                 EventLog.add(a, "RELEASE", ctl.id, "no longer held (restoring)");
                 Enforcer.nm(a).cancel(ctl.id.hashCode());
                 Ui.BG.execute(() -> WatchJob.schedule(a));
             }
-            Ui.bg(a, () -> Enforcer.run(a, ctl, run, restoring, "you, in the app"), out -> {
-                if (hold) {
-                    if (out.ok) doHold(a, ctl, md, run);
-                    result(a, out.ok ? "Done ✓ — now holding" : "Didn't stick — not held",
-                            out.text + (out.ok ? "" : "\n\nHolding needs a path that verifies. Try another one."));
-                } else {
-                    result(a, out.ok ? "Done ✓" : "Check this", out.text);
-                }
+            Ui.bg(a, () -> Enforcer.run(a, ctl, st, restoring, "you, in the app"), out -> {
+                if (hold && out.ok) doHold(a, ctl, md, st);
+                showOutcome(a, ctl, out, restoring, hold);
                 changed.run();
             });
         });
         b.show();
+    }
+
+    private static void showOutcome(Activity a, Control ctl, Enforcer.Outcome out, boolean restoring, boolean hold) {
+        String title, msg;
+        if (restoring) {
+            title = out.ok ? "Put back ✓" : "Couldn't put it back";
+            msg = out.ok ? ctl.title + " is back to how it was." : "The phone refused: " + out.error;
+        } else switch (out.kind) {
+            case Enforcer.WORKED:
+                title = "Done ✓";
+                msg = ctl.title + " is now " + ctl.doneWord.toLowerCase(Locale.ROOT) + ". Holdfast checked, and it worked."
+                        + (hold ? "\nHoldfast is watching it now." : "");
+                break;
+            case Enforcer.DIDNT_TAKE:
+                title = "It didn't take";
+                msg = "The phone accepted the change but " + ctl.title + " is still " + ctl.todoWord.toLowerCase(Locale.ROOT)
+                        + ". Samsung probably ignores this method. Try again and pick another method under Technical details."
+                        + (hold ? "\nNot watching it, because it didn't work." : "");
+                break;
+            case Enforcer.UNSURE:
+                title = "Done, but can't check";
+                msg = "The change ran, but Holdfast can't read this setting to confirm it.";
+                break;
+            default:
+                title = "Couldn't do it";
+                msg = "The phone refused: " + out.error;
+        }
+        plain(a, title, msg, out.text);
     }
 
     private static void doHold(Activity a, Control ctl, String mode, Step step) {
@@ -226,11 +266,11 @@ final class ControlUi {
 
     static void confirmRelease(Activity a, Control ctl, Runnable changed) {
         new AlertDialog.Builder(a)
-                .setTitle("Stop holding: " + ctl.title)
-                .setMessage("Holdfast stops watching this. Nothing on the phone changes now: the current value stays. "
-                        + "Use Restore if you also want the old value back.")
+                .setTitle("Stop watching " + ctl.title + "?")
+                .setMessage("Holdfast stops watching it. Nothing on the phone changes now; it stays as it is.\n\n"
+                        + "If you also want the old value back, use \"Put it back the way it was\".")
                 .setNegativeButton("Cancel", null)
-                .setPositiveButton("Stop holding", (d, w) -> {
+                .setPositiveButton("Stop watching", (d, w) -> {
                     Store.release(a, ctl.id);
                     EventLog.add(a, "RELEASE", ctl.id, "no longer held");
                     Enforcer.nm(a).cancel(ctl.id.hashCode());
@@ -240,14 +280,15 @@ final class ControlUi {
                 .show();
     }
 
-    // ------------------------------------------------------------------ review all
+    // ------------------------------------------------------------------ turn off all recommended
 
     static void reviewAll(Activity a, Runnable changed) {
         Ui.bg(a, () -> {
             List<Object[]> rows = new ArrayList<>();
             Privs p = Privs.now(a);
             for (Control c : Controls.all(a)) {
-                if (c.paramPrompt != null || c.id.startsWith("pkg:") || c.id.startsWith("app:")) continue;
+                if (!Controls.M_LOCATION.equals(c.module) && !Controls.M_SCAN.equals(c.module)
+                        && !Controls.M_TIME.equals(c.module)) continue;
                 Control.State s = c.read(a);
                 if (!Boolean.FALSE.equals(s.ok)) continue;
                 Step best = null;
@@ -261,59 +302,65 @@ final class ControlUi {
 
     private static void showReview(Activity a, List<Object[]> rows, Runnable changed) {
         if (rows.isEmpty()) {
-            result(a, "Review", "Every location and scanning control is already as wanted, or can't be read.\n"
-                    + "(Packages, Private DNS and per-app rules are reviewed one at a time.)");
+            plain(a, "Nothing to do ✓", "Location, scanning and time zone are already off (or Holdfast can't read them).\n\n"
+                    + "Apps and Private DNS are done one at a time from the main screen.", null);
             return;
         }
-        LinearLayout v = Ui.column(a);
-        int pad = Ui.dp(a, 20);
-        v.setPadding(pad, Ui.dp(a, 8), pad, 0);
-        v.addView(Ui.secondary(a, "Not as wanted yet. Tick each step you want; nothing is ticked for you."));
+        LinearLayout v = pad(a);
+        v.addView(Ui.text(a, "These are still on. Tick the ones to turn off. Nothing is ticked for you.", 15));
         CheckBox all = new CheckBox(a);
-        all.setText("Tick all that can run");
+        all.setText("Tick all");
         v.addView(all);
         List<CheckBox> boxes = new ArrayList<>();
+        StringBuilder cmds = new StringBuilder();
+        List<String> cant = new ArrayList<>();
         for (Object[] r : rows) {
             Control c = (Control) r[0];
-            Control.State s = (Control.State) r[1];
             Step st = (Step) r[2];
+            if (st == null) {
+                cant.add(c.title);
+                continue;
+            }
             CheckBox cb = new CheckBox(a);
-            cb.setText(c.title + "\nnow " + s.value + " → " + c.want);
-            cb.setEnabled(st != null);
+            cb.setText(c.title + "\n" + c.effects);
             cb.setTag(r);
             v.addView(cb);
-            v.addView(Ui.mono(a, st == null ? "can't run: needs " + r[3] : st.tier.label + ":\n" + st.text()));
-            if (st != null) boxes.add(cb);
+            boxes.add(cb);
+            cmds.append(c.title).append(" (").append(st.tier.label).append("):\n  ").append(st.text().replace("\n", "\n  ")).append("\n");
         }
+        if (!cant.isEmpty())
+            v.addView(Ui.secondary(a, "\nNeeds more permission first (see Setup): " + String.join(", ", cant)));
+        v.addView(Ui.expander(a, "Technical details (exact commands)", Ui.mono(a, cmds.toString().trim())));
         all.setOnCheckedChangeListener((x, on) -> {
             for (CheckBox cb : boxes) cb.setChecked(on);
         });
-        ScrollView sv = new ScrollView(a);
-        sv.addView(v);
-        new AlertDialog.Builder(a)
-                .setTitle("Review all")
-                .setView(sv)
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton("Run ticked steps", (d, w) -> {
-                    List<Object[]> pick = new ArrayList<>();
-                    for (CheckBox cb : boxes) if (cb.isChecked()) pick.add((Object[]) cb.getTag());
-                    if (pick.isEmpty()) return;
-                    Ui.bg(a, () -> {
-                        StringBuilder sb = new StringBuilder();
-                        int ok = 0;
-                        for (Object[] r : pick) {
-                            Control c = (Control) r[0];
-                            Enforcer.Outcome out = Enforcer.run(a, c, (Step) r[2], false, "you, review all");
-                            if (out.ok) ok++;
-                            sb.append(out.ok ? "✓ " : "✗ ").append(c.title).append("\n").append(out.text).append("\n\n");
-                        }
-                        return String.format(Locale.US, "%d of %d verified.\n\n", ok, pick.size()) + sb;
-                    }, text -> {
-                        result(a, "Review results", text);
-                        changed.run();
-                    });
-                })
-                .show();
+        AlertDialog.Builder b = new AlertDialog.Builder(a)
+                .setTitle("Turn off the recommended ones")
+                .setView(scroll(a, v))
+                .setNegativeButton("Cancel", null);
+        if (!boxes.isEmpty()) b.setPositiveButton("Turn off ticked", (d, w) -> {
+            List<Object[]> pick = new ArrayList<>();
+            for (CheckBox cb : boxes) if (cb.isChecked()) pick.add((Object[]) cb.getTag());
+            if (pick.isEmpty()) return;
+            Ui.bg(a, () -> {
+                StringBuilder plain = new StringBuilder(), tech = new StringBuilder();
+                int ok = 0;
+                for (Object[] r : pick) {
+                    Control c = (Control) r[0];
+                    Enforcer.Outcome out = Enforcer.run(a, c, (Step) r[2], false, "you, turn off recommended");
+                    if (out.ok) ok++;
+                    plain.append(out.ok ? "✓ " : "✗ ").append(c.title).append(out.ok ? " — off"
+                            : out.kind == Enforcer.DIDNT_TAKE ? " — didn't take" : " — failed").append("\n");
+                    tech.append(c.title).append("\n").append(out.text).append("\n\n");
+                }
+                return new String[]{String.format(Locale.US, "%d of %d worked.\n\n", ok, pick.size()) + plain
+                        + (ok < pick.size() ? "\nTap a ✗ row on the main screen to try another method." : ""), tech.toString()};
+            }, res -> {
+                plain(a, "Results", res[0], res[1]);
+                changed.run();
+            });
+        });
+        b.show();
     }
 
     // ------------------------------------------------------------------ helpers
@@ -324,10 +371,8 @@ final class ControlUi {
         e.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         String cur = ctl.param(a);
         if (cur != null) e.setText(cur);
-        LinearLayout v = Ui.column(a);
-        int pad = Ui.dp(a, 20);
-        v.setPadding(pad, Ui.dp(a, 8), pad, 0);
-        v.addView(Ui.secondary(a, ctl.paramPrompt));
+        LinearLayout v = pad(a);
+        v.addView(Ui.secondary(a, ctl.paramPrompt + "\nSaving this changes nothing on the phone yet."));
         v.addView(e);
         new AlertDialog.Builder(a)
                 .setTitle(ctl.title)
@@ -348,21 +393,45 @@ final class ControlUi {
                 .show();
     }
 
-    static void result(Activity a, String title, String text) {
-        ScrollView sv = new ScrollView(a);
-        TextView t = Ui.mono(a, text);
-        sv.addView(t);
-        int pad = Ui.dp(a, 16);
-        sv.setPadding(pad, pad, pad, 0);
-        new AlertDialog.Builder(a).setTitle(title).setView(sv)
-                .setNeutralButton("Copy", (d, w) -> Ui.copy(a, title, text))
-                .setPositiveButton("OK", null).show();
+    /** A plain-language message, with the technical text (if any) behind a toggle and copyable. */
+    static void plain(Activity a, String title, String msg, String tech) {
+        LinearLayout v = pad(a);
+        v.addView(Ui.text(a, msg, 15));
+        if (tech != null && !tech.trim().isEmpty()) {
+            v.addView(gap(a));
+            v.addView(Ui.expander(a, "Technical details", Ui.mono(a, tech.trim())));
+        }
+        AlertDialog.Builder b = new AlertDialog.Builder(a).setTitle(title).setView(scroll(a, v)).setPositiveButton("OK", null);
+        if (tech != null) b.setNeutralButton("Copy details", (d, w) -> Ui.copy(a, title, msg + "\n\n" + tech));
+        b.show();
     }
 
     static String needs(List<Step> steps) {
         List<String> n = new ArrayList<>();
         for (Step s : steps) if (!n.contains(s.tier.label)) n.add(s.tier.label);
         return String.join(" or ", n);
+    }
+
+    private static RadioButton radio(Activity a, String text) {
+        RadioButton rb = new RadioButton(a);
+        rb.setId(View.generateViewId());
+        rb.setText(text);
+        int p = Ui.dp(a, 4);
+        rb.setPadding(rb.getPaddingLeft(), p, 0, p);
+        return rb;
+    }
+
+    private static LinearLayout pad(Activity a) {
+        LinearLayout v = Ui.column(a);
+        int p = Ui.dp(a, 22);
+        v.setPadding(p, Ui.dp(a, 8), p, Ui.dp(a, 8));
+        return v;
+    }
+
+    private static ScrollView scroll(Activity a, View v) {
+        ScrollView sv = new ScrollView(a);
+        sv.addView(v);
+        return sv;
     }
 
     private static View gap(Activity a) {

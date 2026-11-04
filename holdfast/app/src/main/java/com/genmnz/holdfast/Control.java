@@ -26,6 +26,8 @@ abstract class Control {
     boolean holdable = true;
     /** Non-null if the control needs a value from the user (DNS host, country code). */
     String paramPrompt;
+    /** Plain words for the UI: the status when private, the status when not, and the action. */
+    String doneWord = "Off", todoWord = "On", verb = "Turn off";
 
     Control(String id, String module, String title, String want, String about, String effects) {
         this.id = id;
@@ -57,6 +59,19 @@ abstract class Control {
     /** What Restore should return to. Saved once, before Holdfast's first change. */
     String snapshot(Context c) {
         return read(c).value;
+    }
+
+    /** Status in plain words, e.g. "On — still active". */
+    String human(State s) {
+        if (s.ok == null) return "Can't tell";
+        return s.ok ? doneWord : todoWord;
+    }
+
+    Control words(String done, String todo, String verb) {
+        this.doneWord = done;
+        this.todoWord = todo;
+        this.verb = verb;
+        return this;
     }
 
     String param(Context c) {

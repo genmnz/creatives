@@ -126,6 +126,36 @@ final class Ui {
         return col;
     }
 
+    /** A "▸ label" line that shows or hides {@code content}. Content starts hidden. */
+    static LinearLayout expander(Context c, String label, View content) {
+        LinearLayout box = column(c);
+        TextView t = text(c, "▸  " + label, 14);
+        t.setTextColor(color(c, android.R.attr.colorAccent));
+        int p = dp(c, 10);
+        t.setPadding(0, p, 0, p);
+        content.setVisibility(View.GONE);
+        clickable(c, t, v -> {
+            boolean show = content.getVisibility() != View.VISIBLE;
+            content.setVisibility(show ? View.VISIBLE : View.GONE);
+            t.setText((show ? "▾  " : "▸  ") + label);
+        });
+        box.addView(t);
+        box.addView(content);
+        return box;
+    }
+
+    /** A full-width button with an explanation line under it. */
+    static LinearLayout action(Context c, String label, String explain, View.OnClickListener l) {
+        LinearLayout box = column(c);
+        box.addView(button(c, label, l), new LinearLayout.LayoutParams(-1, -2));
+        if (explain != null) {
+            TextView t = secondary(c, explain);
+            t.setPadding(dp(c, 4), 0, dp(c, 4), dp(c, 8));
+            box.addView(t);
+        }
+        return box;
+    }
+
     static View clickable(Context c, View v, View.OnClickListener l) {
         TypedArray ta = c.obtainStyledAttributes(new int[]{android.R.attr.selectableItemBackground});
         v.setBackground(ta.getDrawable(0));

@@ -17,13 +17,21 @@ import java.util.List;
 final class Enforcer {
     static final String CHANNEL = "drift";
 
+    static final int WORKED = 0, FAILED = 1, DIDNT_TAKE = 2, UNSURE = 3;
+
     static final class Outcome {
         final boolean ok;
+        final int kind;
         final String text;
+        final String error;
+        final Control.State after;
 
-        Outcome(boolean ok, String text) {
-            this.ok = ok;
+        Outcome(int kind, String text, String error, Control.State after) {
+            this.ok = kind == WORKED;
+            this.kind = kind;
             this.text = text;
+            this.error = error;
+            this.after = after;
         }
     }
 
@@ -48,7 +56,7 @@ final class Enforcer {
             String text = "FAILED via " + step.tier.label + " (" + step.how + ")\n" + step.text() + "\n→ " + msg;
             EventLog.add(c, verb + "-FAIL", ctl.id, trigger + " · " + text);
             Store.last(c, ctl.id, verb.toLowerCase(java.util.Locale.ROOT) + " failed via " + step.tier.label + ": " + msg);
-            return new Outcome(false, text);
+            return new Outcome(FAILED, text, msg, null);
         }
         Control.State after = ctl.read(c);
         if (!restoring && !Boolean.TRUE.equals(after.ok)) {
@@ -79,7 +87,7 @@ final class Enforcer {
                 + (output == null || output.trim().isEmpty() ? "" : "\nOutput:\n" + output.trim());
         EventLog.add(c, verb + (ok ? "" : "-UNVERIFIED"), ctl.id, trigger + " · " + text);
         Store.last(c, ctl.id, verb.toLowerCase(java.util.Locale.ROOT) + " via " + step.tier.label + ": " + verdict);
-        return new Outcome(ok, text);
+        return new Outcome(ok ? WORKED : after.ok == null ? UNSURE : DIDNT_TAKE, text, null, after);
     }
 
     /** The step the watchdog would use: the one the user confirmed when holding, else the strongest available. */
@@ -155,13 +163,13 @@ final class Enforcer {
     }
 
     static void notifyDrift(Context c, Control ctl, Control.State s, Step step, String extra) {
-        String body = "Wanted " + ctl.want + ", now " + s.value + "."
+        String body = "Something turned this back to \"" + ctl.human(s) + "\". Holdfast hasn't changed anything."
                 + (extra == null ? "" : "\n" + extra)
-                + (step == null ? "" : "\nRe-apply runs (" + step.tier.label + "):\n" + step.text());
+                + (step == null ? "" : "\nFix it runs:\n" + step.text());
         Notification.Builder b = new Notification.Builder(c, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notify)
-                .setContentTitle(ctl.title + " changed back")
-                .setContentText("Now " + s.value + ". Tap Re-apply to fix.")
+                .setContentTitle(ctl.title + " was changed back")
+                .setContentText("Tap Fix it to change it again.")
                 .setStyle(new Notification.BigTextStyle().bigText(body))
                 .setContentIntent(PendingIntent.getActivity(c, 0, new Intent(c, MainActivity.class),
                         PendingIntent.FLAG_IMMUTABLE))
@@ -170,7 +178,7 @@ final class Enforcer {
             Intent i = new Intent(c, ReapplyReceiver.class).putExtra("id", ctl.id).setAction("reapply:" + ctl.id);
             PendingIntent pi = PendingIntent.getBroadcast(c, ctl.id.hashCode(), i,
                     PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
-            b.addAction(new Notification.Action.Builder(null, "Re-apply", pi).build());
+            b.addAction(new Notification.Action.Builder(null, "Fix it", pi).build());
         }
         try {
             nm(c).notify(ctl.id.hashCode(), b.build());
@@ -182,9 +190,9 @@ final class Enforcer {
     static void notifyResult(Context c, Control ctl, Outcome o) {
         Notification.Builder b = new Notification.Builder(c, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notify)
-                .setContentTitle(ctl.title + (o.ok ? ": re-applied ✓" : ": re-apply failed"))
+                .setContentTitle(ctl.title + (o.ok ? ": fixed ✓" : ": couldn't fix it"))
                 .setStyle(new Notification.BigTextStyle().bigText(o.text))
-                .setContentText(o.ok ? "Verified." : "Open Holdfast for details.")
+                .setContentText(o.ok ? "Checked: it worked." : "Open Holdfast for details.")
                 .setAutoCancel(true);
         if (o.ok) b.setTimeoutAfter(15_000);
         nm(c).notify(ctl.id.hashCode(), b.build());
